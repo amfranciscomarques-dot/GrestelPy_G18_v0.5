@@ -60,11 +60,13 @@ GrestelPy_G18/
 │       │   │       └── custos_anual.yaml    ← Drivers custos anuais (5 anos)
 │       │   ├── historico/
 │       │   │   └── 2024/
-│       │   │       ├── base.yaml      ← Base financeira histórica 2024
-│       │   │       └── mix.yaml       ← Mix de produto real 2024
+│       │   │       ├── base.yaml          ← Base financeira histórica 2024
+│       │   │       ├── mix.yaml           ← Mix de produto real 2024
+│       │   │       ├── produtos.yaml      ← sales_mix e pvu_base 2024 por família de produto
+│       │   │       └── mercadorias.yaml   ← sales_mix, pvu_base, mix_regiao, mix_canal e sazonalidade 2024
 │       │   ├── master/
-│       │   │   ├── produtos.yaml      ← Mestre de produtos
-│       │   │   ├── mercadorias.yaml   ← Mestre de mercadorias
+│       │   │   ├── produtos.yaml      ← Estrutura de custos estável (cip_unitario, detalhe_mp)
+│       │   │   ├── mercadorias.yaml   ← Custo de compra estável (pcu) por família
 │       │   │   └── schedules.yaml     ← Prazos de pagamento/recebimento
 │       │   ├── mix/
 │       │   │   └── mix_comercial.yaml

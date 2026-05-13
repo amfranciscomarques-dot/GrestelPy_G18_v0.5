@@ -225,14 +225,18 @@ As demonstrações financeiras cobrem o período **2024–2029** (2024 = histór
 
 Todos os pressupostos estão em ficheiros YAML editáveis em `src/engine/data/`:
 
-| Diretório | Conteúdo |
+| Diretório / Ficheiro | Conteúdo |
 |---|---|
-| `assumptions/` | Pressupostos gerais (FSE, depreciação, IRC, pessoal) |
-| `drivers/2025/` | Drivers mensais de vendas, custos e mix para 2025 |
-| `drivers/2026_2029/` | Drivers anuais de vendas e custos para 2026–2029 |
-| `historico/2024/` | Base financeira real de 2024 (ponto de partida) |
-| `master/` | Produtos, mercadorias e calendários de pagamento |
-| `contrato/fse.yaml` | FSE contratado por rubrica |
+| `pressupostos/globais.yaml` | Pressupostos gerais (fiscal, prazos, pessoal, ESG) |
+| `pressupostos/2025/` | Macro, vendas, custos e mix mensais 2025 |
+| `pressupostos/2026_2029/` | Macro, vendas e custos anuais 2026–2029 |
+| `historico/2024/base.yaml` | Balanço, DR e DFC reais 2024 (imutável após fecho) |
+| `historico/2024/mix.yaml` | Mix de produto real 2024 |
+| `historico/2024/produtos.yaml` | `sales_mix_2024` e `pvu_base_2024` por família de produto |
+| `historico/2024/mercadorias.yaml` | `sales_mix_2024`, `pvu_base_2024`, `mix_regiao`, `mix_canal` e `sazonalidade` por família de mercadoria |
+| `master/produtos.yaml` | Estrutura de custos estável por produto (`cip_unitario`, `detalhe_mp`) |
+| `master/mercadorias.yaml` | Custo de compra estável por família (`pcu`) |
+| `cenarios/custom_scenarios.yaml` | Cenários customizados persistidos |
 | `subsidiarias/` | Pressupostos Ecogres e Hub Logístico |
 
 Para alterar pressupostos permanentemente, editar o YAML correspondente e reiniciar o servidor (ou recarregar via `--reload`). Para alterações pontuais sem persistência, usar `POST /api/run` com o campo `assumptions`.
