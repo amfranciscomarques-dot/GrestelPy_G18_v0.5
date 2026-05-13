@@ -4,7 +4,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BASE_DIR / 'src'))
 
 from src.api.routes import get_scenarios_all
-from src.engine.dr import build_dr
+from src.engine.demonstracoes.dr import build_dr
 from src.engine.inputs import load
 
 

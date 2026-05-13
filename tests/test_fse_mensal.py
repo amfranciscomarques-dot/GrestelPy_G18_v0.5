@@ -3,8 +3,8 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BASE_DIR / 'src'))
 
-from src.engine.integracao import fse
-from src.engine.operacoes import vendas
+from src.engine.operacional import fse
+from src.engine.operacional import vendas
 from src.engine.inputs import load
 
 

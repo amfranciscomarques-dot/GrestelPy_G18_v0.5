@@ -1,75 +1,139 @@
 cenario: Base
 scenarios:
+
+  # ---------------------------------------------------------------------------
+  # BASE — Referência
+  # Crescimento moderado e consistente com o histórico recente do sector
+  # cerâmico português. Energia estabilizada após o choque 2022-2023.
+  # Acordos salariais IRCT a ~3.5%. Mercados exportadores (USA/UE) estáveis.
+  # ---------------------------------------------------------------------------
   Base:
     label: Base
-    description: Cenário base de projecção 2025-2029
+    description: >
+      Crescimento moderado alinhado com o sector cerâmico português:
+      +3% volume, +3% preço, custos em linha com a inflação.
     overrides: {}
+
+  # ---------------------------------------------------------------------------
+  # UPSIDE — "Expansão Export & Reposicionamento Premium"
+  # Drivers: USD favorável para exportações, boom do turismo europeu alavanca
+  # canal hotelaria, "Made in Portugal" premium ganha quota em UE/USA, hub
+  # logístico operacional reduz custos de distribuição. Volume cresce acima
+  # do sector (4–4.5%) à boleia da penetração em novos clientes hoteleiros e
+  # crescimento do e-commerce. Mix shift para gamas premium suporta ganhos
+  # de preço acima da inflação. Investimentos de eficiência energética
+  # travam crescimento do FSE.
+  # ---------------------------------------------------------------------------
   Upside:
     label: Upside
-    description: Cenário otimista — crescimento de vendas +2pp, redução de custos -1pp
+    description: >
+      Aceleração das exportações (USA/UE), crescimento do canal hotelaria
+      e reposicionamento premium da gama: +4–4.5% volume, +3.5–4% preço,
+      FSE controlado por eficiência energética.
     overrides:
       crescimento_volume_vendas:
-        base_2025: 0.05
-        2026: 0.05
-        2027: 0.05
-        2028: 0.05
-        2029: 0.04
+        base_2025: 0.045
+        2026: 0.045
+        2027: 0.040
+        2028: 0.035
+        2029: 0.030
       crescimento_preco_vendas:
-        base_2025: 0.05
-        2026: 0.05
-        2027: 0.04
-        2028: 0.04
-        2029: 0.03
+        base_2025: 0.040
+        2026: 0.035
+        2027: 0.030
+        2028: 0.030
+        2029: 0.030
       crescimento_fse:
-        2028: 0.04
-        2029: 0.04
+        base_2025: 0.020
+        2026: 0.025
+        2027: 0.030
+        2028: 0.030
+        2029: 0.030
+      crescimento_pessoal:
+        base_2025: 0.030
+        2026: 0.030
+        2027: 0.030
+        2028: 0.030
+        2029: 0.030
+
+  # ---------------------------------------------------------------------------
+  # DOWNSIDE — "Abrandamento Europeu & Pressão Asiática"
+  # Drivers: Recessão/estagnação na Alemanha e França (principais mercados UE),
+  # incerteza tarifária pós-Trump penaliza exportações USA, intensificação da
+  # concorrência chinesa no segmento private label comprime volumes e margens.
+  # Poder de fixação de preço limitado. Acordos IRCT acima do base pressionam
+  # custos de pessoal. Energia mantém pressão estrutural.
+  # ---------------------------------------------------------------------------
   Downside:
     label: Downside
-    description: Cenário pessimista — crescimento de vendas -1pp, aumento de custos +1pp
+    description: >
+      Estagnação da procura na UE, concorrência asiática no private label
+      e incerteza tarifária USA: +1.5–2% volume, +1.5–2% preço,
+      FSE e pessoal acima do base.
     overrides:
       crescimento_volume_vendas:
-        base_2025: 0.02
-        2026: 0.02
-        2027: 0.02
-        2028: 0.01
-        2029: 0.01
+        base_2025: 0.015
+        2026: 0.015
+        2027: 0.020
+        2028: 0.020
+        2029: 0.025
       crescimento_preco_vendas:
-        base_2025: 0.01
-        2026: 0.01
-        2027: 0.01
-        2028: 0.01
-        2029: 0.01
+        base_2025: 0.015
+        2026: 0.015
+        2027: 0.020
+        2028: 0.020
+        2029: 0.020
       crescimento_fse:
-        base_2025: 0.04
-        2026: 0.04
-        2027: 0.04
-        2028: 0.06
-        2029: 0.06
+        base_2025: 0.040
+        2026: 0.045
+        2027: 0.050
+        2028: 0.050
+        2029: 0.050
+      crescimento_pessoal:
+        base_2025: 0.040
+        2026: 0.040
+        2027: 0.035
+        2028: 0.035
+        2029: 0.030
+
+  # ---------------------------------------------------------------------------
+  # STRESS — "Crise Energética & Recessão Global"
+  # Drivers: Choque severo do preço do gás natural (crítico para os fornos
+  # cerâmicos — representam 60-70% do FSE de produção), recessão global
+  # simultânea em UE/USA/ROW, colapso da procura no canal hotelaria,
+  # desvalorização do USD sobre EUR agrava receitas de exportação,
+  # compradores de private label migram para fornecedores asiáticos mais
+  # baratos. Recuperação gradual a partir de 2027 com normalização energética.
+  # Pressão salarial intensa por acordos IRCT e aumento do salário mínimo.
+  # ---------------------------------------------------------------------------
   Stress:
     label: Stress
-    description: Cenário de stress — recessão, inflação elevada, margens comprimidas
+    description: >
+      Choque energético severo nos fornos (gás +80%), recessão global,
+      colapso da hotelaria e fuga para fornecedores asiáticos:
+      volume negativo em 2025, preço flat, FSE +10–12%, recuperação só a partir de 2027.
     overrides:
       crescimento_volume_vendas:
-        base_2025: -0.02
-        2026: 0.0
-        2027: 0.01
-        2028: 0.02
-        2029: 0.02
+        base_2025: -0.030
+        2026: -0.010
+        2027: 0.015
+        2028: 0.025
+        2029: 0.030
       crescimento_preco_vendas:
-        base_2025: 0.0
-        2026: 0.01
-        2027: 0.01
-        2028: 0.01
-        2029: 0.02
+        base_2025: 0.005
+        2026: 0.010
+        2027: 0.015
+        2028: 0.020
+        2029: 0.025
       crescimento_fse:
-        base_2025: 0.06
-        2026: 0.05
-        2027: 0.05
-        2028: 0.06
-        2029: 0.06
+        base_2025: 0.120
+        2026: 0.080
+        2027: 0.060
+        2028: 0.050
+        2029: 0.040
       crescimento_pessoal:
-        base_2025: 0.05
-        2026: 0.05
-        2027: 0.04
-        2028: 0.04
-        2029: 0.05
+        base_2025: 0.050
+        2026: 0.050
+        2027: 0.040
+        2028: 0.040
+        2029: 0.040

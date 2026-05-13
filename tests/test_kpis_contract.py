@@ -1,31 +1,16 @@
+from __future__ import annotations
+
 import sys
 from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BASE_DIR / 'src'))
 
-"""Testes de contrato dos KPIs.
-
-Garantem que engine/kpis.py::build_kpis devolve sempre:
-  - Os campos esperados pelo frontend e pela API.
-  - Tipos numéricos corretos (não None onde não devia, sem NaN
-    a fugir, sem zeros falsos no divida_liquida).
-  - Relações matemáticas internas coerentes (margens batem
-    certo, divida_liquida = NC + C - caixa, etc.).
-
-Estes testes NÃO validam que os valores estão "corretos" do ponto
-de vista financeiro — isso exigia dados de referência auditados.
-Validam que a estrutura e as relações internas se mantêm, para
-apanhar regressões de refactor.
-"""
-
-from __future__ import annotations
-
 import math
 import pytest
 
 from src.engine.inputs import load, ALL_YEARS
-from src.engine.statements import build_statements
-from src.engine.kpis import build_kpis
+from src.engine.demonstracoes.statements import build_statements
+from src.engine.modelo.kpis import build_kpis
 
 
 # ============================================================

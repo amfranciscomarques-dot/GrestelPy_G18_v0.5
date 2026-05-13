@@ -6,7 +6,7 @@ from src.api.schemas import RunRequest
 from src.api.serializers import _fse_mensal_to_rows, _wrap_rows
 from src.engine.inputs import upsert_custom_scenario
 from src.engine.inputs.loader import CENARIOS
-from src.engine.integracao.model import dataframe_to_records, run_model
+from src.engine.modelo.model import dataframe_to_records, run_model
 
 router = APIRouter(prefix="/api")
 

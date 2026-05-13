@@ -28,21 +28,6 @@ balanco_abertura:
     Fornecedores: 3914140.07
     Outros_PC: 6411142.72
 
-investimento:
-  taxa_dep_aft: 0.17
-  taxa_amort_intang: 0.10
-  novo_investimento_aft:
-    2025: 1500000
-    2026: 1200000
-    2027: 1000000
-    2028: 800000
-    2029: 600000
-  novo_investimento_intang:
-    2025: 50000
-    2026: 40000
-    2027: 30000
-    2028: 20000
-    2029: 10000
 # Valores auditados R&C 2024 — usados directamente nas demonstrações (evita recálculo)
 dr_2024_real:
   vn: 37884115.64
@@ -97,21 +82,6 @@ fse_detalhe_2024:
   Marketing_Publicidade: 372905.37
   Outros_FSE: 2509310.48
 saldos_historicos:
-  Subcontratos: 1492621.48
-  Eletricidade: 894972.89
-  Gas_Natural: 447486.44
-  Agua: 89497.29
-  Manutencao: 224743.22
-  Transportes_Fretes: 745810.74
-  Seguros: 149262.15
-  Comunicacoes: 89497.29
-  Honorarios: 224743.22
-  Rendas: 897573.89
-  Limpeza: 149262.15
-  Vigilancia: 134935.93
-  Marketing_Publicidade: 372905.37
-  Outros_FSE: 2509310.48
-saldos_historicos:
   EOEP_devedor: 688519.62
   Outros_credores_locacoes: 1237541.08
 investimento_financiamento_2024:
@@ -149,8 +119,7 @@ outros_rendimentos_2024:
   Rendimentos_Financeiros: 60000
 
 
-#materias-primas
-ficha_materias_primas_2024:
+materias_primas_2024:
   Pasta_ceramica_gres:
     unid: ton
     qtd: 1687.289

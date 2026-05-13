@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Query
 
 from src.engine.inputs import load
-from src.engine.analitica.rolling_forecast_mensal import build_rolling_forecast
+from src.engine.demonstracoes.rolling_forecast_mensal import build_rolling_forecast
 
 router = APIRouter(prefix="/api")
 

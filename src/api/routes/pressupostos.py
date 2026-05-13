@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Query
 
-from src.engine.analitica.pressupostos import build_pressupostos_summary
+from src.engine.modelo.pressupostos import build_pressupostos_summary
 
 router = APIRouter(prefix="/api")
 

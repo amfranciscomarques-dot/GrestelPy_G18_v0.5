@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Query
 
 from src.api.serializers import _build_assumptions_response
-from src.engine.integracao.fse import fse_rubricas_ordered
+from src.engine.operacional.fse import fse_rubricas_ordered
 
 router = APIRouter(prefix="/api")
 

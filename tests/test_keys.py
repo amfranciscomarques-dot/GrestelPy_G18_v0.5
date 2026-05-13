@@ -3,7 +3,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BASE_DIR / 'src'))
 
-from src.engine.fse import FSE_DETALHE_KEYS, fse_rubricas_ordered
+from src.engine.operacional.fse import FSE_DETALHE_KEYS, fse_rubricas_ordered
 from src.engine.inputs import load
 
 

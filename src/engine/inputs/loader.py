@@ -29,15 +29,18 @@ from .models import Assumptions, Base2024, Schedules
 from .paths import (
     ASSUMPTIONS_FILE,
     BASE2024_FILE,
-    BASE_FINANCEIRA_FILE,
     CUSTOS_2025_FILE,
     CUSTOS_2026_2029_FILE,
     ECOGRES_ASSUMPTIONS_FILE,
     HUB_ASSUMPTIONS_FILE,
+    MACRO_2025_FILE,
+    MACRO_2026_2029_FILE,
     MERCADORIAS_FILE,
+    MERCADORIAS_2024_FILE,
     MIX_2024_FILE,
     MIX_2025_FILE,
     PRODUTOS_FILE,
+    PRODUTOS_2024_FILE,
     SCHEDULES_FILE,
     VENDAS_2025_FILE,
     VENDAS_2026_2029_FILE,
@@ -168,15 +171,16 @@ def load(cenario: str = "Base"):
 
     FLUXO INTERNO:
 
-    PASSO 1: Carregamento e mesclagem de assumptions (7 YAML em camadas)
-      - BASE_FINANCEIRA_FILE: demonstrações 2024 reais (referência)
-      - VENDAS_2025_FILE: pressupostos de vendas para período janeiro-setembro 2025
-      - VENDAS_2026_2029_FILE: projeção de vendas completas 2026-2029
-      - CUSTOS_2025_FILE: pressupostos de custos variáveis (base_2025)
+    PASSO 1: Carregamento e mesclagem de pressupostos (9 YAML em camadas)
+      - MACRO_2025_FILE: inflação e câmbio EUR/USD — granularidade mensal 2025
+      - MACRO_2026_2029_FILE: inflação e câmbio EUR/USD — granularidade anual 2026-2029
+      - VENDAS_2025_FILE: pressupostos de vendas 2025
+      - VENDAS_2026_2029_FILE: pressupostos de vendas 2026-2029
+      - CUSTOS_2025_FILE: pressupostos de custos 2025
       - CUSTOS_2026_2029_FILE: pressupostos de custos 2026-2029
       - MIX_2024_FILE: mix real 2024 (base histórica de mercado/canal)
       - MIX_2025_FILE: mix planeamento 2025 (actualizado mensalmente)
-      - ASSUMPTIONS_FILE: driver geral (crescimento FSE, depreciação, imposto, etc.)
+      - ASSUMPTIONS_FILE: globais — fiscal, prazos, pessoal, ESG, sazonalidade
       → Resultado: dicionário consolidado de hipóteses
 
     PASSO 2: Carregamento de catálogos (opcionais)
@@ -212,21 +216,27 @@ def load(cenario: str = "Base"):
     # _load_yaml_layers aplica merge sucessivo (primeira sobrescreve, última ganha)
     assumptions = _normalizar_chaves_ano(
         _load_yaml_layers([
-            BASE_FINANCEIRA_FILE,            # Dados 2024 (ponto de partida)
-            VENDAS_2025_FILE,                 # Hipóteses 2025 (janeiro-setembro)
-            VENDAS_2026_2029_FILE,            # Hipóteses 2026-2029 (completas)
-            CUSTOS_2025_FILE,                 # Custos variáveis 2025
-            CUSTOS_2026_2029_FILE,            # Custos variáveis 2026-2029
-            MIX_2024_FILE,                    # Mix base 2024 (ponto de partida do mix)
-            MIX_2025_FILE,                    # Mix planeamento 2025 (actualizado mensalmente)
-            ASSUMPTIONS_FILE,                 # Drivers gerais (FSE, depr., IR, etc.)
+            MACRO_2025_FILE,                  # Macro 2025 — inflação/câmbio mensal
+            MACRO_2026_2029_FILE,             # Macro 2026-2029 — inflação/câmbio anual
+            VENDAS_2025_FILE,                 # Pressupostos vendas 2025
+            VENDAS_2026_2029_FILE,            # Pressupostos vendas 2026-2029
+            CUSTOS_2025_FILE,                 # Pressupostos custos 2025
+            CUSTOS_2026_2029_FILE,            # Pressupostos custos 2026-2029
+            MIX_2024_FILE,                    # Mix real 2024 (base histórica)
+            MIX_2025_FILE,                    # Mix planeamento 2025
+            ASSUMPTIONS_FILE,                 # Globais — fiscal, prazos, pessoal, ESG
         ])
     )
 
-    # PASSO 2: Carregamento de catálogos
-    produtos = _normalizar_chaves_ano(_yaml_load(PRODUTOS_FILE, required=False))
+    # PASSO 2: Carregamento de catálogos (merge master + histórico 2024)
+    produtos_master = _yaml_load(PRODUTOS_FILE, required=False) or {}
+    produtos_2024   = _yaml_load(PRODUTOS_2024_FILE, required=False) or {}
+    produtos = _normalizar_chaves_ano(_deep_update(produtos_master, produtos_2024))
+
+    mercadorias_master = _yaml_load(MERCADORIAS_FILE, required=False) or {}
+    mercadorias_2024   = _yaml_load(MERCADORIAS_2024_FILE, required=False) or {}
     mercadorias = _normalizar_mercadorias(
-        _normalizar_chaves_ano(_yaml_load(MERCADORIAS_FILE, required=False))
+        _normalizar_chaves_ano(_deep_update(mercadorias_master, mercadorias_2024))
     )
 
     # PASSO 3: Base 2024 e Schedules

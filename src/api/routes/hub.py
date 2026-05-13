@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Query
 
-from src.engine.subsidiarias.hub_logistico import load as hub_load, tornado_hub, viabilidade_hub
+from src.engine.projetos.hub_logistico import load as hub_load, tornado_hub, viabilidade_hub
 
 router = APIRouter(prefix="/api")
 

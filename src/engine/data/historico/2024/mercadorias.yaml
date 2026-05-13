@@ -1,0 +1,85 @@
+# Dados históricos de mercadorias — exercício 2024.
+# Não editar após fecho do exercício.
+# Custos de compra (pcu): ver master/mercadorias.yaml
+
+merchandise_families:
+  Cutelaria:
+    sales_mix_2024: 0.50
+    pvu_base_2024:  15.00
+    mix_regiao:
+      PT:  0.17
+      UE:  0.30
+      USA: 0.35
+      ROW: 0.18
+    mix_canal:
+      Private_Label: 0.30
+      Hotelaria:     0.25
+      Retalho:       0.35
+      E_Commerce:    0.10
+    sazonalidade:
+      Jan: 0.08
+      Fev: 0.08
+      Mar: 0.09
+      Abr: 0.09
+      Mai: 0.09
+      Jun: 0.09
+      Jul: 0.08
+      Ago: 0.06
+      Set: 0.08
+      Out: 0.09
+      Nov: 0.09
+      Dez: 0.08
+
+  Vidros_Cristais:
+    sales_mix_2024: 0.30
+    pvu_base_2024:  6.00
+    mix_regiao:
+      PT:  0.17
+      UE:  0.30
+      USA: 0.35
+      ROW: 0.18
+    mix_canal:
+      Private_Label: 0.30
+      Hotelaria:     0.25
+      Retalho:       0.35
+      E_Commerce:    0.10
+    sazonalidade:
+      Jan: 0.08
+      Fev: 0.08
+      Mar: 0.09
+      Abr: 0.09
+      Mai: 0.09
+      Jun: 0.09
+      Jul: 0.08
+      Ago: 0.06
+      Set: 0.08
+      Out: 0.09
+      Nov: 0.09
+      Dez: 0.08
+
+  Texteis_Acessorios:
+    sales_mix_2024: 0.20
+    pvu_base_2024:  10.00
+    mix_regiao:
+      PT:  0.17
+      UE:  0.30
+      USA: 0.35
+      ROW: 0.18
+    mix_canal:
+      Private_Label: 0.30
+      Hotelaria:     0.25
+      Retalho:       0.35
+      E_Commerce:    0.10
+    sazonalidade:
+      Jan: 0.08
+      Fev: 0.08
+      Mar: 0.09
+      Abr: 0.09
+      Mai: 0.09
+      Jun: 0.09
+      Jul: 0.08
+      Ago: 0.06
+      Set: 0.08
+      Out: 0.09
+      Nov: 0.09
+      Dez: 0.08

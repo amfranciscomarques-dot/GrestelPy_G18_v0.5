@@ -23,7 +23,7 @@ def summary(hub_on: bool = False, ecogres_on: bool = False, cenario: str = "Base
 
     try:
         # import here to avoid heavy imports during server start if engine missing
-        from src.engine.integracao.model import run_model
+        from src.engine.modelo.model import run_model
 
         res = run_model(cenario=cenario, hub_on=hub_on, ecogres_on=ecogres_on)
 

@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Query
 
-from src.engine.subsidiarias.ecogres import ecogres_dr, load as eco_load
+from src.engine.projetos.ecogres import ecogres_dr, load as eco_load
 
 router = APIRouter(prefix="/api")
 

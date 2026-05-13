@@ -10,9 +10,9 @@ class TestFseReconciliations(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         from src.engine.inputs import load, YEARS
-        from src.engine.dr import build_dr
-        from src.engine.tesouraria_mensal import build_dr_mensal
-        from src.engine.fse import FSE_DETALHE_KEYS
+        from src.engine.demonstracoes.dr import build_dr
+        from src.engine.financiamento.tesouraria import build_dr_mensal
+        from src.engine.operacional.fse import FSE_DETALHE_KEYS
 
         cls.YEARS = YEARS
         cls.a, cls.base, cls.sched = load(cenario="Base")

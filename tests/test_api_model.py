@@ -3,7 +3,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BASE_DIR / 'src'))
 
-from src.engine.model import dataframe_to_records, run_model
+from src.engine.modelo.model import dataframe_to_records, run_model
 
 
 def test_run_model_returns_expected_outputs():

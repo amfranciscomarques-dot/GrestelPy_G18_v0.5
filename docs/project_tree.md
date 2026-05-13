@@ -9,6 +9,7 @@ GrestelPy_G18/
 │
 ├── docs/
 │   ├── PEF_2025-26_Resumo_M3_M6_OE4.md
+│   ├── guia_docentes.md
 │   └── project_tree.md                ← Este ficheiro
 │
 ├── src/
@@ -34,7 +35,7 @@ GrestelPy_G18/
 │       │
 │       ├── inputs/                    ← Carregamento de dados e configuração
 │       │   ├── __init__.py
-│       │   ├── loader.py              ← Orquestrador YAML
+│       │   ├── loader.py              ← Orquestrador YAML + cenários
 │       │   ├── models.py              ← Dataclasses (Assumptions, Base2024, Schedules)
 │       │   ├── paths.py               ← Caminhos de ficheiros
 │       │   ├── constants.py
@@ -73,28 +74,28 @@ GrestelPy_G18/
 │       │       └── hub_logistico/
 │       │           └── m6_hub_assumptions.yaml  ← Pressupostos projeto M6
 │       │
-│       ├── operacoes/                 ← Operações (vendas, produção, inventário)
+│       ├── operacional/               ← Actividades operacionais (DFC)
 │       │   ├── __init__.py
 │       │   ├── vendas.py              ← Cálculo de receitas
 │       │   ├── producao.py            ← Planeamento de produção
 │       │   ├── inventarios.py         ← Gestão de inventários
-│       │   └── cmvmc.py               ← CMVMC
-│       │
-│       ├── financas/                  ← Finanças (tesouraria, clientes, financiamento)
-│       │   ├── __init__.py
+│       │   ├── cmvmc.py               ← CMVMC
+│       │   ├── pessoal.py             ← Remunerações e encargos sociais
+│       │   ├── fornecedores.py        ← Gestão de pagáveis
 │       │   ├── clientes.py            ← Gestão de recebíveis
-│       │   ├── tesouraria_mensal.py   ← Tesouraria mensal
-│       │   └── financiamento.py       ← Empréstimos + mapas de dívida
+│       │   └── fse.py                 ← Fornecimentos e Serviços Externos
 │       │
-│       ├── pessoal/                   ← Recursos Humanos
+│       ├── investimento/              ← Actividades de investimento (DFC)
 │       │   ├── __init__.py
-│       │   └── pessoal.py             ← Remunerações e encargos
+│       │   ├── investimento.py        ← CAPEX e calendário de investimento
+│       │   └── viabilidade.py         ← VAN, TIR, Payback, ROIC
 │       │
-│       ├── fornecedores/              ← Fornecedores
+│       ├── financiamento/             ← Actividades de financiamento (DFC)
 │       │   ├── __init__.py
-│       │   └── fornecedores.py        ← Gestão de pagáveis
+│       │   ├── financiamento.py       ← Empréstimos + mapas de dívida
+│       │   └── tesouraria.py          ← Tesouraria mensal (rolling forecast)
 │       │
-│       ├── statements/                ← Demonstrações financeiras
+│       ├── demonstracoes/             ← Demonstrações financeiras
 │       │   ├── __init__.py
 │       │   ├── statements.py          ← Orquestrador (DR + Balanço + DFC)
 │       │   ├── dr.py                  ← Demonstração de Resultados
@@ -102,27 +103,24 @@ GrestelPy_G18/
 │       │   ├── dfc.py                 ← Demonstração de Fluxos de Caixa
 │       │   └── nfm.py                 ← Necessidades de Fundo de Maneio
 │       │
-│       ├── analitica/                 ← Análise e KPIs
+│       ├── modelo/                    ← Orquestração do modelo completo
 │       │   ├── __init__.py
-│       │   ├── kpis.py                ← KPIs (rácios financeiros)
-│       │   ├── pressupostos.py        ← Análise de orçamentos
-│       │   ├── rolling_forecast_mensal.py  ← Rolling forecast
-│       │   └── sensitivity.py         ← Análise de sensibilidade
+│       │   ├── model.py               ← Execução principal (run_model)
+│       │   └── eoep.py                ← Estado e Outros Entes Públicos
 │       │
-│       ├── integracao/                ← Orquestração do modelo
+│       ├── projetos/                  ← Subsidiária + Projeto M6
 │       │   ├── __init__.py
-│       │   ├── model.py               ← Execução principal do modelo
-│       │   ├── fse.py                 ← Integração FSE
-│       │   ├── eoep.py                ← Integração EOEP
-│       │   ├── investimento.py        ← Módulo de investimento
-│       │   └── viabilidade.py         ← VAN, TIR, Payback
+│       │   ├── ecogres.py             ← Modelo financeiro Ecogres (subsidiária)
+│       │   └── hub_logistico.py       ← Modelo financeiro Hub Logístico (Projeto M6)
 │       │
-│       └── subsidiarias/              ← Subsidiária + Projeto M6
+│       └── analitica/                 ← Análise e KPIs
 │           ├── __init__.py
-│           ├── ecogres.py             ← Modelo financeiro Ecogres (subsidiária)
-│           └── hub_logistico.py       ← Modelo financeiro Hub Logístico (projeto M6)
+│           ├── kpis.py                ← KPIs (rácios financeiros, margens, VAN/TIR)
+│           ├── pressupostos.py        ← Análise de orçamentos
+│           ├── rolling_forecast_mensal.py  ← Rolling forecast
+│           └── sensitivity.py         ← Análise de sensibilidade
 │
-└── tests/                             ← Suite de testes
+└── tests/                             ← Suite de testes (27 testes)
     ├── __init__.py
     ├── conftest.py                    ← Fixtures pytest (cenário Base)
     ├── test_api_detail.py

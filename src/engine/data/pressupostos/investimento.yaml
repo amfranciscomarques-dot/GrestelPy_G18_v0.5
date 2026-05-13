@@ -1,0 +1,19 @@
+# CAPEX planeado e taxas de depreciação 2025-2029.
+# Após alterar, regenerar computed/schedules.yaml executando o motor de investimento.
+
+taxa_dep_aft: 0.17
+taxa_amort_intang: 0.10
+
+novo_investimento_aft:
+  2025: 1500000
+  2026: 1200000
+  2027: 1000000
+  2028: 800000
+  2029: 600000
+
+novo_investimento_intang:
+  2025: 50000
+  2026: 40000
+  2027: 30000
+  2028: 20000
+  2029: 10000

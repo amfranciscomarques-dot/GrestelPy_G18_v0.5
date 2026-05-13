@@ -1,0 +1,16 @@
+# Pressupostos macroeconómicos 2026-2029 — inflação e câmbio EUR/USD
+# Granularidade anual.
+
+macro:
+  inflacao:
+    anual:
+      2026: 0.02
+      2027: 0.018
+      2028: 0.017
+      2029: 0.016
+  eur_usd:
+    anual:
+      2026: 1.1
+      2027: 1.12
+      2028: 1.11
+      2029: 1.13

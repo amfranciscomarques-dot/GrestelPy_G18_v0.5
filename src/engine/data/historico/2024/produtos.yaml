@@ -1,0 +1,24 @@
+# Dados históricos de produtos — exercício 2024.
+# Não editar após fecho do exercício.
+# Estrutura (cip_unitario, estrutura_custos): ver master/produtos.yaml
+
+product_families:
+  Pratos:
+    sales_mix_2024: 0.3333
+    pvu_base_2024:  7.00
+
+  Tigelas:
+    sales_mix_2024: 0.2778
+    pvu_base_2024:  5.00
+
+  Canecas:
+    sales_mix_2024: 0.1778
+    pvu_base_2024:  4.50
+
+  Pecas_Servir:
+    sales_mix_2024: 0.1111
+    pvu_base_2024:  12.00
+
+  Forno_Cozinha:
+    sales_mix_2024: 0.1000
+    pvu_base_2024:  8.50

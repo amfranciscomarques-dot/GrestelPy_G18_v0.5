@@ -1,0 +1,36 @@
+# Pressupostos macroeconómicos 2025 — inflação e câmbio EUR/USD
+# Granularidade mensal (12 valores); a taxa anual é calculada pelo motor como média.
+
+macro:
+  inflacao:
+    anual:
+      2025: 0.022
+    mensal_2025:
+    - 0.0018
+    - 0.0018
+    - 0.0018
+    - 0.0018
+    - 0.0018
+    - 0.0018
+    - 0.0018
+    - 0.0018
+    - 0.0018
+    - 0.0018
+    - 0.0018
+    - 0.0018
+  eur_usd:
+    anual:
+      2025: 1.08
+    mensal_2025:
+    - 1.08
+    - 1.08
+    - 1.08
+    - 1.08
+    - 1.08
+    - 1.08
+    - 1.08
+    - 1.08
+    - 1.08
+    - 1.08
+    - 1.08
+    - 1.08
