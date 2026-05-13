@@ -1,0 +1,30 @@
+# Drivers de crescimento de custos para 2025.
+#
+# Formato suportado por variável:
+#   base_2025: <taxa anual>          ← obrigatório; distribui-se automaticamente pelos 12 meses
+#   acrescimos_mensais:              ← opcional; adicionar apenas os meses que desviam da base
+#     Jan: +0.01
+#     Set: -0.01
+#
+# Taxa efectiva de cada mês = (1 + base_2025)^(1/12) - 1 + acrescimo_mes
+# Taxa anual efectiva       = produto dos 12 factores mensais - 1
+
+crescimento_fse:
+  base_2025: 0.03
+  # acrescimos_mensais:
+  #   Mai: 0.01
+  #   Set: -0.01
+
+crescimento_pessoal:
+  base_2025: 0.035
+  # acrescimos_mensais:
+  #   Jul: 0.005
+
+crescimento_custo_mercadorias:
+  base_2025: 0.03
+  # acrescimos_mensais:
+  #   Jan: 0.005
+
+crescimento_pcu_mpsc:
+  base_2025: 0.03
+  # acrescimos_mensais: {}

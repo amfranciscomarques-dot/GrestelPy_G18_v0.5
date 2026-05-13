@@ -1,0 +1,94 @@
+# Catálogo de produtos — dados estruturais estáveis.
+# Mix de mercado e canal: ver historico/2024/mix.yaml e drivers/2025/mix_mensal.yaml
+
+product_families:
+  Pratos:
+    sales_mix_2024: 0.3333
+    pvu_base_2024: 7.00
+    cip_unitario: 6.96
+    estrutura_custos:
+      MOD: 0.30
+      GGF: 0.30
+      FSE: 0.10
+      MP: 0.30
+      detalhe_mp:
+        Pasta_ceramica_gres: 0.1725
+        Vidrados_esmaltes: 0.1275
+
+  Tigelas:
+    sales_mix_2024: 0.2778
+    pvu_base_2024: 5.00
+    cip_unitario: 4.97
+    estrutura_custos:
+      MOD: 0.30
+      GGF: 0.30
+      FSE: 0.10
+      MP: 0.30
+      detalhe_mp:
+        Pasta_ceramica_gres: 0.1125
+        Vidrados_esmaltes: 0.0750
+        Cartao_embalagens: 0.0750
+        Gesso_moldes: 0.0375
+
+  Canecas:
+    sales_mix_2024: 0.1778
+    pvu_base_2024: 4.50
+    cip_unitario: 4.47
+    estrutura_custos:
+      MOD: 0.35
+      GGF: 0.25
+      FSE: 0.10
+      MP: 0.30
+      detalhe_mp:
+        Pasta_ceramica_gres: 0.0943
+        Vidrados_esmaltes: 0.0686
+        Cartao_embalagens: 0.0686
+        Gesso_moldes: 0.0685
+
+  Pecas_Servir:
+    sales_mix_2024: 0.1111
+    pvu_base_2024: 12.00
+    cip_unitario: 6.95
+    estrutura_custos:
+      MOD: 0.30
+      GGF: 0.30
+      FSE: 0.10
+      MP: 0.30
+      detalhe_mp:
+        Pasta_ceramica_gres: 0.1000
+        Vidrados_esmaltes: 0.0667
+        Cartao_embalagens: 0.1000
+        Gesso_moldes: 0.0333
+
+  Forno_Cozinha:
+    sales_mix_2024: 0.1000
+    pvu_base_2024: 8.50
+    cip_unitario: 5.46
+    estrutura_custos:
+      MOD: 0.30
+      GGF: 0.30
+      FSE: 0.10
+      MP: 0.30
+      detalhe_mp:
+        Pasta_ceramica_gres: 0.1333
+        Vidrados_esmaltes: 0.0667
+        Cartao_embalagens: 0.0667
+        Gesso_moldes: 0.0333
+
+raw_materials:
+  Pasta_ceramica_gres:
+    unid: ton
+    qtd: 1687.289
+    pu: 340
+  Vidrados_esmaltes:
+    unid: litro
+    qtd: 223511
+    pu: 2.1
+  Cartao_embalagens:
+    unid: unid
+    qtd: 1258855.029
+    pu: 0.58
+  Gesso_moldes:
+    unid: kg
+    qtd: 651907.069
+    pu: 0.48

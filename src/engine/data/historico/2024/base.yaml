@@ -1,0 +1,196 @@
+balanco_abertura:
+  ativo_nao_corrente:
+    AFT_liquido: 12466455.49
+    Goodwill: 1701103.8
+    Intangiveis: 151088.11
+    Subsidiarias: 3062681.47
+    Ativos_Fin_Justo_Valor: 249000
+    Outros_Ativos_Fixos: 181793.21
+    Impostos_Diferidos_Ativos: 116.17
+  ativo_corrente:
+    Inventarios: 13061556.31
+    Clientes: 4962136
+    Outros_AC: 3880444.15
+    Caixa: 542390.86
+  capital_proprio:
+    Capital_Social: 526318
+    Premios_Emissao: 623684
+    Outros_IC_Proprio: 1233333.32
+    Reservas_Legais: 144220.69
+    Ajust_AF: 2114812.59
+    Resultados_Transitados: 5770439.81
+    Outras_Var_CP: 396649.04
+    RL_2024: 1390208.75
+  passivo:
+    Emprestimos_NC: 12203268.53
+    Impostos_Diferidos_Passivos: 2.77
+    Emprestimos_C: 5530545.28
+    Fornecedores: 3914140.07
+    Outros_PC: 6411142.72
+
+investimento:
+  taxa_dep_aft: 0.17
+  taxa_amort_intang: 0.10
+  novo_investimento_aft:
+    2025: 1500000
+    2026: 1200000
+    2027: 1000000
+    2028: 800000
+    2029: 600000
+  novo_investimento_intang:
+    2025: 50000
+    2026: 40000
+    2027: 30000
+    2028: 20000
+    2029: 10000
+# Valores auditados R&C 2024 — usados directamente nas demonstrações (evita recálculo)
+dr_2024_real:
+  vn: 37884115.64
+  var_inventarios: 131378.22
+  outros_rend: 3742143.26
+  cmvmc: 15298207.99
+  fse: 7463107.43
+  gastos_pessoal: 14371357.70
+  imparidades: 1904.88
+  outros_gastos: 473380.18
+  ebitda: 4149678.94
+  depreciacoes: 2168714.67
+  ebit: 1980964.27
+  juros: 528161.02
+  rend_financeiros: 64677.79
+  rai: 1517481.04
+  irc: 127272.29
+  rl: 1390208.75
+
+# R&C 2024 — DFC método directo consolidado
+dfc_2024_real:
+  recebimentos_clientes: 39676113.70
+  pagamentos_fornecedores: -25706012.11
+  pagamentos_pessoal: -13696972.32
+  fluxo_operacional: -1665311.89
+  capex_aft: -1224709.40
+  dividendos_recebidos: 656742.53
+  fluxo_investimento: -344818.37
+  rec_emprestimos: 17636212.43
+  pag_emprestimos: -14829115.28
+  fluxo_financiamento: 2000679.68
+
+vendas_2024_por_mercado:
+  Mercado_Interno_PT: 6499073.85
+  Mercado_Externo: 31385041.79
+variacao_producao_2024: 131378.22
+regularizacao_amostras_2024: 47590.14
+fse_detalhe_2024:
+  fse_total: 7463107.43
+  Subcontratos: 1492621.48
+  Eletricidade: 894972.89
+  Gas_Natural: 447486.44
+  Agua: 89497.29
+  Manutencao: 224743.22
+  Transportes_Fretes: 745810.74
+  Seguros: 149262.15
+  Comunicacoes: 89497.29
+  Honorarios: 224743.22
+  Rendas: 897573.89
+  Limpeza: 149262.15
+  Vigilancia: 134935.93
+  Marketing_Publicidade: 372905.37
+  Outros_FSE: 2509310.48
+saldos_historicos:
+  Subcontratos: 1492621.48
+  Eletricidade: 894972.89
+  Gas_Natural: 447486.44
+  Agua: 89497.29
+  Manutencao: 224743.22
+  Transportes_Fretes: 745810.74
+  Seguros: 149262.15
+  Comunicacoes: 89497.29
+  Honorarios: 224743.22
+  Rendas: 897573.89
+  Limpeza: 149262.15
+  Vigilancia: 134935.93
+  Marketing_Publicidade: 372905.37
+  Outros_FSE: 2509310.48
+saldos_historicos:
+  EOEP_devedor: 688519.62
+  Outros_credores_locacoes: 1237541.08
+investimento_financiamento_2024:
+  AFT_liquido_2024: 12466455.49
+  taxa_depreciacao_media: 0.1709
+  depreciacao_mensal: 180726.22
+financiamento_2024:
+  Euribor_3M_base_2025: 0.0265
+  Spread_medio_ponderado: 0.015
+  Taxa_variavel_estimada: 0.0415
+  BPI:
+    capital_nominal: 10700000
+    taxa_efetiva: 0.0281
+    amortizacao_mensal: 111458.33
+  IAPMEI:
+    capital_em_divida_2024: 5530545.28
+    taxa: 0
+  Locacoes_Financeiras:
+    capital: 1500000
+    taxa_efetiva: 0.035
+    amortizacao_mensal: 31250
+totais_2024:
+  VN_Produtos_2024: 34095704.08
+  VN_Mercadorias_2024: 3788411.56
+  CMVMC_Mercadorias_2024: 3059641.6
+  CMVMC_Produtos_2024: 12238566.39
+  Margem_Comercial_Implicita: 0.1923682124969548
+  Inventario_Final_Merc_2024: 1373579.51
+  DMI_Mercadorias_dias: 60
+outros_rendimentos_2024:
+  Cedencia_locacoes: 2381183
+  Equivalencia_patrimonial: 843297.6  # R&C 2024 auditado — Costa Nova USA, Inc. (não Ecogres)
+  Subs_Investimento: 215289
+  Subs_Exploracao: 182450
+  Rendimentos_Financeiros: 60000
+
+
+#materias-primas
+ficha_materias_primas_2024:
+  Pasta_ceramica_gres:
+    unid: ton
+    qtd: 1687.289
+    pu: 340
+  Vidrados_esmaltes:
+    unid: litro
+    qtd: 223511
+    pu: 2.1
+  Cartao_embalagens:
+    unid: unid
+    qtd: 1258855.029
+    pu: 0.58
+  Gesso_moldes:
+    unid: kg
+    qtd: 651907.069
+    pu: 0.48
+
+
+# -----------------------------------------------------------------------
+# ESG — Métricas ambientais 2024 (base para objetivo SMART #5)
+# Fonte: fse_detalhe_2024 (Gas_Natural: 447486.44€) + estimativa operacional
+# gas_natural_kwh: 447486€ / 0,15€/kWh ≈ 2.983.000 kWh
+# producao_total_pecas: estimativa baseada em qtd_2024 de todas as SKUs
+# -----------------------------------------------------------------------
+esg_2024:
+  gas_natural_kwh: 2983000
+  producao_total_pecas: 4034437
+  gas_por_peca_kwh: 0.7394
+
+fiscalidade_detalhe_2024:
+  sifide_despesas_elegiveis: 632304.15
+  ice_rendimento_nao_tributavel: 342403
+  majoracao_energia_20pct: 117283
+  tributacao_autonoma: 22302.04
+
+passivos_locacao_lojas:
+  lisboa: 296495.70
+  porto: 336000.00
+  outlet: 150399.31
+
+subsidios_2024:
+  investimento_a_receber: 135153.11
+  investimento_diferido_passivo: 898887.81

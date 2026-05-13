@@ -1,0 +1,35 @@
+incluir_ecogres: false
+
+operacoes_correntes:
+  custos_operacionais_2024:
+    total: 5480000
+  depreciacao_2024: 275000
+  rl_base_2024: 85000
+  crescimento_custos_anual: 0.02
+  crescimento_depreciacao: 0.01
+  elasticidade_pessoal:
+    alpha_sem_hub: 0.40
+    alpha_com_hub: 0.15
+
+transacoes_grestel:
+  subcontratacao_2024: 2240000
+  cedencia_pessoal_2024: 360000
+  crescimento_subcontratacao: 0.03
+  crescimento_cedencia: 0.02
+
+financiamento:
+  rend_financeiros: 5000
+
+viabilidade:
+  irc_taxa_ecogres: 0.21
+
+transferencia_hub:
+  inicio: 2026
+  preco_transferencia_base: 180000
+  crescimento_anual: 0.02
+  custo_operacional_ecogres: 120000
+
+capacidade:
+  ativar_reducao_mpsc: false
+  reducao_mpsc_por_capacidade: 0.15
+  subcontratacao_capacidade_referencia: 2240000

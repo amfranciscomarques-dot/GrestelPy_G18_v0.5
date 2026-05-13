@@ -1,0 +1,62 @@
+version: 1
+
+# Mapeamento declarativo de rubricas de FSE.
+# - `yaml_key` é a chave no YAML base2024.yaml em `fse_detalhe_2024`.
+# - `dr_col` é o nome da coluna exportada para a DR (engine/dr.py e engine/tesouraria_mensal.py).
+# - `label` é o label para renderização na UI (pt-PT).
+
+rubricas:
+  - yaml_key: Subcontratos
+    dr_col: fse_subcontratos
+    label: Subcontratos
+
+  - yaml_key: Eletricidade
+    dr_col: fse_eletricidade
+    label: Eletricidade
+
+  - yaml_key: Gas_Natural
+    dr_col: fse_gas_natural
+    label: Gas Natural
+
+  - yaml_key: Agua
+    dr_col: fse_agua
+    label: Agua
+
+  - yaml_key: Manutencao
+    dr_col: fse_manutencao
+    label: Manutencao e Reparacao
+
+  - yaml_key: Transportes_Fretes
+    dr_col: fse_transportes_fretes
+    label: Transportes e Fretes
+
+  - yaml_key: Seguros
+    dr_col: fse_seguros
+    label: Seguros
+
+  - yaml_key: Comunicacoes
+    dr_col: fse_comunicacoes
+    label: Comunicacoes
+
+  - yaml_key: Honorarios
+    dr_col: fse_honorarios
+    label: Honorarios
+
+  - yaml_key: Rendas
+    dr_col: fse_rendas_alugueres
+    label: Rendas e Alugueres
+
+  - yaml_key: Limpeza
+    dr_col: fse_limpeza
+    label: Limpeza
+
+  - yaml_key: Vigilancia
+    dr_col: fse_vigilancia
+    label: Seguranca e Vigilancia
+
+  - yaml_key: Outros_FSE
+    dr_col: fse_outros_fse
+    label: Outros FSE
+
+# Drivers/ESG: reservado para evolução (ex.: indexação por inflação energia).
+# Para já, o engine usa o detalhe como base operacional.

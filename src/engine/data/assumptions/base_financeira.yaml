@@ -1,0 +1,13 @@
+base_financeira:
+  capital_social: 526318
+  premios_emissao: 623684
+  outros_instrumentos_capital: 1233333.32
+  reservas_legais: 144220.69
+  ajustamentos_ativos_financeiros: 2114812.59
+  resultados_transitados: 5770439.81
+  outras_variacoes_capital_proprio: 396649.04
+  rl_2024: 1390208.75
+  afiliaadas_e_subsidiarias:
+    Costa_Nova_USA_valor: 3062681.47
+    Ecogres_valor: 0
+  impostos_diferidos_ativos: 116.17

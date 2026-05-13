@@ -1,0 +1,28 @@
+# Mix de planeamento 2025 — ficheiro de trabalho do rolling forecast.
+#
+# Actualizar mensalmente à medida que as vendas reais chegam.
+# Valores iniciais = mix real 2024 (historico/2024/mix.yaml).
+#
+# Formato:
+#   _default  → aplica-se a todos os produtos não listados explicitamente
+#   Produto   → override por produto (substitui o _default para esse produto)
+#
+# Exemplo de actualização mensal após receber vendas de Março:
+#   mix_canal_produto:
+#     Pratos:
+#       PT: {Private_Label: 0.32, Hotelaria: 0.23, Retalho: 0.35, E_Commerce: 0.10}
+
+mix_mercado_produto:
+  _default: {PT: 0.17, UE: 0.30, USA: 0.35, ROW: 0.18}
+
+mix_canal_produto:
+  _default:
+    PT:  {Private_Label: 0.30, Hotelaria: 0.25, Retalho: 0.35, E_Commerce: 0.10}
+    UE:  {Private_Label: 0.25, Hotelaria: 0.30, Retalho: 0.25, E_Commerce: 0.20}
+    USA: {Private_Label: 0.20, Hotelaria: 0.35, Retalho: 0.25, E_Commerce: 0.20}
+    ROW: {Private_Label: 0.15, Hotelaria: 0.35, Retalho: 0.30, E_Commerce: 0.20}
+  Pecas_Servir:
+    PT:  {Private_Label: 0.20, Hotelaria: 0.40, Retalho: 0.30, E_Commerce: 0.10}
+    UE:  {Private_Label: 0.20, Hotelaria: 0.40, Retalho: 0.30, E_Commerce: 0.10}
+    USA: {Private_Label: 0.20, Hotelaria: 0.40, Retalho: 0.30, E_Commerce: 0.10}
+    ROW: {Private_Label: 0.20, Hotelaria: 0.40, Retalho: 0.30, E_Commerce: 0.10}

@@ -1,0 +1,75 @@
+cenario: Base
+scenarios:
+  Base:
+    label: Base
+    description: Cenário base de projecção 2025-2029
+    overrides: {}
+  Upside:
+    label: Upside
+    description: Cenário otimista — crescimento de vendas +2pp, redução de custos -1pp
+    overrides:
+      crescimento_volume_vendas:
+        base_2025: 0.05
+        2026: 0.05
+        2027: 0.05
+        2028: 0.05
+        2029: 0.04
+      crescimento_preco_vendas:
+        base_2025: 0.05
+        2026: 0.05
+        2027: 0.04
+        2028: 0.04
+        2029: 0.03
+      crescimento_fse:
+        2028: 0.04
+        2029: 0.04
+  Downside:
+    label: Downside
+    description: Cenário pessimista — crescimento de vendas -1pp, aumento de custos +1pp
+    overrides:
+      crescimento_volume_vendas:
+        base_2025: 0.02
+        2026: 0.02
+        2027: 0.02
+        2028: 0.01
+        2029: 0.01
+      crescimento_preco_vendas:
+        base_2025: 0.01
+        2026: 0.01
+        2027: 0.01
+        2028: 0.01
+        2029: 0.01
+      crescimento_fse:
+        base_2025: 0.04
+        2026: 0.04
+        2027: 0.04
+        2028: 0.06
+        2029: 0.06
+  Stress:
+    label: Stress
+    description: Cenário de stress — recessão, inflação elevada, margens comprimidas
+    overrides:
+      crescimento_volume_vendas:
+        base_2025: -0.02
+        2026: 0.0
+        2027: 0.01
+        2028: 0.02
+        2029: 0.02
+      crescimento_preco_vendas:
+        base_2025: 0.0
+        2026: 0.01
+        2027: 0.01
+        2028: 0.01
+        2029: 0.02
+      crescimento_fse:
+        base_2025: 0.06
+        2026: 0.05
+        2027: 0.05
+        2028: 0.06
+        2029: 0.06
+      crescimento_pessoal:
+        base_2025: 0.05
+        2026: 0.05
+        2027: 0.04
+        2028: 0.04
+        2029: 0.05

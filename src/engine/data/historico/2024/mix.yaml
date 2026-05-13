@@ -1,0 +1,30 @@
+# Mix real 2024 — registo histórico, base para planeamento 2025.
+# Não editar após fecho do exercício.
+# Para planeamento 2025 editar: drivers/2025/mix_mensal.yaml
+
+# Peso de cada produto no VN total de produtos
+mix_produto:
+  Pratos:        0.3333
+  Tigelas:       0.2778
+  Canecas:       0.1778
+  Pecas_Servir:  0.1111
+  Forno_Cozinha: 0.1000
+
+# Distribuição por mercado (região) por produto.
+# _default aplica-se a todos os produtos não listados explicitamente.
+mix_mercado_produto:
+  _default: {PT: 0.17, UE: 0.30, USA: 0.35, ROW: 0.18}
+
+# Distribuição por canal por produto × mercado.
+# _default aplica-se a todos os produtos não listados explicitamente.
+mix_canal_produto:
+  _default:
+    PT:  {Private_Label: 0.30, Hotelaria: 0.25, Retalho: 0.35, E_Commerce: 0.10}
+    UE:  {Private_Label: 0.25, Hotelaria: 0.30, Retalho: 0.25, E_Commerce: 0.20}
+    USA: {Private_Label: 0.20, Hotelaria: 0.35, Retalho: 0.25, E_Commerce: 0.20}
+    ROW: {Private_Label: 0.15, Hotelaria: 0.35, Retalho: 0.30, E_Commerce: 0.20}
+  Pecas_Servir:
+    PT:  {Private_Label: 0.20, Hotelaria: 0.40, Retalho: 0.30, E_Commerce: 0.10}
+    UE:  {Private_Label: 0.20, Hotelaria: 0.40, Retalho: 0.30, E_Commerce: 0.10}
+    USA: {Private_Label: 0.20, Hotelaria: 0.40, Retalho: 0.30, E_Commerce: 0.10}
+    ROW: {Private_Label: 0.20, Hotelaria: 0.40, Retalho: 0.30, E_Commerce: 0.10}

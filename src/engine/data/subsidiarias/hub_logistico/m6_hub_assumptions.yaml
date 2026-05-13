@@ -1,0 +1,42 @@
+incluir_hub: false
+
+projeto_hub:
+  capex:
+    base: 5500000
+    cronograma:
+      2025: 3300000
+      2026: 2200000
+    taxa_depreciacao: 0.10
+    vida_util_anos: 10
+
+  ano_inicio_beneficios: 2026
+
+  financiamento:
+    Banco_Hub:
+      montante: 4125000
+      taxa_juro: 0.0415
+      amortizacao_anual: 412500
+      inicio_amortizacao: 2028
+      desembolso: 2025
+    PT2030:
+      montante: 2200000
+      ano_recebimento: 2027
+
+  beneficios_anuais:
+    poupanca_operacional: 300000
+    reducao_quebras: 75000
+    opex_incremental: 120000
+    beneficio_liquido_anual: 255000
+    crescimento_anual: 0.02
+
+  beneficios_pontuais:
+    libertacao_inventario: 1500000
+    ano: 2026
+
+  opex_detalhe:
+    total: 120000
+
+  viabilidade:
+    wacc: 0.08
+    taxa_crescimento_terminal: 0.015
+    horizonte_anos: 10
