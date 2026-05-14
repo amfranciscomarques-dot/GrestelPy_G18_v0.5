@@ -394,9 +394,9 @@ const GRESTEL = (() => {
   }
 
   // Hub Logístico — viabilidade
-  function hubViability(irc_taxa = 0.21) {
+  function hubViability(wacc = 0.08) {
     // Reconstrução das contas do m6_hub_assumptions.yaml
-    const wacc = 0.08;
+    const irc_taxa = 0.21;
     const capex = [0, 3300000, 2200000, 0, 0, 0, 0, 0, 0, 0, 0]; // 2025-2034 (idx0 = 2024)
     const beneficio_anual_base = 255000;
     const fcf_livre = [];
