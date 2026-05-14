@@ -509,5 +509,43 @@ def rolling_update(
     return df
 
 
+def build_pessoal_mensal(
+    a: Assumptions,
+    base: Base2024,
+    sched: Schedules,
+) -> pd.DataFrame:
+    """Gastos com pessoal mensais de 2025 como output independente.
+
+    Distribuição: 1/14 por mês, duplicado em Jun (sub. férias) e Nov (sub. natal).
+
+    Returns:
+        DataFrame com colunas: mes, gastos_pessoal.
+    """
+    _, _, _, pessoal_m, _ = _build_mensais_2025(a, base, sched)
+    return pd.DataFrame([
+        {"mes": m, "gastos_pessoal": round(pessoal_m[m])}
+        for m in MESES
+    ])
+
+
+def build_cmvmc_mensal(
+    a: Assumptions,
+    base: Base2024,
+    sched: Schedules,
+) -> pd.DataFrame:
+    """CMVMC mensal de 2025 como output independente.
+
+    Distribuição sazonal ponderada por mercado (igual à usada no DR mensal).
+
+    Returns:
+        DataFrame com colunas: mes, cmvmc.
+    """
+    _, _, cmvmc_m, _, _ = _build_mensais_2025(a, base, sched)
+    return pd.DataFrame([
+        {"mes": m, "cmvmc": round(cmvmc_m[m])}
+        for m in MESES
+    ])
+
+
 # Alias de compatibilidade (usado em rolling_forecast_mensal.py)
 build_tesouraria = build_tesouraria_mensal

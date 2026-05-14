@@ -5,7 +5,7 @@ taxa_dep_aft: 0.17
 taxa_amort_intang: 0.10
 
 novo_investimento_aft:
-  2025: 1500000
+  2025: 900000   # flagship Madrid + outlet Lisboa + modernização equipamento
   2026: 1200000
   2027: 1000000
   2028: 800000

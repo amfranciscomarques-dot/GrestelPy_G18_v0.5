@@ -171,6 +171,18 @@ def run_model(
                      "pa_stock_ei", "pa_stock_ef", "var_pa"]
         )
 
+    # Pessoal mensal 2025 — output independente
+    try:
+        dfs["pessoal_mensal_2025"] = teso_mod.build_pessoal_mensal(a, base, sched)
+    except Exception:
+        dfs["pessoal_mensal_2025"] = pd.DataFrame(columns=["mes", "gastos_pessoal"])
+
+    # CMVMC mensal 2025 — output independente
+    try:
+        dfs["cmvmc_mensal_2025"] = teso_mod.build_cmvmc_mensal(a, base, sched)
+    except Exception:
+        dfs["cmvmc_mensal_2025"] = pd.DataFrame(columns=["mes", "cmvmc"])
+
     return dfs
 
 

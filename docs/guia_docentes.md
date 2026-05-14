@@ -28,6 +28,8 @@ O **GrestelPy** é uma ferramenta de planeamento financeiro desenvolvida em Pyth
 | DR mensal completa | `dr_mensal_2025` | 12 meses × 26 colunas |
 | Orçamento de tesouraria | `tesouraria_mensal_2025` | 12 meses × 15 colunas |
 | FSE por rubrica | `fse_detalhe_mensal_2025` | dict: 14 rubricas × 12 meses |
+| Pessoal mensal | `pessoal_mensal_2025` | 12 meses × 2 colunas (mes, gastos_pessoal) |
+| CMVMC mensal | `cmvmc_mensal_2025` | 12 meses × 2 colunas (mes, cmvmc) |
 
 > **Princípio bottom-up para 2025:** os saldos EOEP no Balanço de 2025 são derivados do calendário mensal:
 > - EOEP devedor/credor IVA = saldo IVA de Nov + Dez (pagamento M+2, pendente em Jan/Fev 2026)
@@ -198,9 +200,11 @@ run_model()
     │
     ├── build_statements()           ← DR → Balanço (EOEP 2025 derivado do mensal) → DFC
     │
-    ├── vendas_mensais_2025()        ← NOVO: VN mensal por produto/mercado
-    ├── build_dr_mensal()            ← NOVO: DR mensal 2025
-    ├── build_tesouraria_mensal()    ← NOVO: Tesouraria mensal 2025
+    ├── vendas_mensais_2025()        ← VN mensal por produto/mercado
+    ├── build_dr_mensal()            ← DR mensal 2025
+    ├── build_tesouraria_mensal()    ← Tesouraria mensal 2025
+    ├── build_pessoal_mensal()       ← Pessoal mensal (14 salários)
+    ├── build_cmvmc_mensal()         ← CMVMC mensal (sazonalidade ponderada)
     ├── fse_detalhe_mensal_2025()    ← FSE 14 rubricas mensais
     │
     ├── fse_detalhe_anual()          ← FSE anual por rubrica
@@ -232,7 +236,7 @@ dataframe_to_records() ──► API (JSON)
 | `master/produtos.yaml` | Estrutura de custos (CIP, MP) — estável | ✓ (raramente) |
 | `master/mercadorias.yaml` | Custo de compra (`pcu`) por família | ✓ (raramente) |
 | `master/fse_rubricas.yaml` | Contrato de rubricas FSE | ✓ (raramente) |
-| `computed/schedules.yaml` | Investimento, financiamento, EOEP saldos pré-calculados | ✗ (gerado) |
+| `computed/schedules.yaml` | CAPEX, amortizações, juros, depreciações, saldos empréstimos — parâmetros BAU | ✓ (BAU) |
 | `cenarios/custom_scenarios.yaml` | Cenários customizados guardados via API | ✗ (gerido pela API) |
 | `subsidiarias/ecogres/` | Pressupostos Ecogres | ✓ |
 | `subsidiarias/hub_logistico/` | Pressupostos Hub M6 | ✓ |
@@ -247,7 +251,7 @@ dataframe_to_records() ──► API (JSON)
 | Orçamento de produção | `producao_anual` em `run_model` | ✅ |
 | Orçamento gastos com pessoal | `pessoal_contab_anual`, `pessoal_depart_anual` | ✅ |
 | Orçamento FSE mensal (14 rubricas) | `fse_detalhe_mensal_2025` | ✅ |
-| Orçamento CMVMC | `cmvmc_anual` (anual); mensal via `dr_mensal_2025` | ✅ |
+| Orçamento CMVMC | `cmvmc_anual` (anual); `cmvmc_mensal_2025` (mensal independente) | ✅ |
 | Calendarização fiscal (IVA, SS, IRC) | `eoep_mensal_2025` | ✅ |
 | Orçamento de tesouraria mensal | `tesouraria_mensal_2025` | ✅ |
 | Necessidades de Fundo de Maneio | `nfm_mensal` (rolling forecast) | ✅ |
@@ -259,10 +263,50 @@ dataframe_to_records() ──► API (JSON)
 | VAN, TIR, Payback Hub M6 | `GET /api/hub/viability` | ✅ |
 | Subsidiária Ecogres | `GET /api/ecogres` | ✅ |
 | Outputs mensais expostos na API | `GET /api/scenarios/all` (parcial) | ⚠️ pendente |
+| Gastos pessoal mensal independente | `pessoal_mensal_2025` em `run_model` | ✅ |
+| CMVMC mensal independente | `cmvmc_mensal_2025` em `run_model` | ✅ |
+| Base BAU M6 solidificada | `schedules.yaml` — CAPEX 900k, amort. 5,53M | ✅ |
 
 ---
 
-## 8. Verificação rápida
+## 8. Testes automatizados
+
+`tests/test_mensais_reconciliacao.py` — **41 testes**, organizados em 3 grupos:
+
+| Grupo | Nº testes | O que verifica |
+|---|---|---|
+| **Estrutura e regressão** | 20 | 12 linhas, colunas obrigatórias, sem NaN, ordem MESES correcta; 14 salários (Jun/Nov = 2×); Agosto menor (sazonalidade) |
+| **Reconciliação mensal ↔ anual** | 9 | `sum(dr_mensal.vn) ≈ dr[2025].vn` e análogo para CMVMC, FSE, pessoal; EBITDA = VN − CMVMC − FSE − pessoal linha a linha |
+| **EOEP fiscal derivado** | 12 | EOEP devedor = \|IVA Nov+Dez\|; art.º 105.º CIRC (PPC só Jul/Set/Dez); SS desfasado 1 mês; saldo Dez ≈ referência anual |
+
+> **Nota:** o DR mensal é simplificado (sem `outros_rendimentos`), pelo que a soma anual do EBITDA mensal não reconcilia com o EBITDA anual completo — comportamento esperado e documentado nos docstrings dos testes.
+
+```bash
+pytest tests/test_mensais_reconciliacao.py -v
+```
+
+---
+
+## 9. Base BAU para M6
+
+Antes de activar o Hub Logístico (`hub_on=true`), o `schedules.yaml` deve reflectir o plano estratégico BAU da gerência. Valores de referência ajustados em 2026-05-14:
+
+| Parâmetro | Anterior | Novo (BAU M6) | Justificação |
+|---|---|---|---|
+| CAPEX AFT 2025 | 500k | **900k** | Flagship Madrid + outlet Lisboa + modernização |
+| Amortizações 2025 | 7.951k | **5.531k** | Paga só IAPMEI; moratória em BPI/Santander/CGD/Abanca |
+| Empréstimos NC fim-2025 | 8.873k | **12.549k** | Dívida comercial mantida (sem amortização) |
+| Empréstimos C fim-2025 | 2.043k | **788k** | Apenas Santander + Locações vencíveis em 2026 |
+| Juros 2025 | 382k | **419k** | Maior dívida média em circulação |
+| Dividendos distribuídos 2025 | 0 | **0** | Resultado 2024 aplicado em reservas |
+
+Gearing estimado fim-2025: **44%** (intervalo alvo 40–65%).
+
+Para repor os valores originais ou ajustar individualmente, editar directamente `src/engine/data/computed/schedules.yaml` nas secções `investimento` e `financiamento`.
+
+---
+
+## 10. Verificação rápida
 
 ```bash
 # Estado do servidor
@@ -289,7 +333,7 @@ pytest tests/
 
 ---
 
-## 9. Notas técnicas
+## 11. Notas técnicas
 
 - Servidor na porta **8000**; alterar com `--port XXXX`.
 - Modo `--reload` reinicia quando qualquer `.py` ou `.yaml` é alterado.
@@ -299,4 +343,4 @@ pytest tests/
 
 ---
 
-*GrestelPy · Engine v0.5+ · PEF 2025-26 · Grupo G18 · ISCA-UA · actualizado 2026-05-14*
+*GrestelPy · Engine v0.6+ · PEF 2025-26 · Grupo G18 · ISCA-UA · actualizado 2026-05-14*
