@@ -1,3 +1,16 @@
+#Projeto com 5 vetores tecnologicos 
+#VLMs + Cobots + AMRs + Box-on-Demand -> interligados entre si controlados por Digital twin 
+##CAPEX estimado para terrenos 500k a 1M?
+#CAPEX em construção -> 2.2M a 3.3M
+#honorarios em multiplos projetos de especialidade 70k a 130k
+#taxas urbanisticas 15k a 35k
+#investimento em pavimento tecnico 165k a 238k
+#4 modulos VLM 300k-360k por modulo de 14 metros -> total 4 modulos = 1.2M a 1.5M
+#3 a 4 estaçoes pick and pack -> 270k a 550k
+#5 AMRs + support system -> 650k a 950k
+#linha para box-on-demand 250k a 350k
+#wms + digital twin -> 350k a 650k
+#integraçao + cad + formaçao + transporte 250k a 450k
 incluir_hub: false
 
 projeto_hub:
@@ -23,20 +36,21 @@ projeto_hub:
       ano_recebimento: 2027
 
   beneficios_anuais:
-    poupanca_operacional: 300000
-    reducao_quebras: 75000
-    opex_incremental: 120000
+    poupanca_operacional: 300000 #440k por ano -> impacto pleno a partir do 3º ano, reduçao tempos mortos, etc
+    reducao_quebras: 75000 #80k anuais box oon demand
+    opex_incremental: 120000 #so cresce até ao ano 3? 
+
     beneficio_liquido_anual: 255000
     crescimento_anual: 0.02
 
   beneficios_pontuais:
-    libertacao_inventario: 1500000
+    libertacao_inventario: 1500000     #libertaçao de inventario 650k (quando)?
     ano: 2026
 
   opex_detalhe:
     total: 120000
 
   viabilidade:
-    wacc: 0.08
-    taxa_crescimento_terminal: 0.015
+    wacc: 0.08 
+    taxa_crescimento_terminal: 0.015 #?
     horizonte_anos: 10
