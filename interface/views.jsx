@@ -667,12 +667,12 @@ function RollingView({ ctx }) {
 
 // ---- Hub Logístico ---------------------------------------------------------
 function HubView({ ctx }) {
-  const [irc, setIrc] = useState(0.225);
+  const [wacc, setWacc] = useState(0.08);
   const [viab, setViab] = useState(null);
   const [torn, setTorn] = useState(null);
 
   useEffect(() => {
-    fetch(`/api/hub/viability?irc_taxa=${irc}`)
+    fetch(`/api/hub/viability?wacc=${wacc}`)
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
       .then(data => {
         const fcf = data.fcf || [];
@@ -683,8 +683,8 @@ function HubView({ ctx }) {
         const anos = Array.from({ length: fcf.length }, (_, i) => 2024 + i);
         setViab({ ...data, fcf, fcf_cumulativo, anos });
       })
-      .catch(() => setViab(GRESTEL.hubViability(irc)));
-  }, [irc]);
+      .catch(() => setViab(GRESTEL.hubViability(wacc)));
+  }, [wacc]);
 
   useEffect(() => {
     fetch("/api/hub/tornado")
@@ -693,7 +693,7 @@ function HubView({ ctx }) {
       .catch(() => setTorn(GRESTEL.hubTornado()));
   }, []);
 
-  const viabData = viab || GRESTEL.hubViability(irc);
+  const viabData = viab || GRESTEL.hubViability(wacc);
   const tornData = torn || GRESTEL.hubTornado();
 
   const fcfSeries = [
@@ -712,11 +712,11 @@ function HubView({ ctx }) {
 
       <Panel
         title="Fluxos de caixa livres · projeto Hub Logístico (M6)"
-        sub={"CAPEX € 5,5 M (2025-26) · benefício líquido base 255 k€/ano · IRC " + fmt.pct(irc)}
+        sub={"CAPEX € 5,5 M (2025-26) · benefício líquido base 255 k€/ano · WACC " + fmt.pct(wacc)}
         right={
           <div className="seg seg--sm">
-            {[0.17, 0.20, 0.21, 0.225, 0.24].map(t => (
-              <button key={t} className={"seg-btn " + (Math.abs(irc - t) < 0.001 ? "is-on" : "")} onClick={() => setIrc(t)}>{fmt.pct(t, 1)}</button>
+            {[0.06, 0.07, 0.08, 0.09, 0.10].map(t => (
+              <button key={t} className={"seg-btn " + (Math.abs(wacc - t) < 0.001 ? "is-on" : "")} onClick={() => setWacc(t)}>{fmt.pct(t, 1)}</button>
             ))}
           </div>
         }
