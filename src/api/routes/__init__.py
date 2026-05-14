@@ -20,6 +20,7 @@ from .rolling import get_rolling_forecast, post_rolling_forecast
 from .rolling import router as rolling_router
 from .scenarios import get_scenarios_all, post_run
 from .scenarios import router as scenarios_router
+from .smart import router as smart_router
 
 router = APIRouter()
 router.include_router(pressupostos_router)
@@ -29,3 +30,4 @@ router.include_router(hub_router)
 router.include_router(ecogres_router)
 router.include_router(custom_router)
 router.include_router(rolling_router)
+router.include_router(smart_router)

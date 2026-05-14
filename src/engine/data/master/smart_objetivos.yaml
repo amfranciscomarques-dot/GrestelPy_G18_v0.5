@@ -1,0 +1,56 @@
+objetivos:
+  - id: vn_2025
+    nome: Volume de Negócios
+    categoria: economica
+    descricao: "Atingir VN de 45,6 M€ até dezembro de 2025 (crescimento 20,3% vs 2024)"
+    kpi_field: vn
+    fonte: kpis
+    anos_alvo: [2025]
+    alvo: 45600000
+    operador: gte
+    unidade: EUR
+
+  - id: ebitda_margin_2025
+    nome: Margem EBITDA
+    categoria: economica
+    descricao: "Elevar margem EBITDA para ≥19,5% em 2025 via eficiência 4.0 e logística Ecogres"
+    kpi_field: margem_ebitda
+    fonte: kpis
+    anos_alvo: [2025]
+    alvo: 0.195
+    operador: gte
+    unidade: pct
+
+  - id: autonomia_financeira
+    nome: Autonomia Financeira Ajustada
+    categoria: financeira
+    descricao: "Manter autonomia financeira ≥35% em todos os exercícios do plano (covenant ≥30%)"
+    kpi_field: autonomia_financeira
+    fonte: kpis
+    anos_alvo: [2025, 2026, 2027, 2028, 2029]
+    alvo: 0.35
+    operador: gte
+    unidade: pct
+    covenant_limite: 0.30
+
+  - id: ccc_2027
+    nome: Ciclo de Conversão de Caixa
+    categoria: operacional
+    descricao: "Reduzir CCC para ≤260 dias até junho de 2027 via hub logístico e plataforma B2B"
+    kpi_field: ciclo_caixa
+    fonte: kpis
+    anos_alvo: [2027]
+    alvo: 260
+    operador: lte
+    unidade: dias
+
+  - id: gas_peca_2026
+    nome: Consumo Gás Natural por Peça
+    categoria: esg
+    descricao: "Reduzir 10% o consumo de gás por peça até 2026 via misturas de hidrogénio"
+    kpi_field: var_vs_2024
+    fonte: gas
+    anos_alvo: [2026]
+    alvo: -0.10
+    operador: lte
+    unidade: pct

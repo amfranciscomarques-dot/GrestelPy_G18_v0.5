@@ -1,6 +1,6 @@
 # GrestelPy — Project Tree
 
-> Estado actual: Engine v0.5+ · actualizado 2026-05-14
+> Estado actual: Engine v0.6+ · actualizado 2026-05-14
 
 ```
 GrestelPy_G18/
@@ -12,6 +12,7 @@ GrestelPy_G18/
 ├── docs/
 │   ├── PEF_2025-26_Resumo_M3_M6_OE4.md  ← Enquadramento académico completo
 │   ├── guia_docentes.md                  ← Documentação endpoints e outputs
+│   ├── SMART.md                          ← Definição dos 5 objetivos SMART (M3)
 │   └── project_tree.md                   ← Este ficheiro
 │
 ├── interface/                             ← Interface web (HTML/JS/CSS)
@@ -31,7 +32,8 @@ GrestelPy_G18/
 │   │       ├── custom_scenarios.py       ← CRUD cenários customizados
 │   │       ├── rolling.py                ← Rolling forecast mensal
 │   │       ├── hub.py                    ← Projecto Hub Logístico (M6)
-│   │       └── ecogres.py                ← Subsidiária Ecogres
+│   │       ├── ecogres.py                ← Subsidiária Ecogres
+│   │       └── smart.py                  ← GET /api/smart/tracker (objetivos SMART)
 │   │
 │   └── engine/                           ← Motor de cálculo financeiro
 │       ├── __init__.py
@@ -69,7 +71,8 @@ GrestelPy_G18/
 │       │   ├── master/
 │       │   │   ├── produtos.yaml         ← Estrutura de custos estável (cip, detalhe_mp)
 │       │   │   ├── mercadorias.yaml      ← Custo de compra (pcu) por família
-│       │   │   └── fse_rubricas.yaml     ← Contrato 14 rubricas FSE
+│       │   │   ├── fse_rubricas.yaml     ← Contrato 14 rubricas FSE
+│       │   │   └── smart_objetivos.yaml  ← 5 objetivos SMART: targets, anos, operadores
 │       │   │
 │       │   ├── computed/
 │       │   │   └── schedules.yaml        ← Gerado: investimento, financiamento, EOEP saldos
@@ -124,7 +127,8 @@ GrestelPy_G18/
 │       │   │                               tesouraria_mensal_2025, fse_detalhe_mensal_2025
 │       │   ├── eoep.py                   ← eoep_calendario_mensal ← MENSAL (bottom-up 2025)
 │       │   │                               eoep_anual (df_mensal= para derivar saldos 2025)
-│       │   ├── kpis.py                   ← KPIs e rácios financeiros
+│       │   ├── kpis.py                   ← KPIs e rácios financeiros + gas_por_peca_anual (ESG)
+│       │   ├── smart.py                  ← build_smart_tracker() → status cumprido/em_risco/nao_cumprido
 │       │   ├── pressupostos.py           ← Análise de orçamentos
 │       │   └── sensitivity.py            ← Análise de sensibilidade (tornado)
 │       │

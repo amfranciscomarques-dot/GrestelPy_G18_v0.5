@@ -186,6 +186,39 @@ Persistem em `src/engine/data/cenarios/custom_scenarios.yaml`.
 
 ---
 
+### 4.9 Tracker de Objetivos SMART (M3)
+
+```
+GET /api/smart/tracker?cenario=Base&hub_on=false&ecogres_on=false
+```
+
+Retorna uma linha por objetivo × ano com status de cumprimento calculado a partir da projeção do modelo:
+
+| Campo | Descrição |
+|---|---|
+| `id` | Identificador do objetivo (`vn_2025`, `ebitda_margin_2025`, …) |
+| `nome` | Nome legível |
+| `categoria` | `economica` / `financeira` / `operacional` / `esg` |
+| `ano` | Ano de avaliação |
+| `valor` | Valor projetado pelo modelo |
+| `alvo` | Target SMART definido em `smart_objetivos.yaml` |
+| `status` | `cumprido` / `em_risco` (desvio ≤5%) / `nao_cumprido` |
+| `desvio_pct` | `(valor − alvo) / |alvo|` |
+
+**Objetivos cobertos:**
+
+| ID | KPI fonte | Alvo | Ano(s) |
+|---|---|---|---|
+| `vn_2025` | `kpis.vn` | ≥ 45,6 M€ | 2025 |
+| `ebitda_margin_2025` | `kpis.margem_ebitda` | ≥ 19,5% | 2025 |
+| `autonomia_financeira` | `kpis.autonomia_financeira` | ≥ 35% | 2025–2029 |
+| `ccc_2027` | `kpis.ciclo_caixa` | ≤ 260 dias | 2027 |
+| `gas_peca_2026` | `gas_por_peca_anual.var_vs_2024` | ≤ −10% | 2026 |
+
+Os objetivos são declarados em `src/engine/data/master/smart_objetivos.yaml` — editar para ajustar targets sem tocar em código.
+
+---
+
 ## 5. Fluxo de cálculo interno
 
 ```
@@ -215,6 +248,16 @@ run_model()
     │
     ▼
 dataframe_to_records() ──► API (JSON)
+
+                              ↑ também usado por:
+                         smart/tracker
+                           build_kpis() + gas_por_peca_anual()
+                                    │
+                         build_smart_tracker()  ← smart.py
+                           compara projeção vs. smart_objetivos.yaml
+                                    │
+                                    ▼
+                         status: cumprido / em_risco / nao_cumprido
 ```
 
 ---
@@ -266,6 +309,7 @@ dataframe_to_records() ──► API (JSON)
 | Gastos pessoal mensal independente | `pessoal_mensal_2025` em `run_model` | ✅ |
 | CMVMC mensal independente | `cmvmc_mensal_2025` em `run_model` | ✅ |
 | Base BAU M6 solidificada | `schedules.yaml` — CAPEX 900k, amort. 5,53M | ✅ |
+| Sistematização objetivos SMART (M3) | `GET /api/smart/tracker` + `smart_objetivos.yaml` | ✅ |
 
 ---
 
@@ -343,4 +387,4 @@ pytest tests/
 
 ---
 
-*GrestelPy · Engine v0.6+ · PEF 2025-26 · Grupo G18 · ISCA-UA · actualizado 2026-05-14*
+*GrestelPy · Engine v0.6+ · PEF 2025-26 · Grupo G18 · ISCA-UA · actualizado 2026-05-14 · SMART tracker adicionado*
