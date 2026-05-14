@@ -186,3 +186,103 @@ def pessoal_anual(
             for y in ALL_YEARS
         ]
     )
+
+
+# ---------------------------------------------------------------------------
+# Funções de detalhe — subdivisão contabilística e departamental
+# ---------------------------------------------------------------------------
+
+def pessoal_contab_anual(
+    a: Assumptions,
+    base: Base2024,
+    df_vn: pd.DataFrame,
+) -> pd.DataFrame:
+    """Detalhe contabilístico dos gastos com pessoal por ano (Nota 28 / IAS 19).
+
+    Rubricas:
+        Remuneracoes    — salários brutos incl. subsídios de férias e de Natal
+        Encargos_TSU    — contribuições patronais para Segurança Social (23,75%)
+        Seguros_AT      — prémio de seguro de acidentes de trabalho (~1,32%)
+        Outros_Encargos — residual: participação nos lucros, formação, outros
+
+    Lógica temporal:
+        2024 : valores auditados de pessoal_detalhe_2024 (base.yaml)
+        2025+: Remuneracoes cresce proporcionalmente ao total de pessoal;
+               TSU e SAT derivam da taxa legal aplicada às remunerações;
+               Outros_Encargos = total − Remuneracoes − TSU − SAT.
+    """
+    df_total = pessoal_anual(a, base, df_vn)
+    total_map = df_total.set_index("ano")["gastos_pessoal"].to_dict()
+
+    tsu = float(a.pessoal_params.get("TSU_empregador", 0.2375))
+    sat = float(a.pessoal_contab.get("sat_pct_remun", 0.0132))
+
+    # Âncora 2024 — valores auditados
+    det_2024 = (base.pessoal_detalhe or {}).get("rubricas_contab", {})
+    remun_2024 = float(det_2024.get("Remuneracoes", a.pessoal_contab.get("Remuneracoes_2024", 0.0)))
+    total_2024 = total_map.get(2024, 1.0)
+
+    rows = []
+    for y in ALL_YEARS:
+        total_y = total_map.get(y, 0.0)
+        # Remunerações: cresce proporcionalmente ao total de pessoal
+        remun_y = remun_2024 * (total_y / total_2024) if total_2024 else 0.0
+        tsu_y = remun_y * tsu
+        sat_y = remun_y * sat
+        outros_y = total_y - remun_y - tsu_y - sat_y
+
+        rows.extend([
+            {"ano": y, "rubrica": "Remuneracoes",    "valor": remun_y},
+            {"ano": y, "rubrica": "Encargos_TSU",    "valor": tsu_y},
+            {"ano": y, "rubrica": "Seguros_AT",      "valor": sat_y},
+            {"ano": y, "rubrica": "Outros_Encargos", "valor": outros_y},
+        ])
+
+    return pd.DataFrame(rows)
+
+
+def pessoal_depart_anual(
+    a: Assumptions,
+    base: Base2024,
+    df_vn: pd.DataFrame,
+) -> pd.DataFrame:
+    """Detalhe departamental dos gastos com pessoal por ano.
+
+    Departamentos: Producao · RD · Comercial · Financeira · Marketing
+
+    Lógica temporal:
+        2024 : valores imputados de pessoal_detalhe_2024 (base.yaml)
+        2025+: pesos fixos de pessoal.departamentos (globais.yaml) aplicados
+               ao total projetado por pessoal_anual().
+               Os pesos são estáveis por omissão; alterar em globais.yaml
+               para simular reequilíbrio da estrutura organizacional.
+    """
+    df_total = pessoal_anual(a, base, df_vn)
+    total_map = df_total.set_index("ano")["gastos_pessoal"].to_dict()
+
+    # Pesos de globais.yaml (somam 1.0)
+    pesos = a.pessoal_departamentos
+    if not pesos:
+        pesos = {
+            "Producao":   0.65,
+            "RD":         0.05,
+            "Comercial":  0.10,
+            "Financeira": 0.12,
+            "Marketing":  0.08,
+        }
+
+    # Âncora 2024 — valores imputados auditados
+    det_2024 = (base.pessoal_detalhe or {}).get("departamentos", {})
+
+    rows = []
+    for y in ALL_YEARS:
+        total_y = total_map.get(y, 0.0)
+        if y == 2024 and det_2024:
+            for dept, val in det_2024.items():
+                rows.append({"ano": y, "departamento": dept, "valor": float(val)})
+        else:
+            soma_pesos = sum(float(v) for v in pesos.values()) or 1.0
+            for dept, peso in pesos.items():
+                rows.append({"ano": y, "departamento": dept, "valor": total_y * float(peso) / soma_pesos})
+
+    return pd.DataFrame(rows)

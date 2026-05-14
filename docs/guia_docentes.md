@@ -1,23 +1,45 @@
 # GrestelPy — Guia do Docente
 
-> Modelo financeiro da empresa Grestel · PEF 2025-26 · Grupo 18 · ISCA-UA
+> Motor financeiro da empresa Grestel · PEF 2025-26 · Grupo 18 · ISCA-UA
 
 ---
 
 ## 1. O que é este sistema
 
-O **GrestelPy** é uma ferramenta de planeamento financeiro desenvolvida em Python para suporte aos Momentos M3 e M6 da UC PEF. Implementa o motor de cálculo da empresa Grestel e dos seus projetos associados (Ecogres e Hub Logístico), expondo os resultados através de uma API REST que alimenta uma interface web.
+O **GrestelPy** é uma ferramenta de planeamento financeiro desenvolvida em Python para suporte aos Momentos M3 e M6 da UC PEF. Implementa o motor de cálculo da empresa Grestel e dos seus projetos associados (Ecogres e Hub Logístico M6), expondo os resultados através de uma API REST que alimenta uma interface web.
 
-O sistema produz automaticamente:
+### O que o sistema produz
 
+**Anuais (2024–2029):**
 - Demonstração de Resultados (DR)
 - Balanço
 - Demonstração de Fluxos de Caixa (DFC)
-- Rolling Forecast Mensal (Fase 1 — M3)
 - KPIs e rácios financeiros
-- Análise de sensibilidade (tornado)
-- Indicadores de viabilidade do projeto Hub Logístico (VAN, TIR, Payback)
-- Projeções da subsidiária Ecogres
+- Detalhe FSE por rubrica (14 rubricas)
+- Detalhe de Pessoal (contabilístico e departamental)
+- Orçamento de Produção por produto
+
+**Mensais de 2025 (M3 — Fase 1):**
+
+| Output | Chave em `run_model` | Dimensão |
+|---|---|---|
+| Calendário fiscal EOEP | `eoep_mensal_2025` | 12 meses × 9 colunas |
+| Vendas por produto/mercado | `vendas_mensal_2025` | 216 linhas × 4 colunas |
+| DR mensal completa | `dr_mensal_2025` | 12 meses × 26 colunas |
+| Orçamento de tesouraria | `tesouraria_mensal_2025` | 12 meses × 15 colunas |
+| FSE por rubrica | `fse_detalhe_mensal_2025` | dict: 14 rubricas × 12 meses |
+
+> **Princípio bottom-up para 2025:** os saldos EOEP no Balanço de 2025 são derivados do calendário mensal:
+> - EOEP devedor/credor IVA = saldo IVA de Nov + Dez (pagamento M+2, pendente em Jan/Fev 2026)
+> - EOEP credor SS = SS de Dezembro (pagamento M+1, pendente em Jan 2026)
+> - EOEP credor IRC = IRC do ano menos pagamentos por conta efectuados
+
+**Rolling Forecast (Balanço + DFC + NFM mensais):**
+- `GET /api/rolling-forecast/mensal` — loop integrado DFC→Caixa→Balanço
+
+**Projetos:**
+- Hub Logístico M6: VAN, TIR, Payback, FCF, análise tornado
+- Subsidiária Ecogres: DR, projecções, transferências intercompany
 
 ---
 
@@ -26,60 +48,44 @@ O sistema produz automaticamente:
 **Pré-requisitos:** Python ≥ 3.10, dependências instaladas.
 
 ```bash
-# Instalar dependências (primeira vez)
 pip install -r requirements.txt
-
-# Arrancar o servidor
 uvicorn server:app --reload --port 8000
 ```
-
-Após arranque, aceder a:
 
 | Endereço | Descrição |
 |---|---|
 | `http://localhost:8000/` | Redireciona para a interface web |
-| `http://localhost:8000/interface/` | Interface web interativa |
+| `http://localhost:8000/interface/` | Interface web interactiva |
 | `http://localhost:8000/health` | Verificação de estado (`{"ok": true}`) |
-| `http://localhost:8000/docs` | Documentação interativa da API (Swagger UI) |
+| `http://localhost:8000/docs` | Documentação interactiva da API (Swagger UI) |
 
 ---
 
 ## 3. Cenários disponíveis
 
-O modelo suporta quatro cenários pré-definidos, aplicados através de overrides sobre os pressupostos base:
+| Cenário | Volume vendas | PVU (preço) | FSE | Pessoal |
+|---|---|---|---|---|
+| **Base** | YAML | YAML | YAML | YAML |
+| **Upside** | +5% a.a. (2025–28), +4% em 2029 | spread real +2,7% (2025) → +1,4% (2029) | +2,3–2,4% spread real em 2028–29 | — |
+| **Downside** | +2% a.a. (2025–27), +1% em 2028–29 | spread real −1,2% (2025) → −0,6% (2029) | +1,8–4,3% spread real | — |
+| **Stress** | −2% em 2025, recupera +1–2% | spread real −2,2% → +0,4% | +3,7–4,3% spread real | +2,7% spread real |
 
-| Cenário | Crescimento volume vendas | Crescimento preço vendas | FSE |
-|---|---|---|---|
-| **Base** | Conforme YAML (referência) | Conforme YAML (referência) | Conforme YAML |
-| **Upside** | +5% a.a. (2025–2028), +4% em 2029 | +5% (2025–2026), descendo até +3% em 2029 | +4% em 2028–2029 |
-| **Downside** | +2% a.a. (2025–2027), +1% em 2028–2029 | +1% a.a. | +4% (2025–2027), +6% em 2028–2029 |
-| **Stress** | −2% em 2025, depois +1–2% | 0–2% a.a. | +5–6% a.a. com aumento de pessoal |
-
-O cenário **Base** é sempre o ponto de partida e não altera nenhum pressuposto.
+Os valores de PVU e FSE são **spreads reais** acima da inflação — o motor compõe com a inflação de `macro.yaml` em runtime:  
+`taxa_nominal = (1 + inflação) × (1 + spread_real) − 1`
 
 ---
 
-## 4. Endpoints principais
+## 4. Endpoints
 
 ### 4.1 Executar todos os cenários
 
 ```
-GET /api/scenarios/all
+GET /api/scenarios/all?hub_on=false&ecogres_on=false
 ```
 
-Parâmetros opcionais:
+Retorna DR, Balanço, DFC, KPIs, FSE detalhe anual e mensal, Pessoal e Produção para os quatro cenários.
 
-| Parâmetro | Tipo | Padrão | Descrição |
-|---|---|---|---|
-| `hub_on` | bool | `false` | Inclui o projeto Hub Logístico no modelo consolidado |
-| `ecogres_on` | bool | `false` | Inclui a subsidiária Ecogres no modelo consolidado |
-
-**Retorna:** DR, Balanço, DFC, KPIs e detalhe FSE (anual e mensal 2025) para cada um dos quatro cenários.
-
-Exemplo:
-```
-GET /api/scenarios/all?hub_on=true&ecogres_on=true
-```
+> **Nota:** Os novos outputs mensais (`eoep_mensal_2025`, `vendas_mensal_2025`, `dr_mensal_2025`, `tesouraria_mensal_2025`) já estão calculados internamente mas ainda não incluídos neste endpoint. A expor em próxima iteração.
 
 ---
 
@@ -88,8 +94,6 @@ GET /api/scenarios/all?hub_on=true&ecogres_on=true
 ```
 POST /api/run
 ```
-
-Corpo JSON:
 
 ```json
 {
@@ -103,13 +107,7 @@ Corpo JSON:
 }
 ```
 
-| Campo | Descrição |
-|---|---|
-| `cenario` | Um de: `Base`, `Upside`, `Downside`, `Stress` |
-| `hub_on` | Ativa o projeto Hub Logístico |
-| `ecogres_on` | Ativa a subsidiária Ecogres |
-| `assumptions` | Overrides pontuais sobre qualquer pressuposto YAML |
-| `persist` | Se `true`, guarda o resultado como cenário customizado |
+Retorna todos os outputs em `{"status": "ok", "outputs": {...}}`.
 
 ---
 
@@ -119,30 +117,29 @@ Corpo JSON:
 GET /api/rolling-forecast/mensal?scenario=Base
 ```
 
-Devolve a **DR mensal** e o **mapa de tesouraria mensal** para o ano de planeamento (2025), base do rolling forecast exigido em M3-Fase 1.
+Retorna:
+
+| Chave | Conteúdo |
+|---|---|
+| `dr_mensal` | DR mensal 2025 (12 linhas) |
+| `balanco_mensal` | Balanço mensal 2025, Caixa derivada do DFC |
+| `dfc_mensal` | DFC mensal pelo método indirecto |
+| `nfm_mensal` | NFM e Ciclo de Conversão de Caixa por mês |
+| `tesouraria_completa` | Recebimentos, pagamentos, serviço dívida, CAPEX |
 
 ---
 
-### 4.4 Pressupostos efetivos
+### 4.4 Pressupostos efectivos
 
 ```
 GET /api/assumptions/effective?cenario=Base&hub_on=false&ecogres_on=false
 ```
 
-Devolve os pressupostos consolidados exatamente como o motor os utiliza para um dado cenário — útil para auditar os inputs aplicados.
+Devolve os pressupostos consolidados tal como o motor os utiliza — útil para auditar os inputs.
 
 ---
 
-### 4.5 Configuração
-
-```
-GET /api/config/years         → anos disponíveis: [2024, 2025, 2026, 2027, 2028, 2029]
-GET /api/config/fse-rubricas  → rubricas FSE contratadas e respetivas chaves YAML
-```
-
----
-
-### 4.6 Projeto Hub Logístico (M6)
+### 4.5 Hub Logístico (M6)
 
 ```
 GET /api/hub/viability?irc_taxa=0.225
@@ -151,151 +148,155 @@ GET /api/hub/tornado?irc_taxa=0.225
 
 | Endpoint | Retorna |
 |---|---|
-| `/hub/viability` | VPL, TIR, Payback simples e atualizado, valor terminal, FCF livre |
-| `/hub/tornado` | Análise de sensibilidade (tornado) às variáveis críticas do projeto |
-
-O parâmetro `irc_taxa` define a taxa de IRC aplicada (padrão: 22,5%).
+| `/hub/viability` | VPL, TIR, Payback simples e actualizado, valor terminal, FCF |
+| `/hub/tornado` | Análise de sensibilidade (tornado) às variáveis críticas |
 
 ---
 
-### 4.7 Subsidiária Ecogres
+### 4.6 Subsidiária Ecogres
 
 ```
 GET /api/ecogres
 ```
 
-Parâmetros opcionais (todos com valores padrão extraídos do YAML):
+Parâmetros opcionais: `hub_on`, `cresc_subc`, `cresc_ced`, `cresc_custos`, `cresc_dep`, `alpha_sem_hub`, `alpha_com_hub`, `transfer_price`, `transfer_inicio`, `irc_taxa`.
 
-| Parâmetro | Descrição |
-|---|---|
-| `hub_on` | Considera transferências de/para o Hub Logístico |
-| `cresc_subc` | Taxa de crescimento da subcontratação (%) |
-| `cresc_ced` | Taxa de crescimento da cedência de pessoal (%) |
-| `cresc_custos` | Taxa de crescimento dos custos operacionais |
-| `cresc_dep` | Taxa de crescimento das depreciações |
-| `alpha_sem_hub` / `alpha_com_hub` | Elasticidade de pessoal sem/com Hub ativo |
-| `transfer_price` | Preço de transferência intercompany (€) |
-| `transfer_inicio` | Ano de início das transferências |
-| `irc_taxa` | Taxa de IRC da Ecogres |
+---
+
+### 4.7 Configuração
+
+```
+GET /api/config/years         → [2024, 2025, 2026, 2027, 2028, 2029]
+GET /api/config/fse-rubricas  → rubricas FSE e chaves YAML
+```
 
 ---
 
 ### 4.8 Cenários Customizados
 
 ```
-GET    /api/custom-scenarios              → lista cenários guardados
-POST   /api/custom-scenarios/{nome}       → cria ou atualiza cenário
-DELETE /api/custom-scenarios/{nome}       → elimina cenário
+GET    /api/custom-scenarios
+POST   /api/custom-scenarios/{nome}
+DELETE /api/custom-scenarios/{nome}
 ```
 
-Corpo do POST:
-
-```json
-{
-  "label": "Cenário alternativo",
-  "description": "Simulação com preços +3%",
-  "overrides": {
-    "crescimento_preco_vendas": { "2026": 0.03, "2027": 0.03 }
-  }
-}
-```
-
-Os cenários customizados são persistidos em `src/engine/data/cenarios/custom_scenarios.yaml` e ficam disponíveis entre sessões.
+Persistem em `src/engine/data/cenarios/custom_scenarios.yaml`.
 
 ---
 
-## 5. Estrutura dos outputs
+## 5. Fluxo de cálculo interno
 
-Todos os endpoints de cenários devolvem dados no formato:
-
-```json
-{
-  "rows": [
-    { "rubrica": "Vendas", "2025": 12500000, "2026": 13125000, ... },
-    ...
-  ]
-}
 ```
-
-As demonstrações financeiras cobrem o período **2024–2029** (2024 = histórico real; 2025–2029 = projeções).
+YAML (inputs)
+    │
+    ▼
+load(cenario) ──► Assumptions + Base2024 + Schedules
+    │
+    ▼
+run_model()
+    ├── build_eoep_mensal()          ← NOVO: calendário fiscal mensal (antes das demonstrações)
+    │
+    ├── build_statements()           ← DR → Balanço (EOEP 2025 derivado do mensal) → DFC
+    │
+    ├── vendas_mensais_2025()        ← NOVO: VN mensal por produto/mercado
+    ├── build_dr_mensal()            ← NOVO: DR mensal 2025
+    ├── build_tesouraria_mensal()    ← NOVO: Tesouraria mensal 2025
+    ├── fse_detalhe_mensal_2025()    ← FSE 14 rubricas mensais
+    │
+    ├── fse_detalhe_anual()          ← FSE anual por rubrica
+    ├── pessoal_contab_anual()       ← Pessoal detalhe contabilístico
+    ├── pessoal_depart_anual()       ← Pessoal por departamento
+    ├── producao_anual()             ← Orçamento de produção
+    └── build_kpis()                 ← KPIs e rácios
+    │
+    ▼
+dataframe_to_records() ──► API (JSON)
+```
 
 ---
 
 ## 6. Dados de entrada (YAML)
 
-Todos os pressupostos estão em ficheiros YAML editáveis em `src/engine/data/`:
-
-| Diretório / Ficheiro | Conteúdo |
-|---|---|
-| `pressupostos/globais.yaml` | Pressupostos gerais (fiscal, prazos, pessoal, ESG) |
-| `pressupostos/2025/` | Macro, vendas, custos e mix mensais 2025 |
-| `pressupostos/2026_2029/` | Macro, vendas e custos anuais 2026–2029 |
-| `historico/2024/base.yaml` | Balanço, DR e DFC reais 2024 (imutável após fecho) |
-| `historico/2024/mix.yaml` | Mix de produto real 2024 |
-| `historico/2024/produtos.yaml` | `sales_mix_2024` e `pvu_base_2024` por família de produto |
-| `historico/2024/mercadorias.yaml` | `sales_mix_2024`, `pvu_base_2024`, `mix_regiao`, `mix_canal` e `sazonalidade` por família de mercadoria |
-| `master/produtos.yaml` | Estrutura de custos estável por produto (`cip_unitario`, `detalhe_mp`) |
-| `master/mercadorias.yaml` | Custo de compra estável por família (`pcu`) |
-| `cenarios/custom_scenarios.yaml` | Cenários customizados persistidos |
-| `subsidiarias/` | Pressupostos Ecogres e Hub Logístico |
-
-Para alterar pressupostos permanentemente, editar o YAML correspondente e reiniciar o servidor (ou recarregar via `--reload`). Para alterações pontuais sem persistência, usar `POST /api/run` com o campo `assumptions`.
+| Ficheiro/Directório | Conteúdo | Editável |
+|---|---|---|
+| `pressupostos/globais.yaml` | Fiscal (IVA, IRC, SS, TSU), prazos (PMR/PMP), caixa mín/máx, ESG | ✓ |
+| `pressupostos/2025/macro.yaml` | Inflação mensal 2025, EUR/USD mensal 2025 | ✓ |
+| `pressupostos/2025/vendas.yaml` | Crescimento volume e PVU por produto 2025 | ✓ |
+| `pressupostos/2025/custos.yaml` | FSE, pessoal, CMVMC 2025 | ✓ |
+| `pressupostos/2025/mix.yaml` | Sazonalidade e mix produto/mercado 2025 | ✓ |
+| `pressupostos/2026_2029/` | Pressupostos plurianuais (macro, vendas, custos) | ✓ |
+| `historico/2024/base.yaml` | Balanço, DR e DFC reais 2024 | ✗ (histórico) |
+| `historico/2024/mix.yaml` | Mix real 2024 por mercado/canal | ✗ |
+| `historico/2024/produtos.yaml` | `sales_mix_2024`, `pvu_base_2024` por produto | ✗ |
+| `historico/2024/mercadorias.yaml` | `sales_mix_2024`, `pvu_base_2024`, sazonalidade por mercadoria | ✗ |
+| `master/produtos.yaml` | Estrutura de custos (CIP, MP) — estável | ✓ (raramente) |
+| `master/mercadorias.yaml` | Custo de compra (`pcu`) por família | ✓ (raramente) |
+| `master/fse_rubricas.yaml` | Contrato de rubricas FSE | ✓ (raramente) |
+| `computed/schedules.yaml` | Investimento, financiamento, EOEP saldos pré-calculados | ✗ (gerado) |
+| `cenarios/custom_scenarios.yaml` | Cenários customizados guardados via API | ✗ (gerido pela API) |
+| `subsidiarias/ecogres/` | Pressupostos Ecogres | ✓ |
+| `subsidiarias/hub_logistico/` | Pressupostos Hub M6 | ✓ |
 
 ---
 
 ## 7. Cobertura dos requisitos PEF
 
-| Requisito | Onde é gerado |
-|---|---|
-| Rolling forecast mensal (M3-F1) | `GET /api/rolling-forecast/mensal` |
-| Projeções 5 anos (M3-F2) | `GET /api/scenarios/all` → DR/Balanço/DFC 2025–2029 |
-| 15 orçamentos mensais | Motor: `operacoes/`, `pessoal/`, `financas/`, `integracao/fse.py` |
-| DR, DFC, Balanço previsionais | `statements/dr.py`, `dfc.py`, `balanco.py` |
-| KPIs mensuráveis | `analitica/kpis.py` → campo `kpis` na resposta |
-| Análise de sensibilidade | `GET /api/hub/tornado` (Hub); `analitica/sensitivity.py` |
-| Análise de cenários | Cenários Base / Upside / Downside / Stress + customizados |
-| VAN, TIR, Payback (M6) | `GET /api/hub/viability` |
-| NFM (Necessidades Fundo de Maneio) | `statements/nfm.py` |
-| Mapas de serviço da dívida | `financas/financiamento.py` |
-| Subsidiária Ecogres | `GET /api/ecogres` |
-| Projeto Hub Logístico (M6) | `GET /api/hub/viability` + `GET /api/hub/tornado` |
+| Requisito M3/M6 | Onde é gerado | Estado |
+|---|---|---|
+| Orçamento de vendas mensal | `vendas_mensal_2025` em `run_model` | ✅ |
+| Orçamento de produção | `producao_anual` em `run_model` | ✅ |
+| Orçamento gastos com pessoal | `pessoal_contab_anual`, `pessoal_depart_anual` | ✅ |
+| Orçamento FSE mensal (14 rubricas) | `fse_detalhe_mensal_2025` | ✅ |
+| Orçamento CMVMC | `cmvmc_anual` (anual); mensal via `dr_mensal_2025` | ✅ |
+| Calendarização fiscal (IVA, SS, IRC) | `eoep_mensal_2025` | ✅ |
+| Orçamento de tesouraria mensal | `tesouraria_mensal_2025` | ✅ |
+| Necessidades de Fundo de Maneio | `nfm_mensal` (rolling forecast) | ✅ |
+| DR, DFC, Balanço previsionais (5 anos) | `dr`, `balanco`, `dfc` em `run_model` | ✅ |
+| Rolling forecast mensal M3-F1 | `GET /api/rolling-forecast/mensal` | ✅ |
+| KPIs mensuráveis | `kpis` em `run_model` | ✅ |
+| Análise de cenários (4 cenários) | `GET /api/scenarios/all` | ✅ |
+| Análise de sensibilidade | `GET /api/hub/tornado` + `sensitivity.py` | ✅ |
+| VAN, TIR, Payback Hub M6 | `GET /api/hub/viability` | ✅ |
+| Subsidiária Ecogres | `GET /api/ecogres` | ✅ |
+| Outputs mensais expostos na API | `GET /api/scenarios/all` (parcial) | ⚠️ pendente |
 
 ---
 
 ## 8. Verificação rápida
 
-Sequência de validação para confirmar que o sistema está operacional:
-
 ```bash
-# 1. Estado do servidor
+# Estado do servidor
 curl http://localhost:8000/health
 
-# 2. Cenário Base (sem projetos)
+# Cenário Base
 curl "http://localhost:8000/api/scenarios/all"
 
-# 3. Cenário Base com Hub e Ecogres
+# Base com Hub + Ecogres
 curl "http://localhost:8000/api/scenarios/all?hub_on=true&ecogres_on=true"
 
-# 4. Rolling forecast mensal
+# Rolling forecast mensal
 curl "http://localhost:8000/api/rolling-forecast/mensal?scenario=Base"
 
-# 5. Viabilidade Hub Logístico
+# Viabilidade Hub M6
 curl "http://localhost:8000/api/hub/viability"
 
-# 6. Pressupostos efetivos do cenário Upside
+# Pressupostos efectivos Upside
 curl "http://localhost:8000/api/assumptions/effective?cenario=Upside"
+
+# Suite de testes
+pytest tests/
 ```
 
 ---
 
 ## 9. Notas técnicas
 
-- O servidor arranca na porta **8000** por padrão; alterar com `--port XXXX`.
-- O modo `--reload` reinicia automaticamente quando um ficheiro Python ou YAML é alterado.
-- Erros são devolvidos em JSON com campos `error`, `detail` e `path`.
-- Os outputs em Excel (`*.xlsx`) e CSV (`*.csv`) gerados durante desenvolvimento estão excluídos do repositório (ver `.gitignore`).
-- A suite de testes corre com `pytest tests/` a partir da raiz do projeto.
+- Servidor na porta **8000**; alterar com `--port XXXX`.
+- Modo `--reload` reinicia quando qualquer `.py` ou `.yaml` é alterado.
+- Erros retornados em JSON com campos `error`, `detail` e `path`.
+- Os valores de spread real nos cenários Upside/Downside/Stress são compostos com a inflação de `macro.yaml` em runtime — alterar a inflação propaga automaticamente a todos os drivers ligados à inflação.
+- O calendário EOEP mensal é calculado **antes** das demonstrações anuais: os saldos de Balanço 2025 derivam dos mensais (bottom-up), não do `schedules.yaml`.
 
 ---
 
-*GrestelPy v0.3.0 · Engine v0.5.0 · PEF 2025-26 · Grupo G18 · ISCA-UA*
+*GrestelPy · Engine v0.5+ · PEF 2025-26 · Grupo G18 · ISCA-UA · actualizado 2026-05-14*

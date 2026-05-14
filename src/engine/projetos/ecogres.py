@@ -91,7 +91,13 @@ def ecogres_dr(
         else float(trans["crescimento_cedencia"])
     )
 
-    irc_taxa = float(viab["irc_taxa_ecogres"])
+    irc_taxa_base = float(viab["irc_taxa_ecogres"])
+    irc_por_ano: dict[int, float] = {
+        int(k): float(v)
+        for k, v in viab.get("irc_taxa_por_ano", {}).items()
+    }
+    # If a global override was passed, it takes precedence over the per-year schedule
+    irc_taxa_override = irc_taxa if irc_taxa is not None else None
 
     elasticidade = ops.get("elasticidade_pessoal", {})
     alpha = (
@@ -205,7 +211,11 @@ def ecogres_dr(
             current_rl = rl_2024_hist
             current_irc = current_rai - current_rl
         else:
-            current_irc = current_rai * irc_taxa if current_rai > 0 else 0.0
+            if irc_taxa_override is not None:
+                taxa_ano = irc_taxa_override
+            else:
+                taxa_ano = irc_por_ano.get(y, irc_taxa_base)
+            current_irc = current_rai * taxa_ano if current_rai > 0 else 0.0
             current_rl = current_rai - current_irc
 
         irc.append(current_irc)

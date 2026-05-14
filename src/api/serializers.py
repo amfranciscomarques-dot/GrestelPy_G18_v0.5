@@ -93,11 +93,42 @@ def _flatten_assumptions(a) -> dict[str, Any]:
 
     impostos = raw.get("impostos", {}) or {}
     out["irc_taxa_geral"] = float(impostos.get("IRC_taxa_geral", 0.21)) * 100
+    out["irc_taxa_reduzida"] = float(impostos.get("IRC_taxa_reduzida", 0.17)) * 100
+    out["derrama_municipal"] = float(impostos.get("Derrama_Municipal", 0.015)) * 100
+    out["derrama_estadual"] = float(impostos.get("Derrama_Estadual", 0.0135)) * 100
+    out["derrama_estadual_limiar"] = float(impostos.get("Derrama_Estadual_limiar", 1500000))
+    out["tsu_empresa"] = float(impostos.get("TSU_Empresa", 0.2375)) * 100
+    out["sat"] = float(impostos.get("SAT", 0.03)) * 100
+    out["sifide_taxa"] = float(impostos.get("SIFIDE_taxa_credito", 0.325)) * 100
+    out["tributacao_autonoma"] = float(impostos.get("Tributacao_Autonoma_taxa", 0.10)) * 100
+    out["majoracao_energia"] = float(impostos.get("Majoracao_Energia_pct", 0.20)) * 100
+    out["iva_vendas"] = float(impostos.get("IVA_Vendas", 0.23)) * 100
+
+    prazos = raw.get("prazos", {}) or {}
+    out["pmr_dias"] = int(prazos.get("PMR_dias", 45))
+    out["pmp_dias"] = int(prazos.get("PMP_Inventarios_dias", 63))
+    out["dmi_pa_dias"] = int(prazos.get("DMI_PA_dias", 160))
+    out["dmi_mp_dias"] = int(prazos.get("DMI_MP_dias", 160))
+    out["dmi_merc_dias"] = int(prazos.get("DMI_Mercadorias_dias", 60))
+
+    caixa = raw.get("caixa", {}) or {}
+    out["caixa_minima"] = float(caixa.get("minima", 500000))
+    out["caixa_maxima"] = float(caixa.get("maxima", 1500000))
+
+    distrib = raw.get("distribuicao_resultados", {}) or {}
+    out["payout_ratio"] = float(distrib.get("payout_ratio", 0.20)) * 100
+    out["reserva_legal_pct"] = float(distrib.get("reserva_legal_pct", 0.05)) * 100
+    out["inicio_distribuicao"] = int(distrib.get("ano_inicio_distribuicao", 2026))
+
+    out["taxa_cresc_custo_2025"] = float(pessoal.get("taxa_cresc_custo_2025", 0.035)) * 100
+    out["tsu_empregador"] = float(pessoal.get("TSU_empregador", 0.2375)) * 100
+    out["subsidio_ferias_mes"] = pessoal.get("subsídio_férias_mes", "Jun")
+    out["subsidio_natal_mes"] = pessoal.get("subsídio_natal_mes", "Nov")
 
     for k, v in (raw.get("crescimento_volume_vendas") or {}).items():
         out[f"cresc_vol_{k}"] = v
 
-    for k, v in (raw.get("crescimento_preco_vendas") or {}).items():
+    for k, v in (raw.get("crescimento_pvu_vendas") or {}).items():
         out[f"cresc_preco_{k}"] = v
 
     for k, v in (raw.get("crescimento_fse") or {}).items():

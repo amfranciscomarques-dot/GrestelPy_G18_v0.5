@@ -88,7 +88,7 @@ def build_pressupostos_summary(
     ))
     sections.append(_cresc_section(
         "cresc_preco", "Crescimento Vendas — Preço",
-        "crescimento_preco_vendas", raw,
+        "crescimento_pvu_vendas", raw,
     ))
     sections.append(_cresc_section(
         "cresc_fse", "Crescimento FSE",

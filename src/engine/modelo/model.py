@@ -20,6 +20,9 @@ from ..inputs.yaml_io import _deep_update
 from ..demonstracoes import statements
 from ..operacional import fse as fse_mod
 from ..operacional import vendas as vendas_mod
+from ..operacional import pessoal as pessoal_mod
+from ..operacional import produção as producao_mod
+from ..financiamento import tesouraria as teso_mod
 
 
 try:
@@ -74,7 +77,20 @@ def run_model(
     a.raw.setdefault("ecogres", {})
     a.raw["ecogres"]["incluir_ecogres"] = bool(ecogres_on)
 
-    dfs = statements.build_statements(a, base, sched)
+    # ── Mensais 2025 ────────────────────────────────────────────────────────────
+    # Calculados antes das demonstrações anuais para que o resultado anual de 2025
+    # seja derivado dos mensais (bottom-up para EOEP; consistência para os restantes).
+
+    try:
+        df_eoep_mensal_2025 = teso_mod.build_eoep_mensal(a, base, sched)
+    except Exception:
+        df_eoep_mensal_2025 = None
+
+    # Demonstrações anuais — EOEP 2025 derivado do calendário mensal quando disponível
+    dfs = statements.build_statements(a, base, sched, df_eoep_mensal=df_eoep_mensal_2025)
+
+    if df_eoep_mensal_2025 is not None:
+        dfs["eoep_mensal_2025"] = df_eoep_mensal_2025
 
     if HAS_KPIS:
         dfs["kpis"] = kpis_mod.build_kpis(
@@ -99,6 +115,17 @@ def run_model(
     except Exception:
         dfs["fse_detalhe_anual"] = pd.DataFrame(columns=["ano", "rubrica", "valor"])
 
+    # Pessoal detalhe contabilístico e departamental
+    try:
+        dfs["pessoal_contab_anual"] = pessoal_mod.pessoal_contab_anual(a, base, df_total)
+    except Exception:
+        dfs["pessoal_contab_anual"] = pd.DataFrame(columns=["ano", "rubrica", "valor"])
+
+    try:
+        dfs["pessoal_depart_anual"] = pessoal_mod.pessoal_depart_anual(a, base, df_total)
+    except Exception:
+        dfs["pessoal_depart_anual"] = pd.DataFrame(columns=["ano", "departamento", "valor"])
+
     # FSE detalhe mensal 2025 (por rubrica)
     try:
         # Sazonalidade uniforme como default
@@ -107,6 +134,42 @@ def run_model(
         dfs["fse_detalhe_mensal_2025"] = fse_det_mensal
     except Exception:
         dfs["fse_detalhe_mensal_2025"] = {}
+
+    # Vendas mensais 2025 (por produto/mercadoria e mercado)
+    try:
+        dfs["vendas_mensal_2025"] = vendas_mod.vendas_mensais_2025(a, base, sched)
+    except Exception:
+        dfs["vendas_mensal_2025"] = pd.DataFrame(
+            columns=["mes", "produto", "mercado", "vn"]
+        )
+
+    # DR mensal 2025
+    try:
+        dfs["dr_mensal_2025"] = teso_mod.build_dr_mensal(a, base, sched)
+    except Exception:
+        dfs["dr_mensal_2025"] = pd.DataFrame(
+            columns=["mes", "vn", "cmvmc", "fse", "gastos_pessoal", "ebitda",
+                     "depreciacoes", "ebit", "juros", "rai", "irc", "rl"]
+        )
+
+    # Tesouraria mensal 2025
+    try:
+        dfs["tesouraria_mensal_2025"] = teso_mod.build_tesouraria_mensal(a, base, sched)
+    except Exception:
+        dfs["tesouraria_mensal_2025"] = pd.DataFrame(
+            columns=["mes", "recebimentos_clientes", "pagamentos_fornecedores",
+                     "pagamentos_pessoal", "fluxo_fiscal", "fluxo_liquido"]
+        )
+
+    # Orçamento de produção anual (por produto, 2024-2029)
+    try:
+        dfs["producao_anual"] = producao_mod.producao_anual(a, base, sched)
+    except Exception:
+        dfs["producao_anual"] = pd.DataFrame(
+            columns=["ano", "produto", "qty_vendida", "qty_produzida",
+                     "cup", "cip_unitario", "cmvmc_vendas", "cmvmc_prod",
+                     "pa_stock_ei", "pa_stock_ef", "var_pa"]
+        )
 
     return dfs
 

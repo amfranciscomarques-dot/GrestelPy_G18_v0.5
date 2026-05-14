@@ -56,6 +56,26 @@ pessoal:
   subsídio_natal_mes: Nov
   TSU_empregador: 0.2375
 
+  # ─── Subdivisão Contabilística (Nota 28 — IAS 19) ──────────────────────────
+  # Remuneracoes_2024: valor auditado R&C 2024 (salários brutos + sub. férias/natal)
+  # Nos anos seguintes: Remuneracoes cresce à mesma taxa que o total de pessoal.
+  # Encargos_TSU: calculado em runtime como Remuneracoes × TSU_empregador.
+  # Seguros_AT:   calculado em runtime como Remuneracoes × sat_pct_remun.
+  # Outros_Encargos: residual (participação lucros IAS 19, formação, outros).
+  contab:
+    Remuneracoes_2024: 11400000.0   # Nota 28 R&C 2024 (aprox.)
+    sat_pct_remun: 0.0132           # Prémio SAT sobre remunerações (~1.3% — cerâmica)
+
+  # ─── Subdivisão Departamental ───────────────────────────────────────────────
+  # Pesos estáveis aplicados ao total projetado em cada ano.
+  # Soma deve ser 1.0.
+  departamentos:
+    Producao:             0.65   # Maior concentração operacional (~477 FTE em 2024)
+    RD:                   0.05   # I&D e inovação de produto/processo
+    Comercial:            0.10   # Retalho + Hotelaria (força de vendas)
+    Financeira:           0.12   # Back-office, contabilidade, RH, jurídico
+    Marketing:            0.08   # Comunicação, marcas próprias
+
 elasticidade_pessoal:
   alpha_sem_hub: 0.4
   alpha_com_hub: 0.15

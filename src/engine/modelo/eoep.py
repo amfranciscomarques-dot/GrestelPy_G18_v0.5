@@ -46,22 +46,49 @@ def eoep_anual(
     base: Base2024,
     sched: Schedules,
     irc_anual: dict,
+    df_mensal: "pd.DataFrame | None" = None,
 ) -> pd.DataFrame:
     """Calcula saldos anuais de EOEP devedor e credor para o Balanço.
 
     2024 usa saldos históricos/auditados.
-    2025 usa saldos do schedules.yaml.
+    2025: se df_mensal for fornecido, os saldos de fin-de-ano são derivados do
+          calendário mensal (IVA Nov+Dez pendentes, SS Dez pendente, IRC de irc_anual).
+          Caso contrário, usa saldos do schedules.yaml.
     2026+ cresce IVA/SS por fatores plurianuais e acrescenta IRC corrente.
     """
     iva_24 = float(base.saldos["EOEP_devedor"])
     eoep_credor_2024 = _get_eoep_credor_2024(base)
 
-    eoep_2025_devedor = abs(float(sched.eoep["IVA_saldo_2024_2025_total"]))
+    if df_mensal is not None:
+        m_map = df_mensal.set_index("mes").to_dict("index")
+        # IVA Nov e Dez são pagos em M+2 (Jan e Fev 2026) — pendentes no balanço
+        iva_outstanding = (
+            m_map.get("Nov", {}).get("iva_saldo_periodo", 0.0)
+            + m_map.get("Dez", {}).get("iva_saldo_periodo", 0.0)
+        )
+        if iva_outstanding >= 0:
+            eoep_2025_devedor = 0.0
+            iva_credor_2025 = iva_outstanding
+        else:
+            eoep_2025_devedor = abs(iva_outstanding)
+            iva_credor_2025 = 0.0
 
-    eoep_2025_credor = (
-        float(sched.eoep["IRC_saldo_2025_total"])
-        + float(sched.eoep["SS_saldo_2025_total"])
-    )
+        # SS de Dez é pago em Jan 2026 — pendente no balanço
+        ss_outstanding = m_map.get("Dez", {}).get("ss_acumulado_periodo", 0.0)
+
+        # IRC: total do ano menos pagamentos por conta já efectuados
+        irc_ppc_total = sum(
+            r.get("irc_ppc_mes", 0.0) for r in m_map.values()
+        )
+        irc_saldo = max(0.0, irc_anual.get(2025, 0.0) - irc_ppc_total)
+
+        eoep_2025_credor = iva_credor_2025 + ss_outstanding + irc_saldo
+    else:
+        eoep_2025_devedor = abs(float(sched.eoep["IVA_saldo_2024_2025_total"]))
+        eoep_2025_credor = (
+            float(sched.eoep["IRC_saldo_2025_total"])
+            + float(sched.eoep["SS_saldo_2025_total"])
+        )
 
     ab = sched.plurianual_AB
     g_ab73 = ab.get("AB73", 0.025)
@@ -175,6 +202,12 @@ def eoep_calendario_mensal(
     for mes_ppc in ["Jul", "Set", "Dez"]:
         irc_ppc[mes_ppc] = ppc_prestacao
 
+    # SS acumulado no próprio mês (pago no mês seguinte — útil para apurar saldo Dec)
+    ss_acumulado = {
+        m: pessoal_mensal.get(m, 0.0) * tsu
+        for m in MESES
+    }
+
     rows = []
 
     for m in MESES:
@@ -191,6 +224,7 @@ def eoep_calendario_mensal(
                 "iva_dedutivel": iva_ded[m],
                 "iva_saldo_periodo": iva_saldo[m],
                 "iva_pagamento_mes": iva_pagamento[m],
+                "ss_acumulado_periodo": ss_acumulado[m],
                 "ss_pagamento_mes": ss_pagamento[m],
                 "irc_ppc_mes": irc_ppc[m],
                 "total_saidas_fiscais": total_saidas_fiscais,

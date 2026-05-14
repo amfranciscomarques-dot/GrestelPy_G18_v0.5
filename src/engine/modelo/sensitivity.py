@@ -14,7 +14,7 @@ def _block(a, key: str) -> dict:
     """Obtém bloco de cenário/driver de forma compatível com a nova estrutura YAML."""
     aliases = {
         "volume_vendas": "crescimento_volume_vendas",
-        "preco_vendas": "crescimento_preco_vendas",
+        "preco_vendas": "crescimento_pvu_vendas",
         "fse": "crescimento_fse",
         "pessoal": "crescimento_pessoal",
         "custo_mercadorias": "crescimento_custo_mercadorias",

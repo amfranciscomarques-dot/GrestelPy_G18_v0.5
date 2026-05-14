@@ -201,23 +201,27 @@ def _qty_2024_mixed(a: Assumptions, base: Base2024) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def _monthly_rates(block: dict) -> dict[str, float]:
+def _monthly_rates(
+    block: dict,
+    inflation_monthly: list[float] | None = None,
+) -> dict[str, float]:
     """Converte taxa anual base 2025 em taxas mensais e aplica acréscimos.
 
-    Nova estrutura (base + acrescimos):
-      base_2025            → taxa anual base
-      acrescimos_mensais   → delta EM PP adicionado a cada mês
+    Filosofia B: se `inflation_monthly` for fornecido, o bloco contém um
+    spread REAL e a taxa efectiva mensal é composta com a inflação:
+        r_nominal_m = (1 + inf_m) × (1 + r_real_m) − 1
 
-    Legacy (compatível):
-      annual_2025          → taxa anual base
-      overrides_mensais    → delta absoluto à taxa mensal derivada
+    Sem `inflation_monthly` (grandezas físicas como volume), o bloco já
+    contém a taxa directa e não se aplica nenhuma composição.
 
-    Taxa efetiva/mês = (1 + base)^(1/12) - 1 + acrescimo_mes
+    Estrutura do bloco:
+      base_2025 / annual_2025  → spread real anual base
+      acrescimos_mensais       → delta (pp) adicionado a cada mês
     """
     block = block or {}
 
     g_annual = block.get("base_2025", block.get("annual_2025", 0.0))
-    g_base = (1.0 + g_annual) ** (1.0 / 12.0) - 1.0
+    g_base_real = (1.0 + g_annual) ** (1.0 / 12.0) - 1.0
 
     acrescimos = (
         block.get("acrescimos_mensais")
@@ -233,13 +237,16 @@ def _monthly_rates(block: dict) -> dict[str, float]:
 
     out = {}
 
-    for mes in MESES:
+    for i, mes in enumerate(MESES):
         idx = _MES_NOME_IDX[mes]
-        delta = acrescimos.get(
-            mes,
-            acrescimos.get(idx, acrescimos.get(str(idx), 0.0)),
-        )
-        out[mes] = g_base + float(delta)
+        delta = acrescimos.get(mes, acrescimos.get(idx, acrescimos.get(str(idx), 0.0)))
+        real_rate = g_base_real + float(delta)
+
+        if inflation_monthly is not None and i < len(inflation_monthly):
+            inf = inflation_monthly[i]
+            out[mes] = (1.0 + inf) * (1.0 + real_rate) - 1.0
+        else:
+            out[mes] = real_rate
 
     return out
 
@@ -302,6 +309,7 @@ def _factor_2025(
 
     block = a.cenario_block()
 
+    # Volume: grandeza física, não ligada à inflação
     vol_block = (block.get("volume_produto_crescimento", {}) or {}).get(produto)
 
     if vol_block is None:
@@ -309,6 +317,7 @@ def _factor_2025(
 
     cum_vol = _monthly_cum_index(_monthly_rates(vol_block))
 
+    # Preço: Filosofia B — spread real composto com inflação mensal
     pvu_block = (block.get("pvu_produto_crescimento", {}) or {}).get(produto)
 
     if pvu_block is None:
@@ -317,7 +326,9 @@ def _factor_2025(
     if pvu_block is None:
         pvu_block = block.get("preco_vendas", {})
 
-    cum_price = _monthly_cum_index(_monthly_rates(pvu_block))
+    cum_price = _monthly_cum_index(
+        _monthly_rates(pvu_block, inflation_monthly=a.inflacao_mensal_2025())
+    )
 
     if mercado in ("EXTERNO", "EXT"):
         s = _ext_seasonality(a, produto)

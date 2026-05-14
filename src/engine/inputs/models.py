@@ -3,10 +3,34 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from math import prod
 from typing import Any, Dict
 
 from .constants import MERCADORIAS, PRODUTOS, YEARS
 from .yaml_io import _alias_mercadoria
+
+# ---------------------------------------------------------------------------
+# Filosofia B — Inflação estrutural + spread real
+#
+# Os drivers abaixo são armazenados no YAML como spreads REAIS (acima da
+# inflação). O engine compõe a inflação em runtime:
+#
+#   taxa_nominal = (1 + inflação_ano) × (1 + spread_real) − 1
+#
+# Assim, alterar o pressuposto macroeconómico (macro.yaml) propaga-se
+# automaticamente a todos os custos e preços ligados à inflação, garantindo
+# consistência interna entre cenários.
+#
+# Drivers NÃO ligados à inflação (grandezas físicas ou fiscais):
+#   crescimento_volume_vendas, IRC, câmbio, qtd_produto_crescimento, …
+# ---------------------------------------------------------------------------
+INFLATION_LINKED_DRIVERS: frozenset[str] = frozenset({
+    "preco_vendas",        # alias → crescimento_pvu_vendas (pricing power real)
+    "fse",                 # → crescimento_fse           (spread real de volume/estrutura)
+    "pessoal",             # → crescimento_pessoal       (ganho salarial real)
+    "custo_mercadorias",   # → crescimento_custo_mercadorias
+    "mpsc",                # → crescimento_pcu_mpsc
+})
 
 
 Cenario = str
@@ -61,6 +85,14 @@ class Assumptions:
     @property
     def pessoal_params(self):
         return self.raw.get("pessoal", {})
+
+    @property
+    def pessoal_contab(self) -> dict:
+        return (self.raw.get("pessoal") or {}).get("contab", {})
+
+    @property
+    def pessoal_departamentos(self) -> dict:
+        return (self.raw.get("pessoal") or {}).get("departamentos", {})
 
     @property
     def triggers(self):
@@ -189,7 +221,7 @@ class Assumptions:
         return {
             "Base": {
                 "volume_vendas": self.raw.get("crescimento_volume_vendas", {}),
-                "preco_vendas": self.raw.get("crescimento_preco_vendas", {}),
+                "preco_vendas": self.raw.get("crescimento_pvu_vendas", {}),
                 "pvu_produto_crescimento": self.raw.get("pvu_produto_crescimento", {}),
                 "pvu_mercadorias_crescimento": self.raw.get(
                     "pvu_mercadorias_crescimento",
@@ -213,7 +245,7 @@ class Assumptions:
         """Obtém bloco de driver, considerando aliases."""
         aliases = {
             "volume_vendas": "crescimento_volume_vendas",
-            "preco_vendas": "crescimento_preco_vendas",
+            "preco_vendas": "crescimento_pvu_vendas",
             "fse": "crescimento_fse",
             "pessoal": "crescimento_pessoal",
             "custo_mercadorias": "crescimento_custo_mercadorias",
@@ -231,16 +263,25 @@ class Assumptions:
 
     def cresc_2026_2029(self, key: str) -> Dict[int, float]:
         block = self._driver_block(key)
+        linked = key in INFLATION_LINKED_DRIVERS
 
         return {
-            y: float((block or {}).get(y, 0.0))
+            y: (
+                self._nominal(float((block or {}).get(y, 0.0)), y)
+                if linked
+                else float((block or {}).get(y, 0.0))
+            )
             for y in YEARS[1:]
         }
 
     def cresc_2025_anual(self, key: str) -> float:
         block = self._driver_block(key)
+        real = float((block or {}).get("base_2025", (block or {}).get("annual_2025", 0.0)))
 
-        return float((block or {}).get("base_2025", (block or {}).get("annual_2025", 0.0)))
+        if key in INFLATION_LINKED_DRIVERS:
+            return self._nominal(real, 2025)
+
+        return real
 
     def cresc_2026_2029_pvu(self, produto: str) -> Dict[int, float]:
         produto = produto.strip()
@@ -254,17 +295,17 @@ class Assumptions:
                 .get(produto, {})
             )
 
+        # PVU cresce com inflação + spread real (Filosofia B)
         return {
-            y: float((bloco or {}).get(y, 0.0))
+            y: self._nominal(float((bloco or {}).get(y, 0.0)), y)
             for y in YEARS[1:]
         }
 
     def cresc_2025_pvu_produto(self, produto: str) -> float:
         bloco = self.raw.get("pvu_produto_crescimento", {}).get(produto, {})
+        real = float((bloco or {}).get("base_2025", (bloco or {}).get("annual_2025", 0.0)))
 
-        return float(
-            (bloco or {}).get("base_2025", (bloco or {}).get("annual_2025", 0.0))
-        )
+        return self._nominal(real, 2025)
 
     def cresc_2026_2029_pvu_mercadoria(self, mercadoria: str) -> Dict[int, float]:
         mercadoria = _alias_mercadoria(mercadoria.strip())
@@ -277,8 +318,9 @@ class Assumptions:
                     bloco = v or {}
                     break
 
+        # PVU mercadorias: inflação + spread real (Filosofia B)
         return {
-            y: float((bloco or {}).get(y, 0.0))
+            y: self._nominal(float((bloco or {}).get(y, 0.0)), y)
             for y in YEARS[1:]
         }
 
@@ -293,24 +335,29 @@ class Assumptions:
                     bloco = v or {}
                     break
 
-        return float(
-            (bloco or {}).get("base_2025", (bloco or {}).get("annual_2025", 0.0))
-        )
+        real = float((bloco or {}).get("base_2025", (bloco or {}).get("annual_2025", 0.0)))
+
+        return self._nominal(real, 2025)
 
     def taxa_pessoal_2025(self) -> float:
         return float(self.pessoal_params.get("taxa_cresc_custo_2025", 0.0))
 
     def inflacao_mensal_2025(self) -> list[float]:
-        return self.macro.get("inflacao", {}).get("mensal_2025", [0.023] * 12)
+        return self.macro.get("inflacao", {}).get("mensal_2025", [0.022 / 12] * 12)
 
     def inflacao_anual(self, ano: int) -> float:
         if ano == 2025:
             vals = self.inflacao_mensal_2025()
-            return float(sum(vals) / len(vals)) if vals else 0.023
+            # produto composto (correcto); média aritmética subestimaria com inflação alta
+            return prod(1.0 + r for r in vals) - 1.0 if vals else 0.022
 
         return float(
-            self.macro.get("inflacao", {}).get("anual", {}).get(ano, 0.023)
+            self.macro.get("inflacao", {}).get("anual", {}).get(ano, 0.022)
         )
+
+    def _nominal(self, real: float, ano: int) -> float:
+        """Converte spread real em taxa nominal: (1+inf)×(1+real)−1."""
+        return (1.0 + self.inflacao_anual(ano)) * (1.0 + real) - 1.0
 
     def eur_usd_mensal_2025(self) -> list[float]:
         return self.macro.get("eur_usd", {}).get("mensal_2025", [1.08] * 12)
@@ -362,6 +409,10 @@ class Base2024:
     @property
     def outros_rendimentos(self):
         return self.raw["outros_rendimentos_2024"]
+
+    @property
+    def pessoal_detalhe(self) -> dict:
+        return self.raw.get("pessoal_detalhe_2024", {})
 
     @property
     def materias_primas(self):

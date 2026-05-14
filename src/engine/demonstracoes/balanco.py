@@ -114,8 +114,13 @@ def build_balanco(
     base: Base2024,
     sched: Schedules,
     df_dr: pd.DataFrame,
+    df_eoep_mensal: "pd.DataFrame | None" = None,
 ) -> pd.DataFrame:
-    """Constrói o Balanço 2024-2029 com treasury plug."""
+    """Constrói o Balanço 2024-2029 com treasury plug.
+
+    Se df_eoep_mensal for fornecido, os saldos EOEP de 2025 são derivados
+    do calendário mensal em vez do schedules.yaml.
+    """
     df_prod = vendas.vendas_anuais(a, base, sched)
     df_merc = vendas.vendas_mercadorias_anuais(a, base)
     df_total = vendas.resumo_anual(df_prod, df_merc)
@@ -164,7 +169,7 @@ def build_balanco(
         for y in ALL_YEARS
     }
 
-    df_eoep = eoep.eoep_anual(a, base, sched, irc_dict)
+    df_eoep = eoep.eoep_anual(a, base, sched, irc_dict, df_mensal=df_eoep_mensal)
 
     base_outros_ac = base.balanco["ativo_corrente"]["Outros_AC"]
     eoep_dev_24 = base.saldos["EOEP_devedor"]

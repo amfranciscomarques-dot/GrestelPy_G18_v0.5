@@ -70,7 +70,7 @@ import pandas as pd
 
 from ..inputs import Assumptions, Base2024, ALL_YEARS, YEARS, MESES, PRODUTOS
 from .vendas import _monthly_cum_index, _monthly_rates, _saz_to_dict
-from . import producao as prod_mod
+from . import produção as prod_mod
 
 
 def cmvmc_anual(
@@ -96,12 +96,7 @@ def cmvmc_anual(
     # Mantido por compatibilidade futura.
     _ = df_merc
 
-    cup0 = prod_mod.cup_base_2024(a, base)
-
-    cups_2024 = {
-        p: cup0 * prod_mod._INTENSIDADE[p]
-        for p in prod_mod._INTENSIDADE
-    }
+    cups_2024 = prod_mod.cups_por_produto_2024(a, base)
 
     factors = prod_mod._cost_growth_factors(a)
 

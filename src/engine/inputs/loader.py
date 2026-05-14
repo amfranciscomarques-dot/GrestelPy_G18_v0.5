@@ -75,9 +75,22 @@ from .yaml_io import (
 #   - Crescimento em preço de vendas: apenas 1% a.a. (pressure de concorrência / inflação contida)
 #   - Crescimento FSE: 4% em 2025-2027, acelerando a 6% em 2028-2029 (custos operacionais ascendentes)
 #
+# ---------------------------------------------------------------------------
+# Overrides de cenário — SPREADS REAIS (Filosofia B)
+#
+# Os valores abaixo são spreads reais acima da inflação.
+# O engine compõe a inflação em runtime: nominal = (1+inf)×(1+real)−1
+#
+# Volume é grandeza física — valores directos (não compostos com inflação).
+#
+# Conversão de referência (nominal → real):
+#   real = (1+nominal)/(1+inflação) − 1
+#   com inflações: 2025≈2.2%, 2026=2.0%, 2027=1.8%, 2028=1.7%, 2029=1.6%
+# ---------------------------------------------------------------------------
 _SCENARIO_OVERRIDES: dict[str, dict] = {
     "Base": {},
     "Upside": {
+        # Volume: directo (grandeza física)
         "crescimento_volume_vendas": {
             "base_2025": 0.05,
             2026: 0.05,
@@ -85,19 +98,22 @@ _SCENARIO_OVERRIDES: dict[str, dict] = {
             2028: 0.05,
             2029: 0.04,
         },
-        "crescimento_preco_vendas": {
-            "base_2025": 0.05,
-            2026: 0.05,
-            2027: 0.04,
-            2028: 0.04,
-            2029: 0.03,
+        # PVU: spreads reais — (5%−2.2%)/1.022≈2.7%, (5%−2.0%)/1.02≈2.9%, etc.
+        "crescimento_pvu_vendas": {
+            "base_2025": 0.027,
+            2026: 0.029,
+            2027: 0.022,
+            2028: 0.023,
+            2029: 0.014,
         },
+        # FSE: spread real apenas nos anos com pressão extra
         "crescimento_fse": {
-            2028: 0.04,
-            2029: 0.04,
+            2028: 0.023,
+            2029: 0.024,
         },
     },
     "Downside": {
+        # Volume: directo
         "crescimento_volume_vendas": {
             "base_2025": 0.02,
             2026: 0.02,
@@ -105,22 +121,25 @@ _SCENARIO_OVERRIDES: dict[str, dict] = {
             2028: 0.01,
             2029: 0.01,
         },
-        "crescimento_preco_vendas": {
-            "base_2025": 0.01,
-            2026: 0.01,
-            2027: 0.01,
-            2028: 0.01,
-            2029: 0.01,
+        # PVU: spread real negativo — preço não acompanha inflação
+        "crescimento_pvu_vendas": {
+            "base_2025": -0.012,
+            2026: -0.010,
+            2027: -0.008,
+            2028: -0.007,
+            2029: -0.006,
         },
+        # FSE: spread real positivo — custos sobem acima da inflação
         "crescimento_fse": {
-            "base_2025": 0.04,
-            2026: 0.04,
-            2027: 0.04,
-            2028: 0.06,
-            2029: 0.06,
+            "base_2025": 0.018,
+            2026: 0.020,
+            2027: 0.022,
+            2028: 0.042,
+            2029: 0.043,
         },
     },
     "Stress": {
+        # Volume: directo (contracção real)
         "crescimento_volume_vendas": {
             "base_2025": -0.02,
             2026: 0.00,
@@ -128,26 +147,29 @@ _SCENARIO_OVERRIDES: dict[str, dict] = {
             2028: 0.02,
             2029: 0.02,
         },
-        "crescimento_preco_vendas": {
-            "base_2025": 0.00,
-            2026: 0.01,
-            2027: 0.01,
-            2028: 0.01,
-            2029: 0.02,
+        # PVU: spread real muito negativo — incapacidade de repercutir inflação
+        "crescimento_pvu_vendas": {
+            "base_2025": -0.022,
+            2026: -0.010,
+            2027: -0.008,
+            2028: -0.007,
+            2029:  0.004,
         },
+        # FSE: spread real elevado — choque energético acima da inflação geral
         "crescimento_fse": {
-            "base_2025": 0.06,
-            2026: 0.05,
-            2027: 0.05,
-            2028: 0.06,
-            2029: 0.06,
+            "base_2025": 0.037,
+            2026: 0.029,
+            2027: 0.031,
+            2028: 0.042,
+            2029: 0.043,
         },
+        # Pessoal: pressão salarial acima da inflação
         "crescimento_pessoal": {
-            "base_2025": 0.05,
-            2026: 0.05,
-            2027: 0.04,
-            2028: 0.04,
-            2029: 0.05,
+            "base_2025": 0.027,
+            2026: 0.029,
+            2027: 0.022,
+            2028: 0.023,
+            2029: 0.033,
         },
     },
 }

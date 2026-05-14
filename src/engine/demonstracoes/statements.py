@@ -47,6 +47,7 @@ def build_statements(
     a: Assumptions,
     base: Base2024,
     sched: Schedules,
+    df_eoep_mensal: "pd.DataFrame | None" = None,
 ) -> dict[str, pd.DataFrame]:
     """
     Constrói as três demonstrações financeiras consolidadas.
@@ -55,6 +56,8 @@ def build_statements(
       a (Assumptions): Hipóteses operacionais (crescimentos, custos, tax rate, etc.)
       base (Base2024): Saldos iniciais 2024 (starting balance para projeção)
       sched (Schedules): Tabelas plurianuais pré-calculadas (juros, depr., etc.)
+      df_eoep_mensal: Calendário EOEP mensal de 2025 (opcional). Quando fornecido,
+          os saldos EOEP de 2025 no Balanço são derivados do calendário mensal.
 
     RETORNA:
       dict[str, DataFrame]: Dicionário com três DataFrames:
@@ -69,17 +72,8 @@ def build_statements(
 
     ORDEM CRÍTICA: DR → Balanço → DFC (dependências acíclicas)
     """
-    # Passo 1: Construir DR (Demonstração de Resultados)
-    # Contém toda a lógica operacional: receitas, custos, margens, EBIT, resultado líquido
     df_dr = build_dr(a, base, sched)
-
-    # Passo 2: Construir Balanço (Situação Patrimonial)
-    # Usa a DR para reconciliação de lucros retidos e calcula saldos de ativo/passivo
-    df_balanco = build_balanco(a, base, sched, df_dr)
-
-    # Passo 3: Construir DFC (Demonstração de Fluxos de Caixa)
-    # Usa DR (para lucro antes de juros/impostos) e Balanço (para variações de contas)
-    # para derivar movimentos de caixa reais
+    df_balanco = build_balanco(a, base, sched, df_dr, df_eoep_mensal=df_eoep_mensal)
     df_dfc = build_dfc(a, df_dr, df_balanco, sched, base)
 
     return {
@@ -93,10 +87,11 @@ def build_all(
     a: Assumptions,
     base: Base2024,
     sched: Schedules,
+    df_eoep_mensal: "pd.DataFrame | None" = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Constrói as três demonstrações e devolve-as como tuplo."""
     df_dr = build_dr(a, base, sched)
-    df_balanco = build_balanco(a, base, sched, df_dr)
+    df_balanco = build_balanco(a, base, sched, df_dr, df_eoep_mensal=df_eoep_mensal)
     df_dfc = build_dfc(a, df_dr, df_balanco, sched, base)
 
     return df_dr, df_balanco, df_dfc

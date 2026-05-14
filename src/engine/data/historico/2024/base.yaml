@@ -81,6 +81,24 @@ fse_detalhe_2024:
   Vigilancia: 134935.93
   Marketing_Publicidade: 372905.37
   Outros_FSE: 2509310.48
+# ─── Detalhe de Gastos com Pessoal 2024 (Nota 28 R&C + IAS 19) ────────────────
+# Fonte: Relatório & Contas 2024 auditado + imputação funcional interna.
+# Total deve coincidir com dr_2024_real.gastos_pessoal = 14 371 357,70 €.
+pessoal_detalhe_2024:
+  # Subdivisão contabilística
+  rubricas_contab:
+    Remuneracoes:      11400000.00   # Nota 28 — salários brutos incl. sub. férias/natal
+    Encargos_TSU:       2707500.00   # 23,75% × 11 400 000 (TSU patronal)
+    Seguros_AT:          150480.00   # ~1,32% × 11 400 000 (prémio SAT — cerâmica)
+    Outros_Encargos:     113377.70   # Residual: formação, part. lucros IAS 19, outros
+  # Subdivisão departamental (imputação funcional sobre 734 FTE × custo médio 19 578 €)
+  departamentos:
+    Producao:           9341382.51   # 65% — operações fabris
+    RD:                  718567.89   # 5%  — I&D e inovação
+    Comercial:          1437135.77   # 10% — retalho + hotelaria
+    Financeira:         1724562.92   # 12% — back-office / suporte
+    Marketing:          1149708.62   # 8%  — comunicação e marcas
+
 saldos_historicos:
   EOEP_devedor: 688519.62
   Outros_credores_locacoes: 1237541.08

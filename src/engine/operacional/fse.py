@@ -195,11 +195,13 @@ def _cresc_fse_2025_efetivo(a: Assumptions) -> float:
     acrescimos = block.get("acrescimos_mensais") or block.get("overrides_mensais") or {}
 
     if not acrescimos:
+        # cresc_2025_anual já compõe inflação (Filosofia B)
         return a.cresc_2025_anual("fse")
 
     from .vendas import _monthly_rates
 
-    rates = _monthly_rates(block)
+    # Com acréscimos mensais: compor inflação mensal sobre spread real
+    rates = _monthly_rates(block, inflation_monthly=a.inflacao_mensal_2025())
     factor = 1.0
     for m in MESES:
         factor *= 1.0 + rates[m]

@@ -154,28 +154,18 @@ def _mes_pagamento(mes_custo: str, pmp_dias: float) -> str | None:
     return None
 
 
-def build_tesouraria_mensal(
+def _build_mensais_2025(
     a: Assumptions,
     base: Base2024,
     sched: Schedules,
-) -> pd.DataFrame:
-    """Orçamento de Tesouraria mensal de 2025.
+) -> tuple[dict, dict, dict, dict, float]:
+    """Calcula os vectores mensais 2025 partilhados por várias funções.
 
     Returns:
-        DataFrame com 12 linhas, uma por mês, incluindo:
-        recebimentos_clientes, pagamentos_fornecedores, pagamentos_pessoal,
-        iva_pagamento_estado, ss_pagamento, irc_ppc, total_saidas_fiscais,
-        fluxo_operacional_bruto, fluxo_liquido e saldo_caixa_acumulado.
+        (vn_m, fse_m, cmvmc_m, pessoal_m, irc_2024)
     """
-    # Parâmetros base
-    pmr = a.prazos["PMR_dias"]
-    pmp = a.prazos["PMP_Inventarios_dias"]
-    iva_venda = a.impostos["IVA_Vendas"]
-    iva_fse = a.impostos.get("IVA_FSE", 0.15)
-    tsu_emp = a.impostos["TSU_Empresa"]
     irc_2024 = _get_irc_2024(base)
 
-    # Anuais 2025
     df_prod = vendas_mod.vendas_anuais(a, base, sched)
     df_merc = vendas_mod.vendas_mercadorias_anuais(a, base)
     df_total = vendas_mod.resumo_anual(df_prod, df_merc)
@@ -192,23 +182,62 @@ def build_tesouraria_mensal(
     pessoal_2025 = float(df_pessoal[df_pessoal.ano == 2025]["gastos_pessoal"].iloc[0])
     cmvmc_2025 = float(df_cmvmc[df_cmvmc.ano == 2025]["cmvmc"].iloc[0])
 
-    # Distribuição mensal por sazonalidade
     dist_saz = _dist_sazonal_total(a, base, sched)
 
-    # VN, FSE, CMVMC e Pessoal mensais
     vn_m = {m: vn_2025 * dist_saz[m] for m in MESES}
     fse_m = {m: fse_2025 * dist_saz[m] for m in MESES}
     cmvmc_m = {m: cmvmc_2025 * dist_saz[m] for m in MESES}
 
-    # Pessoal em 14 meses, com subsídios em junho e novembro
     pessoal_m = {m: pessoal_2025 / 14.0 for m in MESES}
     pessoal_m["Jun"] = pessoal_2025 / 14.0 * 2
     pessoal_m["Nov"] = pessoal_2025 / 14.0 * 2
 
-    # Calendário fiscal EOEP mensal
+    return vn_m, fse_m, cmvmc_m, pessoal_m, irc_2024
+
+
+def build_eoep_mensal(
+    a: Assumptions,
+    base: Base2024,
+    sched: Schedules,
+) -> pd.DataFrame:
+    """Calendário fiscal mensal de 2025 (IVA, SS, IRC PPC).
+
+    Returns:
+        DataFrame com 12 linhas × colunas de eoep_calendario_mensal.
+    """
+    vn_m, fse_m, _cmvmc_m, pessoal_m, irc_2024 = _build_mensais_2025(a, base, sched)
+    return eoep_mod.eoep_calendario_mensal(
+        a, base,
+        vn_mensal=vn_m,
+        fse_mensal=fse_m,
+        pessoal_mensal=pessoal_m,
+        irc_2024_pago=irc_2024,
+    )
+
+
+def build_tesouraria_mensal(
+    a: Assumptions,
+    base: Base2024,
+    sched: Schedules,
+) -> pd.DataFrame:
+    """Orçamento de Tesouraria mensal de 2025.
+
+    Returns:
+        DataFrame com 12 linhas, uma por mês, incluindo:
+        recebimentos_clientes, pagamentos_fornecedores, pagamentos_pessoal,
+        iva_pagamento_estado, ss_pagamento, irc_ppc, total_saidas_fiscais,
+        fluxo_operacional_bruto, fluxo_liquido e saldo_caixa_acumulado.
+    """
+    pmr = a.prazos["PMR_dias"]
+    pmp = a.prazos["PMP_Inventarios_dias"]
+    iva_venda = a.impostos["IVA_Vendas"]
+    iva_fse = a.impostos.get("IVA_FSE", 0.15)
+    tsu_emp = a.impostos["TSU_Empresa"]
+
+    vn_m, fse_m, cmvmc_m, pessoal_m, irc_2024 = _build_mensais_2025(a, base, sched)
+
     df_eoep_cal = eoep_mod.eoep_calendario_mensal(
-        a,
-        base,
+        a, base,
         vn_mensal=vn_m,
         fse_mensal=fse_m,
         pessoal_mensal=pessoal_m,
@@ -478,3 +507,7 @@ def rolling_update(
         df.loc[i, "saldo_caixa_acumulado"] = round(saldo)
 
     return df
+
+
+# Alias de compatibilidade (usado em rolling_forecast_mensal.py)
+build_tesouraria = build_tesouraria_mensal

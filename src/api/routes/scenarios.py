@@ -1,12 +1,13 @@
-"""Rotas para execu??o e compara??o de cen?rios."""
+"""Rotas para execução e comparação de cenários."""
 
 from fastapi import APIRouter, Query
 
 from src.api.schemas import RunRequest
 from src.api.serializers import _fse_mensal_to_rows, _wrap_rows
-from src.engine.inputs import upsert_custom_scenario
+from src.engine.inputs import upsert_custom_scenario, load
 from src.engine.inputs.loader import CENARIOS
 from src.engine.modelo.model import dataframe_to_records, run_model
+from src.engine.operacional import produção as producao_mod
 
 router = APIRouter(prefix="/api")
 
@@ -33,9 +34,28 @@ def get_scenarios_all(
             "kpis": _wrap_rows(rec.get("kpis")),
             "fse_detalhe_anual": _wrap_rows(fse_det_anual_rec) if fse_det_anual_rec else {"rows": []},
             "fse_detalhe_mensal_2025": {"rows": _fse_mensal_to_rows(fse_det_mensal)},
+            "pessoal_contab_anual": _wrap_rows(rec.get("pessoal_contab_anual", [])),
+            "pessoal_depart_anual": _wrap_rows(rec.get("pessoal_depart_anual", [])),
+            "producao_anual": _wrap_rows(rec.get("producao_anual", [])),
         }
 
     return result
+
+
+@router.get("/producao")
+def get_producao(
+    cenario: str = Query("Base"),
+    hub_on: bool = Query(False),
+    ecogres_on: bool = Query(False),
+):
+    """Orçamento de produção anual e mensal (2024-2029) com custos unitários reais do YAML."""
+    dfs = run_model(cenario=cenario, hub_on=hub_on, ecogres_on=ecogres_on)
+    rec = dataframe_to_records(dfs)
+
+    return {
+        "cenario": cenario,
+        "producao_anual": _wrap_rows(rec.get("producao_anual", [])),
+    }
 
 
 @router.post("/run")

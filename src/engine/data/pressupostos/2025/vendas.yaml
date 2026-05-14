@@ -1,79 +1,80 @@
-# Drivers de crescimento de vendas para 2025.
+# Drivers de crescimento de vendas para 2025 — SPREADS REAIS (Filosofia B)
+#
+# ┌─────────────────────────────────────────────────────────────────────────┐
+# │  FILOSOFIA B — Inflação estrutural + spread real                        │
+# │                                                                         │
+# │  Os valores abaixo são SPREADS REAIS acima da inflação.                 │
+# │  O engine calcula a taxa nominal em runtime:                            │
+# │                                                                         │
+# │    taxa_nominal = (1 + inflação_ano) × (1 + spread_real) − 1           │
+# │                                                                         │
+# │  A inflação 2025 (≈ 2.2%) é lida de macro.yaml e propaga-se           │
+# │  automaticamente. Alterar o macro muda todos os preços e custos         │
+# │  sem tocar neste ficheiro.                                              │
+# │                                                                         │
+# │  Exemplo: spread_real = 0.008 com inflação 2.2%                        │
+# │    → taxa_nominal = 1.022 × 1.008 − 1 ≈ 3.0%                          │
+# └─────────────────────────────────────────────────────────────────────────┘
 #
 # Formato suportado por variável:
-#   base_2025: <taxa anual>          ← obrigatório; distribui-se automaticamente pelos 12 meses
-#   acrescimos_mensais:              ← opcional; adicionar apenas os meses que desviam da base
-#     Mai: +0.01
-#     Set: -0.01
-#
-# Taxa efectiva de cada mês = (1 + base_2025)^(1/12) - 1 + acrescimo_mes
-# Taxa anual efectiva       = produto dos 12 factores mensais - 1
+#   base_2025: <spread real anual>   ← obrigatório; distribui-se pelos 12 meses
+#   acrescimos_mensais:              ← opcional; delta (pp real) sobre a base
+#     Mai: +0.002
+#     Set: -0.002
 
 crescimento_volume_vendas:
+  # Volume é grandeza física — não ligado à inflação, valor directo
   base_2025: 0.03
   # acrescimos_mensais:
   #   Mai: 0.01
 
 crescimento_pvu_vendas:
-  base_2025: 0.03
+  # Spread real de preço (pricing power): 0.8% real + 2.2% inflação ≈ 3.0% nominal
+  base_2025: 0.008
   # acrescimos_mensais: {}
 
 qtd_produto_crescimento:
+  # Crescimento de quantidade por produto — grandeza física, valor directo
   Pratos:
-    base_2025: 0.03
-    # acrescimos_mensais: {}
+    base_2025: 0.01
   Tigelas:
-    base_2025: 0.03
-    # acrescimos_mensais: {}
+    base_2025: 0.01
   Canecas:
-    base_2025: 0.03
-    # acrescimos_mensais: {}
+    base_2025: 0.01
   Pecas_Servir:
-    base_2025: 0.03
-    # acrescimos_mensais: {}
+    base_2025: 0.01
   Forno_Cozinha:
-    base_2025: 0.03
-    # acrescimos_mensais: {}
+    base_2025: 0.01
 
 qtd_mercadorias_crescimento:
+  # Crescimento de quantidade de mercadorias — grandeza física, valor directo
   Cutelaria:
-    base_2025: 0.03
-    # acrescimos_mensais: {}
+    base_2025: 0.04
   Vidros_Cristais:
-    base_2025: 0.03
-    # acrescimos_mensais: {}
+    base_2025: 0.04
   Texteis_Acessorios:
-    base_2025: 0.03
-    # acrescimos_mensais: {}
+    base_2025: 0.04
 
 pvu_produto_crescimento:
+  # Spread real de PVU por produto.
+  # 7.6% real + 2.2% inflação ≈ 10.0% nominal (reposicionamento de preço)
   Pratos:
-    base_2025: 0.03
-    # acrescimos_mensais: {}
+    base_2025: 0.076
   Tigelas:
-    base_2025: 0.03
-    # acrescimos_mensais: {}
+    base_2025: 0.076
   Canecas:
-    base_2025: 0.03
-    # acrescimos_mensais: {}
+    base_2025: 0.076
   Pecas_Servir:
-    base_2025: 0.03
-    # acrescimos_mensais: {}
+    base_2025: 0.076
   Forno_Cozinha:
-    base_2025: 0.03
-    # acrescimos_mensais: {}
+    base_2025: 0.076
 
 pvu_mercadorias_crescimento:
+  # Spread real de PVU de mercadorias.
+  # 0.8% real + 2.2% inflação ≈ 3.0% nominal
   Cutelaria:
-    base_2025: 0.03
-    # acrescimos_mensais: {}
+    base_2025: 0.008
   Vidros_Cristais:
-    base_2025: 0.03
-    # acrescimos_mensais: {}
+    base_2025: 0.008
   Texteis_Acessorios:
-    base_2025: 0.03
-    # acrescimos_mensais: {}
-
-crescimento_preco_vendas:
-  base_2025: 0.03
-  # acrescimos_mensais: {}
+    base_2025: 0.008

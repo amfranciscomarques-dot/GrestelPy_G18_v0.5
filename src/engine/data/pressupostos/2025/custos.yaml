@@ -1,30 +1,43 @@
-# Drivers de crescimento de custos para 2025.
+# Drivers de crescimento de custos para 2025 — SPREADS REAIS (Filosofia B)
 #
-# Formato suportado por variável:
-#   base_2025: <taxa anual>          ← obrigatório; distribui-se automaticamente pelos 12 meses
-#   acrescimos_mensais:              ← opcional; adicionar apenas os meses que desviam da base
-#     Jan: +0.01
-#     Set: -0.01
+# ┌─────────────────────────────────────────────────────────────────────────┐
+# │  FILOSOFIA B — Inflação estrutural + spread real                        │
+# │                                                                         │
+# │  Os valores abaixo são SPREADS REAIS acima da inflação.                 │
+# │  O engine calcula a taxa nominal em runtime:                            │
+# │                                                                         │
+# │    taxa_nominal = (1 + inflação_ano) × (1 + spread_real) − 1           │
+# │                                                                         │
+# │  Inflação 2025 ≈ 2.2% (de macro.yaml).                                 │
+# └─────────────────────────────────────────────────────────────────────────┘
 #
-# Taxa efectiva de cada mês = (1 + base_2025)^(1/12) - 1 + acrescimo_mes
-# Taxa anual efectiva       = produto dos 12 factores mensais - 1
+# Formato:
+#   base_2025: <spread real anual>
+#   acrescimos_mensais:   ← opcional (delta pp real)
+#     Jan: +0.002
 
 crescimento_fse:
-  base_2025: 0.03
+  # Spread real de FSE: 0.8% real + 2.2% inflação ≈ 3.0% nominal
+  # Reflecte crescimento de volume/estrutura acima da inflação de energia/serviços
+  base_2025: 0.008
   # acrescimos_mensais:
-  #   Mai: 0.01
-  #   Set: -0.01
+  #   Mai: 0.002
+  #   Set: -0.002
 
 crescimento_pessoal:
-  base_2025: 0.035
+  # Spread real salarial: 1.3% real + 2.2% inflação ≈ 3.5% nominal
+  # Ganho salarial real alinhado com IRCT e produtividade
+  base_2025: 0.013
   # acrescimos_mensais:
-  #   Jul: 0.005
+  #   Jul: 0.002
 
 crescimento_custo_mercadorias:
-  base_2025: 0.03
+  # Spread real de custo de mercadorias: 0.8% real + 2.2% inflação ≈ 3.0% nominal
+  base_2025: 0.008
   # acrescimos_mensais:
-  #   Jan: 0.005
+  #   Jan: 0.002
 
 crescimento_pcu_mpsc:
-  base_2025: 0.03
+  # Spread real de PCU/MPSC: 0.8% real + 2.2% inflação ≈ 3.0% nominal
+  base_2025: 0.008
   # acrescimos_mensais: {}
