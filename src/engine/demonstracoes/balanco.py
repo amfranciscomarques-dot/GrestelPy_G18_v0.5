@@ -223,6 +223,11 @@ def build_balanco(
         outros_anc = float(
             df_inv[df_inv.ano == y]["goodwill_intang_subs_af_total"].iloc[0]
         )
+        goodwill_val = float(df_inv[df_inv.ano == y]["goodwill"].iloc[0])
+        intangiveis_val = float(df_inv[df_inv.ano == y]["intangiveis_fim"].iloc[0])
+        subsidiarias_val = float(df_inv[df_inv.ano == y]["subsidiarias_fim"].iloc[0])
+        ativos_fin_jv_val = float(df_inv[df_inv.ano == y]["ativos_fin_jv"].iloc[0])
+        outros_fixos_val = float(df_inv[df_inv.ano == y]["outros_fixos_af"].iloc[0])
 
         impostos_dif_a = base.balanco["ativo_nao_corrente"][
             "Impostos_Diferidos_Ativos"
@@ -260,6 +265,20 @@ def build_balanco(
         passivo_pre = emp_nc + emp_c + imp_dif_p + forn + eoep_c + out_pc
         ac_sem_caixa = inv_st + cli + eoep_d + out_ac
 
+        # surplus = recursos disponíveis após financiar todos os ativos fixos e
+        # capital circulante operacional (clientes, inventários, EOEP, outros AC).
+        # É o "dinheiro sobrante" antes de decidir onde o alocar.
+        #   surplus > caixa_max  →  excesso depositado em aplicações financeiras CP
+        #   caixa_min ≤ surplus ≤ caixa_max  →  fica todo em caixa
+        #   surplus < caixa_min  →  caixa fica em caixa_min; o deficit é coberto por
+        #                           uma linha de crédito de curto prazo (treasury plug).
+        #
+        # LIMITAÇÕES DO PLUG:
+        #   • A linha_credito_cp é um plug contabilístico: garante que Ativo = Passivo+CP
+        #     mas não verifica covenants bancários nem capacidade de obter o crédito.
+        #   • Não são calculados juros sobre a linha — o custo financeiro real seria
+        #     superior ao modelado. Para maior rigor, seria necessário retroalimentar
+        #     os juros na DR e recalcular iterativamente.
         surplus = cp_total_pre_caixa + passivo_pre - total_anc - ac_sem_caixa
 
         if y == 2024:
@@ -268,11 +287,11 @@ def build_balanco(
             linha_cp = 0.0
         else:
             caixa = min(caixa_max, max(caixa_min, surplus))
-            aplic_cp = max(0.0, surplus - caixa_max)
-            linha_cp = max(0.0, caixa_min - surplus)
+            aplic_cp = max(0.0, surplus - caixa_max)   # excesso → aplicações fin. CP
+            linha_cp = max(0.0, caixa_min - surplus)   # deficit → linha crédito CP
 
         total_ac = aplic_cp + inv_st + cli + eoep_d + out_ac + caixa
-        passivo_total = passivo_pre + linha_cp
+        passivo_total = passivo_pre + linha_cp  # linha_cp = 0 quando surplus ≥ caixa_min
         cp_total = cp_total_pre_caixa
         total_passivo_cp = cp_total + passivo_total
         total_ativo = total_anc + total_ac
@@ -282,6 +301,11 @@ def build_balanco(
                 "ano": y,
                 "aft_liquido": aft,
                 "goodwill_intang_subs_af": outros_anc,
+                "goodwill": goodwill_val,
+                "intangiveis": intangiveis_val,
+                "subsidiarias": subsidiarias_val,
+                "ativos_fin_justo_valor": ativos_fin_jv_val,
+                "outros_ativos_fixos": outros_fixos_val,
                 "impostos_dif_ativos": impostos_dif_a,
                 "total_anc": total_anc,
                 "aplicacoes_fin_cp": aplic_cp,

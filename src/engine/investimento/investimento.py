@@ -207,6 +207,11 @@ def investimento_anual(
                 "total_dep_amort": dep_aft[y] + dep_int[y],
                 "hub_incluido": hub_capex_map is not None,
                 "ecogres_incluido": eco_impact is not None,
+                # Colunas separadas para o balanço desagregado
+                "goodwill": goodwill,
+                "intangiveis_fim": intang_fim[y],
+                "ativos_fin_jv": outros_af,
+                "outros_fixos_af": outros_fixos,
             }
         )
 

@@ -291,6 +291,21 @@ def build_tesouraria_mensal(
 
     # ----------------------------------------------------------------
     # Consolidação mensal
+    #
+    # saldo_caixa_acumulado[M] = saldo_caixa_acumulado[M-1] + fluxo_liquido[M]
+    #
+    # fluxo_liquido  = fluxo_operacional_bruto + fluxo_fiscal
+    #   fluxo_op     = recebimentos_clientes
+    #                  − pagamentos_fornecedores   (CMVMC+FSE+IVA, desfasado PMP)
+    #                  − pagamentos_pessoal        (salários+TSU, mês corrente)
+    #   fluxo_fiscal = −(IVA_pago_estado + SS_pago + IRC_PPC)
+    #                   IVA: saldo do período M-2, regime mensal CIVA art.27
+    #                   SS:  TSU patronal do período M-1
+    #                   IRC_PPC: parcelas Jul/Set/Dez = 76,5% × IRC_2024 ÷ 3
+    #
+    # Nota: o IVA já está embutido nos recebimentos (VN × (1+IVA)) e nos
+    # pagamentos (CMVMC+FSE × (1+IVA)); o fluxo_fiscal representa apenas
+    # o acerto/liquidação líquida com o Estado no mês de pagamento.
     # ----------------------------------------------------------------
     rows = []
     saldo_acum = caixa_inicial
@@ -305,10 +320,8 @@ def build_tesouraria_mensal(
         pag_f = pag_forn[m]
         pag_p = pag_pessoal[m]
 
-        # Nota: IVA já está dentro dos recebimentos/pagamentos acima.
-        # O fluxo fiscal representa o acerto líquido com o Estado.
         iva_saldo_periodo = e["iva_saldo_periodo"]
-        iva_pago_estado = e["iva_pagamento_mes"]  # saldo do período M-2
+        iva_pago_estado = e["iva_pagamento_mes"]  # saldo do período M-2, pago em M
 
         total_fiscal = iva_pago_estado + ss_p + irc_p
 

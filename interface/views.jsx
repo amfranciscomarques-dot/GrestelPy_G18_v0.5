@@ -600,11 +600,11 @@ function RollingView({ ctx }) {
             fse: row.fse || 0,
             pessoal: row.gastos_pessoal || row.pessoal || 0,
             ebitda: row.ebitda || 0,
-            recebimentos: t.recebimentos || t.entradas || 0,
-            pagamentos: t.pagamentos || t.saidas || 0,
-            investimento: t.investimento || t.fluxo_investimento || 0,
-            financiamento: t.financiamento || t.fluxo_financiamento || 0,
-            caixa_fim: t.caixa_fim || t.saldo_fim || t.caixa || 0,
+            recebimentos: t.recebimentos_clientes || t.recebimentos || t.entradas || 0,
+            pagamentos: t.pagamentos_fornecedores || t.pagamentos || t.saidas || 0,
+            investimento: t.capex_pagamento || t.investimento || t.fluxo_investimento || 0,
+            financiamento: t.fluxo_financiamento || t.financiamento || 0,
+            caixa_fim: t.caixa_fecho || t.caixa_fim || t.saldo_fim || t.caixa || 0,
           };
         });
         if (combined.length > 0) setApiRf(combined);

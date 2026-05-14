@@ -22,7 +22,7 @@ impostos:
 
 caixa:
   minima: 500000
-  maxima: 1500000
+  maxima: 3500000
 
 distribuicao_resultados:
   payout_ratio: 0.20
