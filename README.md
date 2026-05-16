@@ -126,8 +126,11 @@ Ver [docs/PEF_2025-26_Resumo_M3_M6_OE4.md](docs/PEF_2025-26_Resumo_M3_M6_OE4.md)
 - [x] `Schedules.juros_total` — chave presente em `schedules.yaml`, acessível via `sched.financiamento["juros_total"]`
 
 ### Rolling Forecast — articulação mensal ↔ anual
-- [ ] Balanço mensal (`balanco_mensal`) e DFC mensal (`dfc_mensal`) expostos no endpoint `rolling-forecast/mensal`
-- [ ] Verificar reconciliação: soma DFC mensal = DFC anual 2025
+- [x] Balanço mensal (`balanco_mensal`) e DFC mensal (`dfc_mensal`) expostos no endpoint `rolling-forecast/mensal`
+- [x] Reconciliação mensal ↔ anual delegada ao engine (`reconciliacao_anual` em vez de função local na API)
+- [x] DR mensal usa EBITDA anual completo como âncora: outros rendimentos/gastos (hub, eco, imparidades, var. inventários) distribuídos ÷12 em `outros_rendimentos_liq`; IRC distribuído uniformemente do total anual (evita divergência em meses com RAI negativo); rendimentos financeiros incluídos uniformemente em `rend_financeiros`
+- [x] IVA FSE corrigido de 15 % para 23 % (taxa normal — `eoep.py` e `tesouraria.py`)
+- [x] CMVMC agora incluído no IVA dedutível do calendário EOEP — `iva_ded = (fse + cmvmc) × iva_fse`
 
 ### Testes
 - [x] Testes de regressão para os novos outputs mensais — `tests/test_mensais_reconciliacao.py` (41 testes)
@@ -141,6 +144,7 @@ Ver [docs/PEF_2025-26_Resumo_M3_M6_OE4.md](docs/PEF_2025-26_Resumo_M3_M6_OE4.md)
 - [x] Mapa de investimento Hub (CAPEX pools + NFM) — `GET /api/hub/investment-map`
 - [x] OE4: equilíbrio financeiro pré/pós-projecto com alerta AF < 30% — Separador Hub
 - [x] OE4: solvabilidade (CP/Passivo) adicionada aos KPIs — `kpis.py` + Separador KPIs
+- [x] Tesouraria mensal Hub: recuperação de IVA sobre CAPEX calculada em M+2 (CIVA art. 27.º, regime mensal); nova coluna `iva_capex_recuperado`; `variacao_caixa_mensal` inclui fluxo líquido de IVA
 - [ ] DR/Balanço/DFC comparativos sem-projecto vs. com-projecto
 - [ ] VAL, TIR, Payback consolidados (Grestel + Ecogres + Hub)
 
