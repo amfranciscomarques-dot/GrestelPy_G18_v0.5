@@ -73,13 +73,13 @@ from ..inputs import Assumptions, Base2024, Schedules, ALL_YEARS
 def _load_hub_dr(a: Assumptions) -> dict[int, dict] | None:
     """Carrega impactos do Hub na DR, necessários para NFM/inventário libertado."""
     try:
-        if not a.raw.get("hub_logistico", {}).get("incluir_hub", False):
+        hub_raw = a.raw.get("hub_logistico", {})
+        if not hub_raw.get("incluir_hub", False):
             return None
 
         from ..projetos import hub_logistico as hub_mod
 
-        hub = hub_mod.load()
-        return hub_mod.hub_dr_impact(hub)
+        return hub_mod.hub_dr_impact(hub_raw)
     except Exception:
         return None
 
@@ -87,13 +87,13 @@ def _load_hub_dr(a: Assumptions) -> dict[int, dict] | None:
 def _load_hub_dfc(a: Assumptions) -> dict[int, dict] | None:
     """Carrega impactos do Hub na DFC, ou None se o Hub estiver desativado."""
     try:
-        if not a.raw.get("hub_logistico", {}).get("incluir_hub", False):
+        hub_raw = a.raw.get("hub_logistico", {})
+        if not hub_raw.get("incluir_hub", False):
             return None
 
         from ..projetos import hub_logistico as hub_mod
 
-        hub = hub_mod.load()
-        return hub_mod.hub_dfc_impact(hub)
+        return hub_mod.hub_dfc_impact(hub_raw)
     except Exception:
         return None
 
@@ -184,6 +184,18 @@ def build_dfc(
             else 0.0
         )
 
+        # ΔNFM do Hub: saída de caixa real para capital circulante operacional
+        # (stock de manutenção + clientes serviços externos − fornecedores hub)
+        # Incluída em var_nfm porque é variação de ativos correntes operacionais
+        # — NCRF 2 §14: variações em ativos e passivos correntes operacionais
+        # integram os fluxos das atividades operacionais (método indireto).
+        # Valor positivo em hub_dfc = saída de caixa → subtrair de var_nfm.
+        hub_nfm_y = (
+            float(hub_dfc[y].get("nfm_delta", 0.0))
+            if hub_dfc and y in hub_dfc
+            else 0.0
+        )
+
         op_pre_nfm = rl + dep + imp + juros - rend_fin
 
         var_nfm = (
@@ -195,6 +207,7 @@ def build_dfc(
             + d_eoep_c
             + d_out_pc
             + hub_inventario
+            - hub_nfm_y   # ΔNFM hub: positivo = saída, subtrai de var_nfm
         )
 
         fluxo_op = op_pre_nfm + var_nfm - irc
@@ -246,7 +259,17 @@ def build_dfc(
             else 0.0
         )
 
-        fluxo_fin = rec_emp - amort_total - juros + d_linha_cp + pag_div
+        # Juros capitalizados (NCRF 10): não estão no DR (juros_expensed está),
+        # mas são saídas de caixa reais — NCRF 2 §33b exige a divulgação dos
+        # juros pagos no período, incluindo os incorporados no custo do ativo.
+        # Adicionados ao fluxo_fin para reconciliar DFC ↔ pagamentos reais ao banco.
+        hub_juros_cap_y = (
+            float(hub_dfc[y].get("juros_capitalizados", 0.0))
+            if hub_dfc and y in hub_dfc
+            else 0.0
+        )
+
+        fluxo_fin = rec_emp - amort_total - juros + d_linha_cp + pag_div - hub_juros_cap_y
         var_caixa = fluxo_op + fluxo_inv + fluxo_fin
 
         rows.append(
@@ -259,6 +282,7 @@ def build_dfc(
                 "rend_fin": -rend_fin,
                 "op_pre_nfm": op_pre_nfm,
                 "var_nfm": var_nfm,
+                "hub_nfm": -hub_nfm_y,           # ΔNFM hub incluída em var_nfm
                 "irc_pago": -irc,
                 "fluxo_operacional": fluxo_op,
                 "pag_aft": -inv_aft,
@@ -271,6 +295,7 @@ def build_dfc(
                 "pag_emprestimos": -amort_total,
                 "juros_pagos_fin": -juros,
                 "hub_amortizacao": hub_amort_y,
+                "hub_juros_capitalizados": -hub_juros_cap_y,  # saída caixa NCRF 10
                 "var_linha_cp": d_linha_cp,
                 "pag_dividendos": pag_div,
                 "fluxo_financiamento": fluxo_fin,

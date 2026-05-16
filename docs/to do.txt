@@ -1,0 +1,5 @@
+atualizar pressupostos do hub logistico na frontend
+verificar impacto em todo o modelo
+adicionar pagina fronend para vendas que inclua mixes 2025 e pvu para produtos e mercadorias
+
+

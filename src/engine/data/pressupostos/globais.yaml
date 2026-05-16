@@ -1,10 +1,13 @@
 impostos:
+  # OE2024 (Lei 28/2023): taxa geral reduzida de 21 % para 20 %
+  # OE2025: taxa reduzida PME desce de 17 % para 16 % — não aplicável à Grestel (>250 trab.)
+  # A Grestel é grande empresa: art. 87.º n.º 1 CIRC — taxa geral aplica-se desde o 1.º euro
   IRC_taxa_geral: 0.20
-  IRC_taxa_reduzida: 0.17
+  IRC_taxa_reduzida: 0.20        # Grestel tem 734 trab. → grande empresa; taxa reduzida PME não se aplica (art. 87.º n.º 2 CIRC)
   IRC_taxa_geral_ano: {}
   IRC_taxa_reduzida_ano: {}
-  Derrama_Municipal: 0.015
-  Derrama_Estadual: 0.0135
+  Derrama_Municipal: 0.015       # máximo legal (Lei Finanças Locais art. 18.º); Vagos usa taxa máxima
+  Derrama_Estadual: 0.03         # art. 87.º-A CIRC: 3 % no 1.º escalão (€1,5 M–€7,5 M)
   Derrama_Estadual_limiar: 1500000
   Deducoes_Fiscais: 0.0
   IVA_Vendas: 0.23

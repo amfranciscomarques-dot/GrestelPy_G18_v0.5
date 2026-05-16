@@ -192,6 +192,7 @@ def build_kpis(
         )
 
         autonomia = cp / ativo if ativo else 0.0
+        solvabilidade = cp / passivo if passivo else 0.0
         endividamento = passivo / ativo if ativo else 0.0
         debt_equity = passivo / cp if cp else 0.0
 
@@ -250,6 +251,7 @@ def build_kpis(
                 "liquidez_reduzida": liquidez_reduzida,
                 "current_ratio": liquidez_geral,
                 "autonomia_financeira": autonomia,
+                "solvabilidade": solvabilidade,
                 "endividamento": endividamento,
                 "debt_equity": debt_equity,
                 "debt_ebitda": debt_ebitda,

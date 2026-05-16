@@ -16,7 +16,7 @@
 #
 # Deferido fase 2 (~700 k€ – 1 000 k€): 2 AMRs + Box-on-Demand + Digital Twin
 
-incluir_hub: false
+incluir_hub: true
 
 projeto_hub:
   capex:
@@ -24,8 +24,38 @@ projeto_hub:
     cronograma:
       2025: 2280000  # 60 % — obras civis + reabilitação G1 + estrutura metálica
       2026: 1520000  # 40 % — VLMs + 3 AMRs + WMS
-    taxa_depreciacao: 0.10
-    vida_util_anos: 10
+    # Depreciação por pool de ativo (DR 25/2009) — montantes somam ao base
+    pools:
+      construcao_civil:
+        descricao: "Reabilitação G1 + estrutura metálica + honorários + preparação"
+        montante: 2130000
+        ano_inicio: 2025
+        taxa_depreciacao: 0.04    # vida útil 25 anos
+        vida_util_anos: 25
+      integracao_formacao:
+        descricao: "Integração de sistemas e formação inicial"
+        montante: 150000
+        ano_inicio: 2025
+        taxa_depreciacao: 0.33    # vida útil 3 anos (OAI — outros ativos intangíveis)
+        vida_util_anos: 3
+      vlm:
+        descricao: "4 módulos VLM 14 m — core value driver"
+        montante: 870000
+        ano_inicio: 2026
+        taxa_depreciacao: 0.125   # vida útil 8 anos
+        vida_util_anos: 8
+      robotica_amr:
+        descricao: "3 AMRs + estações pick-and-pack"
+        montante: 375000
+        ano_inicio: 2026
+        taxa_depreciacao: 0.20    # vida útil 5 anos
+        vida_util_anos: 5
+      wms_software:
+        descricao: "WMS integrado"
+        montante: 275000
+        ano_inicio: 2026
+        taxa_depreciacao: 0.25    # vida útil 4 anos
+        vida_util_anos: 4
 
   ano_inicio_beneficios: 2026
 
@@ -54,12 +84,157 @@ projeto_hub:
     libertacao_inventario: 2000000  # WMS centralizado; 13 M€ em stock → meta conservadora de 15 %
     ano: 2026
 
+  # ---------------------------------------------------------------------------
+  # NECESSIDADES DE FUNDO DE MANEIO (NFM) — Ciclo de Exploração do Hub
+  # ---------------------------------------------------------------------------
+  # Fundamento académico: NFM = Stock Operacional + Crédito a Clientes
+  #                              − Crédito de Fornecedores
+  # A variação anual da NFM (ΔNFM > 0 = saída de caixa) reduz o FCF livre
+  # do projeto — Brealey, Myers & Allen, "Principles of Corporate Finance",
+  # 13.ª ed., §11.2: «A project that requires an investment in working capital
+  # generates a cash outflow in its early years.»
+  #
+  # Políticas contabilísticas Grestel aplicadas:
+  #   • Inventários: custo de aquisição ou VRL, o mais baixo (NCRF 18 §9)
+  #   • Contas a receber: custo amortizado — taxa de juro efetiva (NCRF 27 §11)
+  #   • Rédito de serviços: reconhecido à medida que prestado (NCRF 20 §20)
+  # ---------------------------------------------------------------------------
+  necessidades_fundo_maneio:
+    # --- Fase 1: Arranque operacional (2026) ---
+    # Peças de substituição para VLMs, AMRs e WMS — benchmark ~3 % do CAPEX
+    # de equipamento (1 520 k€); fonte: VDMA "Maintenance Cost Benchmarks 2022"
+    stock_manutencao_inicial: 46000
+
+    # Consumíveis de arranque: embalagens, etiquetas e materiais de packing
+    # para comissionamento e testes de carga do sistema automatizado
+    consumiveis_arranque: 5000
+
+    # Crédito de fornecedores — contratos de manutenção anuais (VLMs+AMRs+WMS)
+    # Prazo médio de pagamento típico em contratos de serviço de automação
+    # ~40 % do OPEX incremental (120 k€) está em manutenção contratada
+    psp_fornecedores_dias: 30
+    compras_manutencao_anuais: 48000  # ≈ 40 % × 120 k€ OPEX incremental
+
+    # --- Fase 2: Serviços logísticos a terceiros (arranque 2028) ---
+    # Contas a receber por serviços a produtores cerâmicos externos (Aveiro/Coimbra)
+    # PMR B2B logística nacional — inquérito APLOG 2023: mediana 45 dias
+    pmr_clientes_externos_dias: 45
+    receita_servicos_externos_2028: 200000   # ano 3 (arranque Fase 2)
+    crescimento_servicos_anuais: 0.25        # 25 %/ano → ~5 % VN Grestel até 2029
+
+    ano_inicio: 2026  # alinhado com ano_inicio_beneficios
+
+  # ---------------------------------------------------------------------------
+  # JUROS CAPITALIZÁVEIS — NCRF 10 (Custos de Empréstimos Obtidos)
+  # ---------------------------------------------------------------------------
+  # A NCRF 10 §8 exige a capitalização dos custos de empréstimos diretamente
+  # atribuíveis à construção de ativos qualificáveis. O hub logístico qualifica
+  # (período de construção substancial: 2025-2026). A capitalização cessa quando
+  # o ativo está substancialmente pronto para uso.
+  #
+  # Tratamento:
+  #   • DR 2025: juros NÃO reconhecidos como gasto financeiro — capitalizados
+  #   • Balanço: AFT aumenta pelo juro capitalizado → maior base depreciável
+  #   • DFC: juro é SEMPRE saída de caixa real (independente do trat. contab.)
+  #   • VAL (unlevered): exclui juros pela natureza do FCF desalavancado;
+  #     o efeito de capitalização surge indiretamente via depreciação mais alta
+  #
+  # Política conservadora: capitaliza apenas os juros do ano de construção civil
+  # pura (2025). Em 2026, o ativo já gera benefícios → capitalização cessa.
+  # ---------------------------------------------------------------------------
+  juros_capitalizaveis:
+    capitalizar: true
+    ano_inicio_capitalizacao: 2025
+    ano_fim_capitalizacao: 2025   # 2026: comissionamento e arranque → despesa
+
+  # ---------------------------------------------------------------------------
+  # CRONOGRAMA MENSAL — Base Mensal M6 (1.º exercício económico)
+  # ---------------------------------------------------------------------------
+  # O M6 exige base mensal para o 1.º ano de projeção (alinhado com Fase 1 do
+  # M3), de modo a modelar corretamente:
+  #   (a) Risco de liquidez dos juros da carência mês a mês
+  #   (b) Momento exacto do "enchimento" da NFM (arranque da operação)
+  #   (c) Recuperação de IVA sobre CAPEX (pagamento 1-3 meses antes do reembolso)
+  # Os totais anuais coincidem com o cronograma anual (base de consistência M3/M6).
+  # ---------------------------------------------------------------------------
+  cronograma_mensal:
+    # 2025 — Fase de construção civil (total: 2 280 k€)
+    # Perfil: mobilização lenta → pico (obra+estrutura metálica) → desmobilização
+    "2025":
+      jan: 95000    # mobilização de obra + estaleiro
+      fev: 95000
+      mar: 95000
+      abr: 280000   # pico: obras civis + estrutura metálica
+      mai: 280000
+      jun: 280000
+      jul: 280000
+      ago: 190000   # agosto: menor cadência (feriados indústria construção)
+      set: 280000   # retoma: impermeabilizações + pavimento técnico
+      out: 280000
+      nov: 190000   # infraestrutura elétrica (+100 kWp PV)
+      dez: 135000   # conclusão, aprovação e receção provisória
+    # Verificação: soma = 95×3 + 280×5 + 190 + 280×2 + 190 + 135 = 2 280 k€
+
+    # 2026 — Fase de equipamento e comissionamento (total: 1 520 k€)
+    # H1: receção e montagem dos VLMs + AMRs + WMS; H2: arranque operacional
+    "2026":
+      jan: 0        # aguarda receção provisória obra civil
+      fev: 250000   # receção e montagem módulos VLM (4 módulos × ~200 k€)
+      mar: 250000
+      abr: 380000   # 3 AMRs + estações pick-and-pack
+      mai: 380000   # WMS integrado + integração ERP
+      jun: 260000   # testes UAT + comissionamento final
+      jul: 0        # arranque operacional faseado (operação paralela)
+      ago: 0
+      set: 0
+      out: 0
+      nov: 0
+      dez: 0
+    # Verificação: soma = 250×2 + 380×2 + 260 = 1 520 k€
+
   opex_detalhe:
     total: 120000  # alinhado com opex_incremental acima
 
+  rfai:
+    # Regime Fiscal de Apoio ao Investimento — CFI art. 22.º-23.º
+    # Crédito de imposto dedutível directamente à colecta de IRC (não à matéria
+    # colectável). Gerado sobre o CAPEX elegível realizado em 2025-2026.
+    #
+    # Taxa aplicável (art. 23.º §1 al. b) CFI):
+    #   10 % para investimentos em regiões assistidas (Centro/Aveiro qualifica
+    #   ao abrigo do art. 107.º §3 TFUE — auxílios de finalidade regional).
+    #   Nota: a majoração de 25 % aplica-se apenas a regiões de baixa densidade
+    #   classificadas nos termos do Decreto-Lei n.º 198/2018 — Vagos não consta.
+    #
+    # CAPEX elegível (art. 22.º §2 CFI):
+    #   Activos tangíveis e intangíveis adquiridos/construídos no âmbito do projecto.
+    #   A reabilitação de edifícios existentes (G1) qualifica quando visa
+    #   a afectação a actividades produtivas (CFI art. 22.º §2 al. a)).
+    #   Terrenos excluídos — aqui o lote é detido pela Grestel, logo CAPEX = 0.
+    #   CAPEX elegível adoptado = CAPEX base total (3 800 k€).
+    #
+    # Limites (art. 23.º §6 CFI):
+    #   • Máximo anual: 50 % do IRC liquidado no exercício pela empresa
+    #   • Carry-forward: saldo não utilizado transportável até 10 exercícios
+    #
+    # Nota conservadora: o modelo aplica o limite de 50 % sobre o IRC
+    # incremental do hub. Na prática, o limite incide sobre o IRC total da
+    # Grestel (muito superior), pelo que a absorção real será mais rápida.
+    aplicar: true
+    taxa: 0.10
+    capex_elegivel: 3800000
+    limite_irc_pct: 0.50
+    carry_forward_anos: 10
+
   viabilidade:
     wacc: 0.08
-    irc_taxa: 0.215               # IRC (20 %) + derrama estadual (3 %) + derrama municipal (1,5 %)
+    # Taxa combinada para FCF unlevered (taxa marginal do projecto):
+    #   IRC geral (art. 87.º n.º 1 CIRC OE2024):    20,0 %
+    #   Derrama Municipal (Vagos, máximo legal):       1,5 %
+    #   Derrama Estadual (art. 87.º-A, 1.º escalão):  3,0 %
+    #   Total:                                        24,5 %
+    # O crédito RFAI é modelado separadamente em hub_rfai() — reduz o IRC
+    # pago sem alterar a taxa base; ver secção rfai acima.
+    irc_taxa: 0.245
     taxa_crescimento_terminal: 0.02
     horizonte_anos: 10
-    #ter em conta beneficios fiscais de investimento e o seu impacto no projeto

@@ -316,6 +316,7 @@ const GRESTEL = (() => {
         roa: r.rl / b.ativo_total,
         roe: r.rl / b.capital_total,
         autonomia_financeira: b.capital_total / b.ativo_total,
+        solvabilidade: b.passivo_total > 0 ? b.capital_total / b.passivo_total : 0,
         liquidez_geral: (b.Inventarios + b.Clientes + b.Outros_AC + b.Caixa) / (b.Emprestimos_C + b.Fornecedores + b.Outros_PC),
         endividamento: (b.Emprestimos_NC + b.Emprestimos_C) / b.ativo_total,
         cobertura_juros: r.ebit / Math.max(r.juros, 1),
@@ -398,9 +399,13 @@ const GRESTEL = (() => {
     // Fallback — espelha m6_hub_assumptions.yaml (CAPEX fase 1 otimizado: 3 800 k€)
     const irc_taxa = 0.215;
     const capex = [0, 2280000, 1520000, 0, 0, 0, 0, 0, 0, 0, 0]; // 2025-2034 (idx0 = 2024)
-    const dep_anual = 380000;      // 3 800 k€ × 10 %
+    // Depreciação por pool de ativo (DR 25/2009) — idx0=2024
+    // construção 2130k×4%=85200 + integração 150k/3=50000 + VLM 870k/8=108750
+    // + AMR 375k/5=75000 + WMS 275k/4=68750; pools expiram progressivamente
+    const dep = [0, 0, 387700, 387700, 387700, 337700, 268950, 193950, 193950, 193950, 85200];
+    // PT2030: 1710k reconhecido proporcionalmente à dep anual / CAPEX total (3800k)
+    const pt2030 = [0, 0, 174465, 174465, 174465, 151965, 121028, 87278, 87278, 87278, 38340];
     const beneficio_anual_base = 310000;
-    const pt2030_anual = 171000;   // 1 710 k€ / 10 anos (reconhecimento SNC)
     const fcf_livre = [];
     let cumulative = 0;
     const cumulative_arr = [];
@@ -410,17 +415,20 @@ const GRESTEL = (() => {
       fcf -= capex[i];
       if (year >= 2026) {
         const yIdx = year - 2026;
-        const ebitda = (beneficio_anual_base + pt2030_anual) * Math.pow(1.04, yIdx);
-        const ebit = ebitda - dep_anual;
+        const dep_y = dep[i];
+        const pt2030_y = pt2030[i];
+        const ben_y = beneficio_anual_base * Math.pow(1.04, yIdx);
+        const ebitda = ben_y + pt2030_y;
+        const ebit = ebitda - dep_y;
         const nopat = ebit > 0 ? ebit * (1 - irc_taxa) : ebit;
-        fcf += nopat + dep_anual;
+        fcf += nopat + dep_y;
       }
       if (year === 2026) fcf += 2000000; // libertação de inventário (WMS centralizado)
       fcf_livre.push(fcf);
       cumulative += fcf;
       cumulative_arr.push(cumulative);
     }
-    // VAN com valor terminal aprox.
+    // VAL com valor terminal aprox.
     const vt = 500000;
     const vpl = fcf_livre.reduce((a, v, i) => a + v / Math.pow(1 + wacc, i), 0) + vt;
     function npv(rate) {

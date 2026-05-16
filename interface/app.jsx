@@ -85,6 +85,7 @@ function adaptKPIs(rows) {
     roa: r.roa || r.ROA || 0,
     roe: r.roe || r.ROE || 0,
     autonomia_financeira: r.autonomia_financeira || 0,
+    solvabilidade: r.solvabilidade || 0,
     liquidez_geral: r.liquidez_geral || 0,
     endividamento: r.endividamento || 0,
     cobertura_juros: r.cobertura_juros || 0,

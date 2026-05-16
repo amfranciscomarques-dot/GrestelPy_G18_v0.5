@@ -106,8 +106,7 @@ def _hub_fin(a: Assumptions) -> dict[int, dict] | None:
 
         from ..projetos import hub_logistico as hub_mod
 
-        hub = hub_mod.load()
-        df = hub_mod.hub_financing(hub)
+        df = hub_mod.hub_financing(raw_hub)
 
         return df.set_index("ano").to_dict(orient="index")
 
@@ -185,7 +184,10 @@ def financiamento_anual(
         if hub_impact and y in hub_impact:
             h = hub_impact[y]
 
-            hub_juros = float(h.get("juros", 0.0))
+            # Usa juros_expensed (não juros totais) para não reconhecer na DR
+            # os juros capitalizados no AFT (NCRF 10). Os juros_capitalizados
+            # aumentam o custo do ativo e são depreciados — não são gasto do período.
+            hub_juros = float(h.get("juros_expensed", h.get("juros", 0.0)))
             hub_saldo = float(h.get("saldo_fim", 0.0))
             hub_amort = float(h.get("amortizacao", 0.0))
             hub_emp_nc = float(h.get("emprestimos_nc", 0.0))

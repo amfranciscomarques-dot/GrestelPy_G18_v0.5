@@ -309,6 +309,7 @@ function KPIView({ ctx }) {
     { label: "ROA",                key: "roa",                 fmt: v => fmt.pct(v) },
     { label: "ROE",                key: "roe",                 fmt: v => fmt.pct(v) },
     { label: "Autonomia Financeira", key: "autonomia_financeira", fmt: v => fmt.pct(v) },
+    { label: "Solvabilidade",      key: "solvabilidade",       fmt: v => fmt.ratio(v) },
     { label: "Endividamento",      key: "endividamento",       fmt: v => fmt.pct(v) },
     { label: "Liquidez Geral",     key: "liquidez_geral",      fmt: v => fmt.ratio(v) },
     { label: "Cobertura de Juros", key: "cobertura_juros",     fmt: v => fmt.ratio(v) },
@@ -670,6 +671,8 @@ function HubView({ ctx }) {
   const [wacc, setWacc] = useState(0.08);
   const [viab, setViab] = useState(null);
   const [torn, setTorn] = useState(null);
+  const [debtSvc, setDebtSvc] = useState(null);
+  const [invMap, setInvMap] = useState(null);
 
   useEffect(() => {
     fetch(`/api/hub/viability?wacc=${wacc}`)
@@ -692,6 +695,16 @@ function HubView({ ctx }) {
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
       .then(data => setTorn(data.rows || []))
       .catch(() => setTorn(GRESTEL.hubTornado()));
+
+    fetch("/api/hub/debt-service")
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then(data => setDebtSvc(data.rows || []))
+      .catch(() => setDebtSvc(null));
+
+    fetch("/api/hub/investment-map")
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then(data => setInvMap(data))
+      .catch(() => setInvMap(null));
   }, []);
 
   const viabData = viab || GRESTEL.hubViability(wacc);
@@ -702,12 +715,180 @@ function HubView({ ctx }) {
     { labels: viabData.anos.map(String), values: viabData.fcf_cumulativo, color: "var(--accent)", fill: true },
   ];
 
+  // Equilíbrio financeiro pré/pós — lê dos KPIs consolidados do cenário activo
+  const kpis = ctx.kpis || [];
+  const k2024 = kpis[0] || {};
+  const ANOS_HUB = [2025, 2026, 2027, 2028, 2029];
+  const kpisHub = kpis.filter(k => ANOS_HUB.includes(k.year));
+
   return (
     <>
+      {/* ── Equilíbrio financeiro pré/pós-projeto (OE4) ── */}
+      <Panel title="Equilíbrio financeiro · pré e pós-projeto (OE4)" sub="condição mínima: autonomia financeira ≥ 30%">
+        <table className="ftable">
+          <thead>
+            <tr>
+              <th>Indicador</th>
+              <th className="mono num">2024 (pré)</th>
+              {ANOS_HUB.map(y => <th key={y} className="mono num">{y}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {[
+              { label: "Autonomia Financeira", key: "autonomia_financeira", fmt: v => fmt.pct(v), min: 0.30 },
+              { label: "Solvabilidade (CP/Passivo)", key: "solvabilidade", fmt: v => fmt.ratio(v) },
+              { label: "Endividamento (Passivo/Ativo)", key: "endividamento", fmt: v => fmt.pct(v) },
+              { label: "Cobertura de Juros (EBIT/Juros)", key: "cobertura_juros", fmt: v => fmt.ratio(v) },
+            ].map(r => (
+              <tr key={r.key}>
+                <td>{r.label}</td>
+                <td className="mono num">{r.fmt(k2024[r.key] ?? 0)}</td>
+                {kpisHub.map((k, i) => {
+                  const v = k[r.key] ?? 0;
+                  const fail = r.min != null && v < r.min;
+                  return (
+                    <td key={i} className={"mono num" + (fail ? " is-neg" : v >= (r.min || 0) && r.min ? " is-pos" : "")}>
+                      {r.fmt(v)}{fail ? " ⚠" : ""}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <p style={{ marginTop: 8, fontSize: "0.8rem", color: "var(--muted)" }}>
+          ⚠ = autonomia financeira abaixo do mínimo de 30% exigido (OE4 §5.5)
+        </p>
+      </Panel>
+
+      {/* ── Mapa de Investimento (OE4) ── */}
+      {invMap && (
+        <div className="grid-2">
+          <Panel title="Mapa de investimento · CAPEX por pool de ativo" sub={"Total € " + fmt.eurC(invMap.capex_base) + " · fase 1 (2025-2026)"}>
+            <table className="ftable ftable--dense">
+              <thead>
+                <tr>
+                  <th>Pool / Ativo</th>
+                  <th className="mono num">Montante</th>
+                  <th className="mono num">Início</th>
+                  <th className="mono num">Vida útil</th>
+                  <th className="mono num">Taxa dep.</th>
+                </tr>
+              </thead>
+              <tbody>
+                {invMap.pools.map((p, i) => (
+                  <tr key={i}>
+                    <td>{p.descricao}</td>
+                    <td className="mono num">{fmt.eur(p.montante)}</td>
+                    <td className="mono num">{p.ano_inicio}</td>
+                    <td className="mono num">{p.vida_util_anos} anos</td>
+                    <td className="mono num">{fmt.pct(p.taxa_depreciacao, 0)}</td>
+                  </tr>
+                ))}
+                <tr className="is-total">
+                  <td>Total CAPEX</td>
+                  <td className="mono num">{fmt.eur(invMap.capex_base)}</td>
+                  <td colSpan={3}></td>
+                </tr>
+                <tr>
+                  <td>Subsídio PT2030 (não reembolsável)</td>
+                  <td className="mono num" style={{ color: "var(--pos)" }}>+ {fmt.eur(invMap.pt2030_montante)}</td>
+                  <td className="mono num" colSpan={3}>recebimento {invMap.pt2030_ano}</td>
+                </tr>
+                <tr className="is-subtotal">
+                  <td>Investimento líquido (CAPEX − PT2030)</td>
+                  <td className="mono num">{fmt.eur(invMap.capex_base - invMap.pt2030_montante)}</td>
+                  <td colSpan={3}></td>
+                </tr>
+              </tbody>
+            </table>
+          </Panel>
+
+          <Panel title="Mapa de investimento · Fundo de Maneio (NFM)" sub="variação anual das necessidades de fundo de maneio do hub">
+            <table className="ftable ftable--dense">
+              <thead>
+                <tr>
+                  <th>Ano</th>
+                  <th className="mono num">CAPEX caixa</th>
+                  <th className="mono num">ΔNFM</th>
+                  <th className="mono num">Investimento total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {invMap.capex_anual.map((row, i) => {
+                  const nfm = (invMap.nfm.find(n => n.ano === row.ano) || {}).delta_nfm || 0;
+                  return (
+                    <tr key={i}>
+                      <td className="mono">{row.ano}</td>
+                      <td className="mono num">{fmt.eur(row.capex)}</td>
+                      <td className="mono num">{nfm !== 0 ? fmt.eur(nfm) : "—"}</td>
+                      <td className="mono num">{fmt.eur(row.capex + nfm)}</td>
+                    </tr>
+                  );
+                })}
+                <tr className="is-total">
+                  <td>Total</td>
+                  <td className="mono num">{fmt.eur(invMap.capex_anual.reduce((a, r) => a + r.capex, 0))}</td>
+                  <td className="mono num">{fmt.eur(invMap.nfm.reduce((a, r) => a + r.delta_nfm, 0))}</td>
+                  <td className="mono num">{fmt.eur(invMap.capex_anual.reduce((a, r) => a + r.capex, 0) + invMap.nfm.reduce((a, r) => a + r.delta_nfm, 0))}</td>
+                </tr>
+              </tbody>
+            </table>
+          </Panel>
+        </div>
+      )}
+
+      {/* ── Mapa de Serviço da Dívida (OE4) ── */}
+      {debtSvc && debtSvc.length > 0 && (
+        <Panel title="Mapa de serviço da dívida · Hub Logístico (OE4)" sub="empréstimo bancário CGD/BPI · carência 2025-2027 · DSCR = EBITDA hub / serviço total">
+          <table className="ftable ftable--dense">
+            <thead>
+              <tr>
+                <th>Ano</th>
+                <th className="mono num">Saldo início</th>
+                <th className="mono num">Juros pagos</th>
+                <th className="mono num">Juros cap. (NCRF 10)</th>
+                <th className="mono num">Amortização</th>
+                <th className="mono num">Serviço total</th>
+                <th className="mono num">EBITDA hub</th>
+                <th className="mono num">DSCR</th>
+                <th className="mono num">Saldo fim</th>
+              </tr>
+            </thead>
+            <tbody>
+              {debtSvc.map((r, i) => {
+                const dscr = r.dscr_hub;
+                const dscrOk = dscr != null && dscr >= 1.2;
+                const dscrWarn = dscr != null && dscr > 0 && dscr < 1.2;
+                return (
+                  <tr key={i}>
+                    <td className="mono">{r.ano}{r.periodo_carencia ? " *" : ""}</td>
+                    <td className="mono num">{fmt.eur(r.saldo_em_divida)}</td>
+                    <td className="mono num">({fmt.eur(r.juros_pagos_total)})</td>
+                    <td className="mono num">{r.juros_capitalizados > 0 ? fmt.eur(r.juros_capitalizados) : "—"}</td>
+                    <td className="mono num">{r.amortizacao_capital > 0 ? "(" + fmt.eur(r.amortizacao_capital) + ")" : "—"}</td>
+                    <td className="mono num">({fmt.eur(r.servico_total_divida)})</td>
+                    <td className="mono num">{fmt.eur(r.ebitda_hub_incremental)}</td>
+                    <td className={"mono num" + (dscrOk ? " is-pos" : dscrWarn ? " is-neg" : "")}>
+                      {dscr != null ? dscr.toFixed(2) + "×" : "—"}
+                    </td>
+                    <td className="mono num">{fmt.eur(r.saldo_fim)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <p style={{ marginTop: 8, fontSize: "0.8rem", color: "var(--muted)" }}>
+            * Período de carência (apenas juros, sem amortização de capital) · DSCR mínimo bancário: 1,2×
+          </p>
+        </Panel>
+      )}
+
+      {/* ── VAL / FCF ── */}
       <div className="grid-4">
-        <KPI label={`VAN @ ${fmt.pct(wacc, 0)}`} value={fmt.eurC(viabData.vpl)} tone={viabData.vpl >= 0 ? "pos" : "neg"} sub="horizonte 10 anos + valor terminal" />
+        <KPI label={`VAL @ ${fmt.pct(wacc, 0)}`} value={fmt.eurC(viabData.vpl)} tone={viabData.vpl >= 0 ? "pos" : "neg"} sub="horizonte 10 anos + valor terminal" />
         <KPI label="TIR" value={fmt.pct(viabData.tir, 1)} tone={viabData.tir >= 0.08 ? "pos" : "neg"} sub={"vs WACC " + fmt.pct(wacc, 0)} />
-        <KPI label="Índice de Rendibilidade" value={viabData.indice_rendibilidade != null ? viabData.indice_rendibilidade.toFixed(2) : "—"} tone={viabData.indice_rendibilidade >= 1 ? "pos" : "neg"} sub="IR = 1 + VAN / CAPEX · >1 cria valor" />
+        <KPI label="Índice de Rendibilidade" value={viabData.indice_rendibilidade != null ? viabData.indice_rendibilidade.toFixed(2) : "—"} tone={viabData.indice_rendibilidade >= 1 ? "pos" : "neg"} sub="IR = 1 + VAL / CAPEX · >1 cria valor" />
         <KPI label="Payback actualizado" value={viabData.payback_atualizado ? viabData.payback_atualizado.toFixed(1) + " anos" : "—"} sub={"descontado a " + fmt.pct(wacc, 0)} />
       </div>
 
@@ -725,12 +906,12 @@ function HubView({ ctx }) {
         <LineChart series={fcfSeries} height={300} />
         <div className="legend" style={{ marginTop: 8 }}>
           <div className="legend-row"><span className="swatch" style={{ background: "var(--ink)" }} /><span>FCF anual</span></div>
-          <div className="legend-row"><span className="swatch" style={{ background: "var(--accent)" }} /><span>{"VAN acumulada (descontada a " + fmt.pct(wacc, 0) + ")"}</span></div>
+          <div className="legend-row"><span className="swatch" style={{ background: "var(--accent)" }} /><span>{"VAL acumulada (descontada a " + fmt.pct(wacc, 0) + ")"}</span></div>
         </div>
       </Panel>
 
       <div className="grid-2">
-        <Panel title="Análise de sensibilidade · tornado" sub="impacto na VAN em milhões de euros">
+        <Panel title="Análise de sensibilidade · tornado" sub="impacto na VAL em milhões de euros">
           <TornadoChart rows={tornData} height={300} />
         </Panel>
         <Panel title="Parâmetros do projeto" sub="m6_hub_assumptions.yaml · actualizado em tempo real">
@@ -741,7 +922,7 @@ function HubView({ ctx }) {
                 <KV k="CAPEX base" v={fmt.eurC(p.capex_base)} />
                 <KV k="Cronograma 2025" v={fmt.eurC(p.capex_2025)} />
                 <KV k="Cronograma 2026" v={fmt.eurC(p.capex_2026)} />
-                <KV k="Vida útil" v={(p.vida_util || "—") + " anos · taxa depr. " + fmt.pct(p.taxa_depreciacao, 0)} />
+                <KV k="Depreciação" v={p.depreciacao_descricao || "por pools de ativo"} />
                 <KV k="WACC" v={fmt.pct(p.wacc, 1)} />
                 <KV k="Crescimento terminal" v={fmt.pct(p.crescimento_terminal, 1)} />
                 <KV k="Poupança operacional" v={fmt.eurC(p.poupanca_operacional) + " / ano"} />

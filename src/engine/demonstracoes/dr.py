@@ -79,13 +79,13 @@ def _get_dr_2024_value(base: Base2024, key: str, default: float = 0.0) -> float:
 def _load_hub_dr(a: Assumptions) -> dict[int, dict] | None:
     """Carrega os impactos do Hub na DR, ou None se o Hub estiver desativado."""
     try:
-        if not a.raw.get("hub_logistico", {}).get("incluir_hub", False):
+        hub_raw = a.raw.get("hub_logistico", {})
+        if not hub_raw.get("incluir_hub", False):
             return None
 
         from ..projetos import hub_logistico as hub_mod
 
-        hub = hub_mod.load()
-        return hub_mod.hub_dr_impact(hub)
+        return hub_mod.hub_dr_impact(hub_raw)
     except Exception:
         return None
 

@@ -6,7 +6,7 @@ from typing import Sequence
 
 import pandas as pd
 
-from ..inputs import inputs
+from ..inputs import load as _inputs_load
 from ..demonstracoes import statements
 
 
@@ -224,6 +224,26 @@ def _apply_pessoal_peso(a, b, s, delta):
     _apply_pessoal_cresc(a, b, s, delta)
 
 
+def _apply_hub_poupanca(a, b, s, delta):
+    """Activa hub e aplica choque fraccional à poupança operacional (pessoal + FSE)."""
+    _ = b, s
+    hub = a.raw.setdefault("hub_logistico", {})
+    hub["incluir_hub"] = True
+    ben = hub.setdefault("projeto_hub", {}).setdefault("beneficios_anuais", {})
+    base = float(ben.get("poupanca_operacional", 380000))
+    ben["poupanca_operacional"] = base * (1 + float(delta))
+
+
+def _apply_hub_quebras(a, b, s, delta):
+    """Activa hub e aplica choque fraccional à redução de quebras (VLM/picking)."""
+    _ = b, s
+    hub = a.raw.setdefault("hub_logistico", {})
+    hub["incluir_hub"] = True
+    ben = hub.setdefault("projeto_hub", {}).setdefault("beneficios_anuais", {})
+    base = float(ben.get("reducao_quebras", 50000))
+    ben["reducao_quebras"] = base * (1 + float(delta))
+
+
 DRIVERS = {
     "volume_vn": (
         "Crescimento Volume",
@@ -285,6 +305,16 @@ DRIVERS = {
         [-0.05, -0.025, 0, 0.025, 0.05],
         _apply_pessoal_peso,
     ),
+    "hub_poupanca": (
+        "Hub · Poupança Operacional",
+        [-0.30, -0.15, 0, 0.15, 0.30],
+        _apply_hub_poupanca,
+    ),
+    "hub_quebras": (
+        "Hub · Redução de Quebras",
+        [-1.00, -0.50, 0, 0.50, 1.00],
+        _apply_hub_quebras,
+    ),
 }
 
 
@@ -296,7 +326,7 @@ def _run_with_delta(
     metric: str,
 ) -> float:
     """Executa o modelo com um choque e devolve uma métrica."""
-    a, b, s = inputs.load(cenario=cenario)
+    a, b, s = _inputs_load(cenario=cenario)
 
     apply_fn = DRIVERS[driver_key][2]
     apply_fn(a, b, s, delta)
@@ -470,7 +500,7 @@ def sensitivity_2d(
 
     for d_x in dx:
         for d_y in dy:
-            a, b, s = inputs.load(cenario=cenario)
+            a, b, s = _inputs_load(cenario=cenario)
 
             DRIVERS[driver_x][2](a, b, s, float(d_x))
             DRIVERS[driver_y][2](a, b, s, float(d_y))
@@ -521,7 +551,7 @@ def sensitivity_2025_irc(
     taxas=(0.17, 0.20, 0.21, 0.23, 0.25),
 ) -> pd.DataFrame:
     """Sensibilidade 2025 à taxa de IRC."""
-    base_irc = float(inputs.load()[0].raw["impostos"]["IRC_taxa_geral"])
+    base_irc = float(_inputs_load()[0].raw["impostos"]["IRC_taxa_geral"])
 
     deltas = [
         float(t) - base_irc

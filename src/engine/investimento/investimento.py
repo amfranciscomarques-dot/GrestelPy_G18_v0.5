@@ -55,8 +55,7 @@ def _load_hub_capex(a: Assumptions) -> dict | None:
 
         from ..projetos import hub_logistico as hub_mod
 
-        hub = hub_mod.load()
-        df = hub_mod.hub_capex(hub)
+        df = hub_mod.hub_capex(raw_hub)
 
         return df.set_index("ano").to_dict(orient="index")
     except Exception:
@@ -99,12 +98,13 @@ def investimento_anual(
 
     hub_capex_map = _load_hub_capex(a)
 
-    aft = aft_24
+    aft = aft_24      # AFT geral da Grestel (sem hub)
+    hub_aft = 0.0     # AFT do hub rastreado separadamente para evitar dupla depreciação
     intang = intang_24
 
     for y in YEARS:
         if y > 2025:
-            d_aft = aft * taxa_aft
+            d_aft = aft * taxa_aft   # taxa geral só sobre AFT Grestel, não hub
             d_int = intang * taxa_int
         else:
             d_aft = float(inv["depreciacao_aft_anual"][y])
@@ -117,13 +117,8 @@ def investimento_anual(
             dep_hub_y = float(hub_capex_map[y].get("depreciacao", 0.0))
             capex_hub_y = float(hub_capex_map[y].get("capex", 0.0))
 
-        aft = (
-            aft
-            - d_aft
-            + float(novo_aft.get(y, 0.0))
-            + capex_hub_y
-            - dep_hub_y
-        )
+        aft = aft - d_aft + float(novo_aft.get(y, 0.0))
+        hub_aft = hub_aft + capex_hub_y - dep_hub_y
 
         intang = (
             intang
@@ -131,10 +126,10 @@ def investimento_anual(
             + float(novo_int.get(y, 0.0))
         )
 
-        aft_fim[y] = max(aft, 0.0)
+        aft_fim[y] = max(aft + hub_aft, 0.0)   # total para balanço
         intang_fim[y] = max(intang, 0.0)
 
-        dep_aft[y] = d_aft + dep_hub_y
+        dep_aft[y] = d_aft + dep_hub_y          # total depreciação = geral + hub pools
         dep_int[y] = d_int
 
     rend_eq = inv["rend_equiv_patrimonial"]

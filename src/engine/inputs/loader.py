@@ -25,6 +25,7 @@ FLUXO:
 
 from __future__ import annotations
 
+from .custom_scenarios import load_custom_scenarios
 from .models import Assumptions, Base2024, Schedules
 from .paths import (
     ASSUMPTIONS_FILE,
@@ -138,6 +139,12 @@ _SCENARIO_OVERRIDES: dict[str, dict] = {
             2029: 0.043,
         },
     },
+    "Hub_Ativo": {
+        # DR consolidada com todos os impactos do hub (poupança pessoal/FSE/CMVMC + PT2030)
+        "hub_logistico": {
+            "incluir_hub": True,
+        },
+    },
     "Stress": {
         # Volume: directo (contracção real)
         "crescimento_volume_vendas": {
@@ -231,8 +238,10 @@ def load(cenario: str = "Base"):
       - Base2024 com referência aos produtos/mercadorias
       - Schedules para acesso a valores plurianuais pré-calculados
     """
-    if cenario not in _SCENARIO_OVERRIDES:
-        raise ValueError(f"Cenário '{cenario}' inválido. Opções: {CENARIOS}")
+    _custom = load_custom_scenarios().get("scenarios", {})
+    if cenario not in _SCENARIO_OVERRIDES and cenario not in _custom:
+        all_opts = list(_SCENARIO_OVERRIDES) + list(_custom)
+        raise ValueError(f"Cenário '{cenario}' inválido. Opções: {all_opts}")
 
     # PASSO 1: Mesclagem em camadas de ficheiros de pressupostos
     # _load_yaml_layers aplica merge sucessivo (primeira sobrescreve, última ganha)
@@ -278,8 +287,11 @@ def load(cenario: str = "Base"):
     if hub_data:
         assumptions.setdefault("hub_logistico", hub_data)
 
-    # PASSO 5: Aplicação do cenário (override de crescimentos)
-    overrides = _SCENARIO_OVERRIDES[cenario]
+    # PASSO 5: Aplicação do cenário (override de crescimentos ou parâmetros custom)
+    if cenario in _SCENARIO_OVERRIDES:
+        overrides = _SCENARIO_OVERRIDES[cenario]
+    else:
+        overrides = _custom.get(cenario, {}).get("overrides", {})
     if overrides:
         assumptions = _deep_update(assumptions, overrides)
 
