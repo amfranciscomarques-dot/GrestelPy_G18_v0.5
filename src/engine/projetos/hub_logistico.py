@@ -921,19 +921,36 @@ def mapa_tesouraria_mensal(hub: dict | None = None) -> pd.DataFrame:
     taxa_mensal = float(banco["taxa_juro"]) / 12
     desembolso_ano = int(banco["desembolso"])
 
-    # Determinar mês do desembolso (Janeiro do ano de início da obra)
     iva_taxa = 0.23  # IVA à taxa normal (CIVA art. 18.º §1 al. c))
+
+    # Pré-calcular recuperação de IVA sobre CAPEX em M+2 (regime mensal CIVA art. 27.º)
+    anos_janela = [2025, 2026]
+    meses_lista = ["jan", "fev", "mar", "abr", "mai", "jun",
+                   "jul", "ago", "set", "out", "nov", "dez"]
+    iva_recuperacao: dict[tuple[int, int], float] = {}
+    for _ano in anos_janela:
+        _cron = cron_mensal.get(str(_ano), {})
+        for _i, _mes in enumerate(meses_lista, start=1):
+            _capex = float(_cron.get(_mes, 0.0))
+            if _capex == 0.0:
+                continue
+            _rec_i = _i + 2
+            _rec_ano = _ano
+            if _rec_i > 12:
+                _rec_i -= 12
+                _rec_ano += 1
+            if _rec_ano in anos_janela:
+                key = (_rec_ano, _rec_i)
+                iva_recuperacao[key] = iva_recuperacao.get(key, 0.0) + _capex * iva_taxa
 
     rows = []
     saldo = 0.0
     nfm_lancado = False
 
-    for ano in [2025, 2026]:
+    for ano in anos_janela:
         cron_ano = cron_mensal.get(str(ano), {})
-        meses = ["jan", "fev", "mar", "abr", "mai", "jun",
-                 "jul", "ago", "set", "out", "nov", "dez"]
 
-        for i, mes in enumerate(meses, start=1):
+        for i, mes in enumerate(meses_lista, start=1):
             capex_mes = float(cron_ano.get(mes, 0.0))
 
             # Desembolso do banco: Janeiro do ano de desembolso (mês 1)
@@ -943,8 +960,8 @@ def mapa_tesouraria_mensal(hub: dict | None = None) -> pd.DataFrame:
 
             juros_mes = saldo * taxa_mensal
 
-            # IVA pago sobre CAPEX deste mês (exposição de liquidez)
             iva_capex = capex_mes * iva_taxa
+            iva_recuperado = iva_recuperacao.get((ano, i), 0.0)
 
             # ΔNFM: lançado no 1.º mês de operação (Julho 2026 — arranque faseado)
             delta_nfm_mes = 0.0
@@ -960,6 +977,8 @@ def mapa_tesouraria_mensal(hub: dict | None = None) -> pd.DataFrame:
             fluxo_inv = -capex_mes
             fluxo_fin = desembolso_mes - juros_mes
             fluxo_op = -delta_nfm_mes
+            # IVA: saída no mês do CAPEX, recuperação em M+2
+            fluxo_iva = -iva_capex + iva_recuperado
 
             rows.append(
                 {
@@ -967,14 +986,15 @@ def mapa_tesouraria_mensal(hub: dict | None = None) -> pd.DataFrame:
                     "mes": i,
                     "mes_nome": mes,
                     "capex_mensal": -capex_mes,
-                    "iva_capex_pago": -iva_capex,    # exposição bruta antes de recuperação
+                    "iva_capex_pago": -iva_capex,
+                    "iva_capex_recuperado": iva_recuperado,
                     "desembolso_banco": desembolso_mes,
                     "juros_mensais": -juros_mes,
                     "delta_nfm": -delta_nfm_mes,
                     "fluxo_investimento": fluxo_inv,
                     "fluxo_financiamento": fluxo_fin,
                     "fluxo_operacional": fluxo_op,
-                    "variacao_caixa_mensal": fluxo_inv + fluxo_fin + fluxo_op,
+                    "variacao_caixa_mensal": fluxo_inv + fluxo_fin + fluxo_op + fluxo_iva,
                     "saldo_divida_fim": saldo,
                 }
             )

@@ -138,6 +138,7 @@ def eoep_calendario_mensal(
     fse_mensal: dict[str, float],
     pessoal_mensal: dict[str, float],
     irc_2024_pago: float,
+    cmvmc_mensal: dict[str, float] | None = None,
 ) -> pd.DataFrame:
     """Calendário mensal de pagamentos fiscais para 2025.
 
@@ -148,8 +149,11 @@ def eoep_calendario_mensal(
     # Mantido por compatibilidade futura; atualmente não é usado diretamente.
     _ = base
 
+    if cmvmc_mensal is None:
+        cmvmc_mensal = {}
+
     iva_venda = a.impostos["IVA_Vendas"]
-    iva_fse = a.impostos.get("IVA_FSE", 0.15)
+    iva_fse = a.impostos.get("IVA_FSE", 0.23)
     tsu = a.impostos["TSU_Empresa"]
 
     iva_liq = {
@@ -158,7 +162,7 @@ def eoep_calendario_mensal(
     }
 
     iva_ded = {
-        m: fse_mensal.get(m, 0.0) * iva_fse
+        m: (fse_mensal.get(m, 0.0) + cmvmc_mensal.get(m, 0.0)) * iva_fse
         for m in MESES
     }
 

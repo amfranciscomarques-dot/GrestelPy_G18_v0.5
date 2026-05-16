@@ -205,13 +205,14 @@ def build_eoep_mensal(
     Returns:
         DataFrame com 12 linhas × colunas de eoep_calendario_mensal.
     """
-    vn_m, fse_m, _cmvmc_m, pessoal_m, irc_2024 = _build_mensais_2025(a, base, sched)
+    vn_m, fse_m, cmvmc_m, pessoal_m, irc_2024 = _build_mensais_2025(a, base, sched)
     return eoep_mod.eoep_calendario_mensal(
         a, base,
         vn_mensal=vn_m,
         fse_mensal=fse_m,
         pessoal_mensal=pessoal_m,
         irc_2024_pago=irc_2024,
+        cmvmc_mensal=cmvmc_m,
     )
 
 
@@ -231,7 +232,7 @@ def build_tesouraria_mensal(
     pmr = a.prazos["PMR_dias"]
     pmp = a.prazos["PMP_Inventarios_dias"]
     iva_venda = a.impostos["IVA_Vendas"]
-    iva_fse = a.impostos.get("IVA_FSE", 0.15)
+    iva_fse = a.impostos.get("IVA_FSE", 0.23)
     tsu_emp = a.impostos["TSU_Empresa"]
 
     vn_m, fse_m, cmvmc_m, pessoal_m, irc_2024 = _build_mensais_2025(a, base, sched)
@@ -242,6 +243,7 @@ def build_tesouraria_mensal(
         fse_mensal=fse_m,
         pessoal_mensal=pessoal_m,
         irc_2024_pago=irc_2024,
+        cmvmc_mensal=cmvmc_m,
     )
     eoep_map = df_eoep_cal.set_index("mes").to_dict("index")
 
@@ -410,18 +412,24 @@ def build_dr_mensal(
     pessoal_2025 = float(df_pessoal[df_pessoal.ano == 2025]["gastos_pessoal"].iloc[0])
     cmvmc_2025 = float(df_cmvmc[df_cmvmc.ano == 2025]["cmvmc"].iloc[0])
 
-    # Depreciações e juros do DR anual
+    # Totais anuais 2025 do modelo completo (usado como âncora de articulação)
     dr_anual = stmt_mod.build_dr(a, base, sched)
     row_2025 = dr_anual[dr_anual.ano == 2025].iloc[0]
 
-    # Stored as negative in DR; negate to get positive cost
+    # Custos armazenados como negativos no DR anual; negar para obter custo positivo
     dep_2025 = -float(row_2025["depreciacoes"])
     jur_2025 = -float(row_2025["juros"])
+    irc_2025 = -float(row_2025["irc"])  # custo fiscal anual, positivo
 
-    irc_taxa = a.impostos.get("IRC_base", 0.16) + a.impostos.get(
-        "Derrama_Municipal",
-        0.015,
-    )
+    # Articulação mensal-anual: diferença entre EBITDA completo (hub + eco + outros
+    # rendimentos + var. inventários + imparidades + outros gastos) e os itens
+    # operacionais base (VN - CMVMC - FSE - pessoal). Distribuída uniformemente ÷12.
+    ebitda_2025_completo = float(row_2025["ebitda"])
+    ebitda_2025_ops = vn_2025 - cmvmc_2025 - fse_2025 - pessoal_2025
+    outros_ebitda_m = (ebitda_2025_completo - ebitda_2025_ops) / 12.0
+
+    # Rendimentos financeiros distribuídos uniformemente ÷12
+    rend_fin_m = float(row_2025.get("rend_financeiros", 0.0)) / 12.0
 
     dist_saz = _dist_sazonal_total(a, base, sched)
 
@@ -443,12 +451,16 @@ def build_dr_mensal(
             for rub in rubricas_fse
         }
 
-        ebitda = vn - cmvmc - fse - pessoal
+        # EBITDA inclui ajuste de articulação com o modelo anual completo
+        ebitda = vn - cmvmc - fse - pessoal + outros_ebitda_m
         dep = dep_2025 / 12.0
         ebit = ebitda - dep
         juros = jur_2025 / 12.0
-        rai = ebit - juros
-        irc = max(0.0, rai) * irc_taxa
+        # RAI inclui rendimentos financeiros (não desagregados sazonalmente)
+        rai = ebit - juros + rend_fin_m
+        # IRC distribuído uniformemente do total anual — garante que a soma
+        # mensal = IRC anual, evitando divergência por meses com RAI negativo.
+        irc = irc_2025 / 12.0
         rl = rai - irc
 
         rows.append(
@@ -461,10 +473,12 @@ def build_dr_mensal(
                 "gastos_pessoal": round(pessoal),
                 # colunas adicionais: FSE detalhado (custos positivos em €/período)
                 **{k: round(v) for k, v in fse_det_m.items()},
+                "outros_rendimentos_liq": round(outros_ebitda_m + rend_fin_m),
                 "ebitda": round(ebitda),
                 "depreciacoes": round(dep),
                 "ebit": round(ebit),
                 "juros": round(juros),
+                "rend_financeiros": round(rend_fin_m),
                 "rai": round(rai),
                 "irc": round(irc),
                 "rl": round(rl),

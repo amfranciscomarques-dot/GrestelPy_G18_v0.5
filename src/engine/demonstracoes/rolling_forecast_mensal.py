@@ -123,6 +123,70 @@ def _interp(ini: float, fin: float, m_idx: int) -> float:
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+# Hub Logístico: impacto mensal no Balanço e DFC
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _hub_monthly_impact(a: Assumptions) -> dict | None:
+    """Impacto mensal do Hub Logístico no Balanço e DFC de 2025.
+
+    Retorna dict com:
+      meses: {mes: {capex, juros_cap, juros_pagos, desembolso}}
+      nc:    saldo NC hub constante (carência 2025-2027 → sem amortização)
+      c:     saldo C hub constante em 2025
+    None se hub desativado ou dados ausentes.
+
+    Metodologia:
+      • CAPEX mensal: perfil do cronograma_mensal do YAML → fluxo_investimento
+      • Juros 2025 capitalizados (NCRF 10): aumentam custo do AFT, NÃO DR;
+        são SEMPRE saída de caixa real (NCRF 2 §33b) → fluxo_financiamento
+      • Desembolso bancário: Janeiro 2025 (única entrada) → fluxo_financiamento
+      • NC/C constantes em 2025 (sem amortização durante a carência)
+    """
+    raw_hub = a.raw.get("hub_logistico", {})
+    if not raw_hub.get("incluir_hub", False):
+        return None
+
+    try:
+        from ..projetos import hub_logistico as hub_mod
+
+        df_fin = hub_mod.hub_financing(raw_hub)
+        jc_map = hub_mod._juros_capitalizados_map(raw_hub)
+
+        fin_2025 = df_fin[df_fin.ano == 2025].iloc[0]
+        hub_nc         = float(fin_2025["emprestimos_nc"])
+        hub_c          = float(fin_2025["emprestimos_c"])
+        hub_desembolso = float(fin_2025["desembolso"])
+        hub_juros_anual = float(fin_2025["juros"])  # total cash outflow
+
+        juros_m = hub_juros_anual / 12.0
+        jc_m    = jc_map.get(2025, 0.0) / 12.0  # capitalizado → aumenta AFT
+
+        # CAPEX mensal do cronograma (lowercase → MESES capitalizados)
+        cron_proj = raw_hub.get("projeto_hub", {}).get("cronograma_mensal", {})
+        cron_2025 = cron_proj.get("2025", cron_proj.get(2025, {}))
+        _lower = {m.lower(): m for m in MESES}
+        capex_por_mes: dict[str, float] = {m: 0.0 for m in MESES}
+        for k, v in cron_2025.items():
+            mes = _lower.get(str(k).lower())
+            if mes:
+                capex_por_mes[mes] = float(v)
+
+        meses_data = {
+            m: {
+                "capex":       capex_por_mes[m],
+                "juros_cap":   jc_m,
+                "juros_pagos": juros_m,
+                "desembolso":  hub_desembolso if i == 0 else 0.0,
+            }
+            for i, m in enumerate(MESES)
+        }
+        return {"meses": meses_data, "nc": hub_nc, "c": hub_c}
+
+    except Exception:
+        return None
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # Loop Integrado: DFC determina Caixa; Balanço fecha por construção
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -132,8 +196,15 @@ def _build_integrated_monthly(
     sched: Schedules,
     df_dr_m: pd.DataFrame,
     df_t_m: pd.DataFrame,
+    anual_ref: dict | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Loop mensal integrado: DFC determina Caixa; Balanço fecha naturalmente.
+
+    Args:
+        anual_ref: valores do modelo anual 2025 (live) para ancoragem.
+            Chaves usadas: inventarios, outros_pc (endpoints de interpolação),
+            clientes, fornecedores (âncora de Dezembro).
+            Se None, usa reference_balanco do schedules.yaml.
 
     Retorna:
         tuple[pd.DataFrame, pd.DataFrame]: df_balanco, df_dfc.
@@ -141,7 +212,7 @@ def _build_integrated_monthly(
     caixa_min = a.caixa["minima"]
     caixa_max = a.caixa["maxima"]
     iva_venda = a.impostos["IVA_Vendas"]
-    iva_fse = a.impostos.get("IVA_FSE", 0.15)
+    iva_fse = a.impostos.get("IVA_FSE", 0.23)
 
     fin_m = _financiamento_mensal(sched)
     cap_m = _capex_mensal(sched)
@@ -187,19 +258,33 @@ def _build_integrated_monthly(
     eoep_cred_fin = ref["eoep_credor"][2025]
 
     outros_pc_ini = b["passivo"]["Outros_PC"] - eoep_cred_ini
-    outros_pc_fin = ref["outros_pc"][2025]
+    outros_pc_fin = (
+        float(anual_ref["outros_pc"])
+        if anual_ref and "outros_pc" in anual_ref
+        else ref["outros_pc"][2025]
+    )
 
     inv_ini = b["ativo_corrente"]["Inventarios"]
-    inv_fin = ref["inventarios"][2025]
+    inv_fin = (
+        float(anual_ref["inventarios"])
+        if anual_ref and "inventarios" in anual_ref
+        else ref["inventarios"][2025]
+    )
 
-    nc_ini = sched.financiamento["emprestimos_NC"][2024]
-    nc_fin_r = ref["emprestimos_nc"][2025]
+    nc_ini   = sched.financiamento["emprestimos_NC"][2024]
+    nc_fin_r = sched.financiamento["emprestimos_NC"][2025]  # core live, sem hub
 
-    c_ini = sched.financiamento["emprestimos_C"][2024]
-    c_fin_r = ref["emprestimos_c"][2025]
+    c_ini   = sched.financiamento["emprestimos_C"][2024]
+    c_fin_r = sched.financiamento["emprestimos_C"][2025]    # core live, sem hub
+
+    # ── Hub: impacto mensal (None se desativado) ───────────────────────────────
+    hub_impact = _hub_monthly_impact(a)
+    hub_nc = float(hub_impact["nc"]) if hub_impact else 0.0
+    hub_c  = float(hub_impact["c"])  if hub_impact else 0.0
 
     # ── Estado inicial: abertura 31 Dez 2024 ───────────────────────────────────
-    aft_prev = b["ativo_nao_corrente"]["AFT_liquido"]
+    aft_core_prev = b["ativo_nao_corrente"]["AFT_liquido"]
+    aft_hub_cum   = 0.0  # acumula CAPEX hub + juros capitalizados (NCRF 10)
     intang_prev = b["ativo_nao_corrente"]["Intangiveis"]
     cli_prev = b["ativo_corrente"]["Clientes"]
     forn_prev = b["passivo"]["Fornecedores"]
@@ -221,16 +306,30 @@ def _build_integrated_monthly(
         fin = fin_m[m]
         cap = cap_m[m]
 
-        dep_m = cap["dep_total"]
+        dep_m   = cap["dep_total"]
         juros_m = fin["juros"]
-        capex_m = cap["capex_aft"] + cap["capex_int"]
         amort_m = fin["amortizacao"]
 
-        # ── 1. Itens determinísticos do Balanço ───────────────────────────────
-        aft_m = aft_prev + cap["capex_aft"] - cap["dep_aft"]
-        intang_m = intang_prev + cap["capex_int"] - cap["dep_int"]
+        # ── Hub: fluxos do mês ────────────────────────────────────────────────
+        hub_m            = hub_impact["meses"][m] if hub_impact else {}
+        hub_capex_m      = float(hub_m.get("capex",       0.0))
+        hub_jc_m         = float(hub_m.get("juros_cap",   0.0))
+        hub_juros_pag_m  = float(hub_m.get("juros_pagos", 0.0))
+        hub_desembolso_m = float(hub_m.get("desembolso",  0.0))
 
-        aft_m = max(aft_m, 0.0)
+        # CAPEX total do mês (core Grestel + hub) — para DFC fluxo_investimento
+        capex_m = cap["capex_aft"] + cap["capex_int"] + hub_capex_m
+
+        # ── 1. Itens determinísticos do Balanço ───────────────────────────────
+        # AFT core (Grestel) — evolução autónoma independente do hub
+        aft_core_m = aft_core_prev + cap["capex_aft"] - cap["dep_aft"]
+        aft_core_m = max(aft_core_m, 0.0)
+        # AFT hub: acumula CAPEX (saída caixa) + juros capitalizados (NCRF 10)
+        # Sem depreciação em 2025 — hub entra em exploração em 2026
+        aft_hub_cum += hub_capex_m + hub_jc_m
+        aft_m = aft_core_m + aft_hub_cum
+
+        intang_m = intang_prev + cap["capex_int"] - cap["dep_int"]
         intang_m = max(intang_m, 0.0)
 
         inv_m = _interp(inv_ini, inv_fin, i)
@@ -249,11 +348,19 @@ def _build_integrated_monthly(
             - t["pagamentos_fornecedores"]
         )
 
+        # Âncora de Dezembro: fecha clientes/fornecedores ao balanço anual 2025.
+        # A diferença metodológica (DFC-first PMR cash vs. PMR/365 rácio) flui
+        # integralmente por var_nfm → var_caixa → caixa_m (DFC-first preservado).
+        if anual_ref is not None and m == "Dez":
+            cli_m  = float(anual_ref.get("clientes",     cli_m))
+            forn_m = float(anual_ref.get("fornecedores", forn_m))
+
         eoep_cred_m = _interp(eoep_cred_ini, eoep_cred_fin, i)
         outros_pc_m = _interp(outros_pc_ini, outros_pc_fin, i)
 
-        nc_m = _interp(nc_ini, nc_fin_r, i)
-        c_m = _interp(c_ini, c_fin_r, i)
+        # NC/C: core Grestel (interpolação) + hub (constante, carência 2025-2027)
+        nc_m = _interp(nc_ini, nc_fin_r, i) + hub_nc
+        c_m  = _interp(c_ini,  c_fin_r,  i) + hub_c
 
         rl_acum += dr["rl"]
         cp_m = cp_fixo + rl_acum
@@ -277,8 +384,11 @@ def _build_integrated_monthly(
 
         # ── 3. Fluxos base ────────────────────────────────────────────────────
         fluxo_op = dr["rl"] + dep_m + juros_m + var_nfm
-        fluxo_inv_base = -capex_m
-        fluxo_fin_base = -amort_m - juros_m
+        fluxo_inv_base = -capex_m  # core Grestel + hub CAPEX
+        # Hub: desembolso bancário (entrada Jan) − juros totais pagos (saída mensal)
+        # Os juros hub são sempre saída de caixa real (NCRF 2 §33b), mesmo
+        # os capitalizados no AFT (NCRF 10) — distinção contabilística, não financeira.
+        fluxo_fin_base = -amort_m - juros_m + hub_desembolso_m - hub_juros_pag_m
         var_caixa_base = fluxo_op + fluxo_inv_base + fluxo_fin_base
 
         # ── 4. Posição líquida disponível no fecho do mês ─────────────────────
@@ -393,7 +503,7 @@ def _build_integrated_monthly(
         )
 
         # ── Actualiza estado ───────────────────────────────────────────────────
-        aft_prev = aft_m
+        aft_core_prev = aft_core_m  # hub acumula em aft_hub_cum (fora deste campo)
         intang_prev = intang_m
         cli_prev = cli_m
         forn_prev = forn_m
@@ -418,6 +528,7 @@ def build_balanco_mensal(
     sched: Schedules,
     _df_dr_m: pd.DataFrame | None = None,
     _df_t_m: pd.DataFrame | None = None,
+    anual_ref: dict | None = None,
 ) -> pd.DataFrame:
     """Balanço mensal 2025, com Caixa derivada dos fluxos DFC."""
     if _df_dr_m is None:
@@ -426,7 +537,7 @@ def build_balanco_mensal(
     if _df_t_m is None:
         _df_t_m = teso_mod.build_tesouraria(a, base, sched)
 
-    df_bs, _ = _build_integrated_monthly(a, base, sched, _df_dr_m, _df_t_m)
+    df_bs, _ = _build_integrated_monthly(a, base, sched, _df_dr_m, _df_t_m, anual_ref=anual_ref)
     return df_bs
 
 
@@ -440,6 +551,7 @@ def build_dfc_mensal(
     sched: Schedules,
     df_bs: pd.DataFrame | None = None,
     df_dr_m: pd.DataFrame | None = None,
+    anual_ref: dict | None = None,
 ) -> pd.DataFrame:
     """DFC mensal 2025 pelo método indireto, reconciliada com o Balanço.
 
@@ -451,7 +563,7 @@ def build_dfc_mensal(
 
     df_t_m = teso_mod.build_tesouraria(a, base, sched)
 
-    _, df_dfc = _build_integrated_monthly(a, base, sched, df_dr_m, df_t_m)
+    _, df_dfc = _build_integrated_monthly(a, base, sched, df_dr_m, df_t_m, anual_ref=anual_ref)
     return df_dfc
 
 
@@ -588,6 +700,118 @@ def build_tesouraria_completa(
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+# Reconciliação Mensal-Anual
+# ──────────────────────────────────────────────────────────────────────────────
+
+def build_reconciliacao_mensal_anual(
+    a: "Assumptions",
+    base: "Base2024",
+    df_bs: pd.DataFrame,
+    df_dr_m: pd.DataFrame,
+    df_dfc_m: pd.DataFrame,
+    sched: Schedules,
+    stmt: dict | None = None,
+) -> dict:
+    """Compara o fecho de Dezembro do loop mensal com o modelo anual 2025 (live).
+
+    A referência anual é o modelo anual calculado on-the-fly (via build_statements
+    se stmt não for passado), garantindo que compara sempre contra o modelo atual.
+
+    Desvio = mensal − anual. Zero significa articulação perfeita.
+
+    Args:
+        stmt: resultado de build_statements() pré-calculado (evita double call).
+              Se None, calcula internamente.
+
+    Returns:
+        dict com três secções:
+          balanco_dezembro  — itens do Balanço em Dez vs Balanço anual 2025
+          dr_soma_vs_anual  — soma dos 12 meses do DR vs DR anual 2025
+          dfc_consolidado   — fluxos acumulados e reconciliação de Caixa
+    """
+    if stmt is None:
+        from .statements import build_statements
+        stmt = build_statements(a, base, sched)
+
+    df_bs_anual = stmt["balanco"]
+    df_dr_anual = stmt["dr"]
+
+    anual_b = df_bs_anual[df_bs_anual["ano"] == 2025].iloc[0]
+    anual_dr = df_dr_anual[df_dr_anual["ano"] == 2025].iloc[0]
+
+    dez = df_bs[df_bs["mes"] == "Dez"].iloc[0]
+
+    def _it(mensal_val: float, ref_val: float) -> dict:
+        return {
+            "mensal": round(mensal_val),
+            "ref_anual": round(ref_val),
+            "desvio": round(mensal_val - ref_val),
+        }
+
+    # ── Balanço: fecho de Dezembro vs Balanço anual 2025 ─────────────────────
+    balanco = {
+        "aft_liquido":      _it(dez["aft_liquido"],      float(anual_b["aft_liquido"])),
+        "inventarios":      _it(dez["inventarios"],      float(anual_b["inventarios"])),
+        "clientes":         _it(dez["clientes"],         float(anual_b["clientes"])),
+        "eoep_devedor":     _it(dez["eoep_devedor"],     float(anual_b["eoep_devedor"])),
+        "caixa":            _it(dez["caixa"],            float(anual_b["caixa"])),
+        "total_ac":         _it(dez["total_ac"],         float(anual_b["total_ac"])),
+        "total_anc":        _it(dez["total_anc"],        float(anual_b["total_anc"])),
+        "total_ativo":      _it(dez["total_ativo"],      float(anual_b["total_ativo"])),
+        "total_cp":         _it(dez["total_cp"],         float(anual_b["total_cp"])),
+        "emprestimos_nc":   _it(dez["emprestimos_nc"],   float(anual_b["emprestimos_nc"])),
+        "emprestimos_c":    _it(dez["emprestimos_c"],    float(anual_b["emprestimos_c"])),
+        "fornecedores":     _it(dez["fornecedores"],     float(anual_b["fornecedores"])),
+        "eoep_credor":      _it(dez["eoep_credor"],      float(anual_b["eoep_credor"])),
+        "outros_pc":        _it(dez["outros_pc"],        float(anual_b["outros_pc"])),
+        "linha_credito_cp": _it(dez["linha_credito_cp"], float(anual_b["linha_credito_cp"])),
+        "total_passivo":    _it(dez["total_passivo"],    float(anual_b["total_passivo"])),
+    }
+
+    # ── DR: soma 12 meses vs DR anual 2025 ────────────────────────────────────
+    # No DR anual, custos são negativos; no DR mensal, custos são positivos.
+    # Negamos os custos do DR anual para comparar na mesma escala.
+    dr_soma = df_dr_m[["vn", "cmvmc", "fse", "gastos_pessoal", "ebitda",
+                        "depreciacoes", "ebit", "juros", "rl"]].sum()
+    dr = {
+        "vn":             _it(dr_soma["vn"],             float(anual_dr["vn"])),
+        "cmvmc":          _it(dr_soma["cmvmc"],          -float(anual_dr["cmvmc"])),
+        "fse":            _it(dr_soma["fse"],            -float(anual_dr["fse"])),
+        "gastos_pessoal": _it(dr_soma["gastos_pessoal"], -float(anual_dr["gastos_pessoal"])),
+        "ebitda":         _it(dr_soma["ebitda"],         float(anual_dr["ebitda"])),
+        "depreciacoes":   _it(dr_soma["depreciacoes"],   -float(anual_dr["depreciacoes"])),
+        "ebit":           _it(dr_soma["ebit"],           float(anual_dr["ebit"])),
+        "juros":          _it(dr_soma["juros"],          -float(anual_dr["juros"])),
+        "rl":             _it(dr_soma["rl"],             float(anual_dr["rl"])),
+    }
+
+    # ── DFC: fluxos acumulados e reconciliação de Caixa ───────────────────────
+    dfc_soma = df_dfc_m[
+        ["fluxo_operacional", "fluxo_investimento", "fluxo_financiamento", "variacao_caixa"]
+    ].sum()
+
+    caixa_ini = int(df_dfc_m["caixa_abertura"].iloc[0])
+    caixa_fim = int(df_dfc_m["caixa_fecho"].iloc[-1])
+
+    dfc = {
+        "fluxo_operacional":    round(dfc_soma["fluxo_operacional"]),
+        "fluxo_investimento":   round(dfc_soma["fluxo_investimento"]),
+        "fluxo_financiamento":  round(dfc_soma["fluxo_financiamento"]),
+        "variacao_caixa_total": round(dfc_soma["variacao_caixa"]),
+        "caixa_abertura_jan":   caixa_ini,
+        "caixa_fecho_dez":      caixa_fim,
+        "ref_caixa_dez_anual":  round(float(anual_b["caixa"])),
+        "desvio_caixa":         caixa_fim - round(float(anual_b["caixa"])),
+    }
+
+    return {
+        "balanco_dezembro": balanco,
+        "dr_soma_vs_anual": dr,
+        "dfc_consolidado": dfc,
+    }
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # Ponto de Entrada
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -610,14 +834,31 @@ def build_rolling_forecast(
         dr_mensal, balanco_mensal, dfc_mensal, nfm_mensal,
         tesouraria_completa.
     """
-    df_dr = teso_mod.build_dr_mensal(a, base, sched)
-    df_t = teso_mod.build_tesouraria(a, base, sched)
+    from .statements import build_statements
 
-    # Único loop: DFC determina Caixa; Balanço fecha por construção
-    df_bs, df_dfc = _build_integrated_monthly(a, base, sched, df_dr, df_t)
+    df_dr = teso_mod.build_dr_mensal(a, base, sched)
+    df_t  = teso_mod.build_tesouraria(a, base, sched)
+
+    # Modelo anual calculado uma vez: alimenta âncora de Dezembro + reconciliação
+    stmt = build_statements(a, base, sched)
+    _row = stmt["balanco"][stmt["balanco"]["ano"] == 2025].iloc[0]
+    anual_ref = {
+        "inventarios":  float(_row["inventarios"]),
+        "outros_pc":    float(_row["outros_pc"]),
+        "clientes":     float(_row["clientes"]),
+        "fornecedores": float(_row["fornecedores"]),
+    }
+
+    # Único loop integrado: DFC determina Caixa; Balanço fecha por construção
+    df_bs, df_dfc = _build_integrated_monthly(
+        a, base, sched, df_dr, df_t, anual_ref=anual_ref
+    )
 
     df_nfm = build_nfm_mensal(df_bs, df_dr)
-    df_tc = build_tesouraria_completa(a, base, sched, df_bs=df_bs)
+    df_tc  = build_tesouraria_completa(a, base, sched, df_bs=df_bs)
+    reconciliacao = build_reconciliacao_mensal_anual(
+        a, base, df_bs, df_dr, df_dfc, sched, stmt=stmt
+    )
 
     return {
         "dr_mensal": df_dr,
@@ -625,4 +866,5 @@ def build_rolling_forecast(
         "dfc_mensal": df_dfc,
         "nfm_mensal": df_nfm,
         "tesouraria_completa": df_tc,
+        "reconciliacao_anual": reconciliacao,
     }
