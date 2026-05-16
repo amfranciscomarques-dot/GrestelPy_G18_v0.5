@@ -46,8 +46,16 @@ uvicorn server:app --reload --port 8000
 - Rolling forecast mensal (Balanço + DFC + NFM mensais)
 - Orçamento de produção por produto
 - Análise de sensibilidade (tornado)
-- Viabilidade do Hub Logístico M6 (VAN, TIR, Payback)
+- Viabilidade do Hub Logístico M6 (VAL, TIR, Payback, Índice de Rendibilidade)
 - Subsidiária Ecogres
+
+### OE4 — Plano de Financiamento do Investimento (integrado no Hub)
+| Output | Onde | Conteúdo |
+|---|---|---|
+| Equilíbrio financeiro pré/pós-projeto | Separador Hub | Autonomia financeira, solvabilidade, endividamento, cobertura de juros — 2024 (pré) + 2025-2029 (pós); alerta se AF < 30% |
+| Mapa de investimento | Separador Hub | CAPEX por pool de ativo (construção civil, VLMs, AMRs, WMS, integração) + cronograma anual + ΔNFM + PT2030 |
+| Mapa de serviço da dívida | Separador Hub | Juros, amortizações, DSCR por ano; indicação do período de carência (2025-2027) |
+| Solvabilidade (CP/Passivo) | Separador KPIs | Novo rácio adicionado à tabela de KPIs (2024-2029) |
 
 ---
 
@@ -71,8 +79,10 @@ GET  /api/scenarios/all               → DR/Balanço/DFC/KPIs todos os cenário
 POST /api/run                         → execução com overrides custom
 GET  /api/rolling-forecast/mensal     → Balanço+DFC+NFM mensais 2025
 GET  /api/assumptions/effective       → pressupostos consolidados efectivos
-GET  /api/hub/viability               → VAN, TIR, Payback Hub M6
+GET  /api/hub/viability               → VAL, TIR, Payback, IR Hub M6
 GET  /api/hub/tornado                 → análise sensibilidade Hub M6
+GET  /api/hub/debt-service            → mapa de serviço da dívida (DSCR anual) — OE4
+GET  /api/hub/investment-map          → mapa de investimento (CAPEX pools + NFM) — OE4
 GET  /api/ecogres                     → projecções Ecogres
 GET  /api/custom-scenarios            → cenários customizados guardados
 ```
@@ -126,11 +136,14 @@ Ver [docs/PEF_2025-26_Resumo_M3_M6_OE4.md](docs/PEF_2025-26_Resumo_M3_M6_OE4.md)
 
 ### M6 — Plano de Negócios
 - [x] Base BAU 2025 solidificada: CAPEX €900k (Madrid + Lisboa), amortizações €5,53M (só IAPMEI), juros €419k — `schedules.yaml`
-- [ ] Integração do plano de investimento M6 no motor anual (2026–2029 com projecto)
+- [x] Hub Logístico activo (`incluir_hub: true`) — integrado no DR, Balanço e DFC consolidados
+- [x] Mapa de serviço da dívida Hub com DSCR — `GET /api/hub/debt-service`
+- [x] Mapa de investimento Hub (CAPEX pools + NFM) — `GET /api/hub/investment-map`
+- [x] OE4: equilíbrio financeiro pré/pós-projecto com alerta AF < 30% — Separador Hub
+- [x] OE4: solvabilidade (CP/Passivo) adicionada aos KPIs — `kpis.py` + Separador KPIs
 - [ ] DR/Balanço/DFC comparativos sem-projecto vs. com-projecto
-- [ ] VAN, TIR, Payback consolidados (Grestel + Ecogres + Hub)
-- [ ] OE4: análise equilíbrio financeiro pré/pós-projecto (autonomia financeira ≥ 30%)
+- [ ] VAL, TIR, Payback consolidados (Grestel + Ecogres + Hub)
 
 ---
 
-*GrestelPy · Engine v0.6+ · PEF 2025-26 · Grupo G18 · ISCA-UA*
+*GrestelPy · Engine v0.7 · PEF 2025-26 · Grupo G18 · ISCA-UA*
