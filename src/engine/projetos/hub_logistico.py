@@ -27,7 +27,7 @@ from ..inputs import DATA_DIR
 
 
 def _hub_assumptions_path() -> Path:
-    return DATA_DIR / "subsidiarias" / "hub" / "m6_hub_assumptions.yaml"
+    return DATA_DIR / "subsidiarias" / "hub_logistico" / "m6_hub_assumptions.yaml"
 
 
 YEARS = [2025, 2026, 2027, 2028, 2029]
@@ -46,7 +46,7 @@ def load() -> dict:
 def hub_capex(hub: dict) -> pd.DataFrame:
     """CAPEX schedule do Hub e evolução do AFT líquido.
 
-    CAPEX base: 5.500.000€ todo em 2025.
+    CAPEX base: 5.500.000€ todo em 2025. #atençao ao novo capex
     Vida útil: 10 anos → depreciação: 550.000€/ano a partir de 2026.
     """
     proj = hub["projeto_hub"]
@@ -185,8 +185,10 @@ def hub_dr_impact(
     poupanca_pessoal_base = poupanca_op * pessoal_pct
     poupanca_fse_base = poupanca_op * fse_pct
 
-    opex_detalhe = proj["opex_detalhe"]
-    fse_opex_base = float(opex_detalhe["total"])
+    fse_opex_base = float(
+        ben.get("opex_incremental")
+        or proj.get("opex_detalhe", {}).get("total", 0)
+    )
 
     subsidio = pt2030_reconhecimento(hub)
 
@@ -448,7 +450,7 @@ def _discounted_payback(
 
 def viabilidade_hub(
     hub: dict | None = None,
-    irc_taxa: float = 0.225,
+    irc_taxa: float | None = None,
     wacc: float | None = None,
     incluir_inventario: bool = True,
 ) -> dict:
@@ -458,6 +460,9 @@ def viabilidade_hub(
 
     proj = hub["projeto_hub"]
     via = proj["viabilidade"]
+
+    if irc_taxa is None:
+        irc_taxa = float(via.get("irc_taxa", 0.225))
 
     if wacc is None:
         wacc = float(via["wacc"])
@@ -530,6 +535,9 @@ def viabilidade_hub(
     pb = _payback(cfs)
     pb_disc = _discounted_payback(cfs, wacc)
 
+    capex_base = float(proj["capex"]["base"])
+    indice_rendibilidade = (1 + vpl / capex_base) if capex_base else None
+
     return {
         "fcf_df": df_fcf,
         "valor_terminal": vt,
@@ -538,12 +546,33 @@ def viabilidade_hub(
         "tir": tir,
         "payback_simples": pb,
         "payback_atualizado": pb_disc,
+        "indice_rendibilidade": indice_rendibilidade,
         "parametros": {
             "wacc": wacc,
             "irc_taxa": irc_taxa,
             "crescimento_terminal": g_terminal,
             "horizonte_anos": horizonte,
             "incluir_inventario": incluir_inventario,
+            "capex_base": capex_base,
+            "capex_2025": float(proj["capex"]["cronograma"].get(2025, 0)),
+            "capex_2026": float(proj["capex"]["cronograma"].get(2026, 0)),
+            "vida_util": int(proj["capex"]["vida_util_anos"]),
+            "taxa_depreciacao": float(proj["capex"]["taxa_depreciacao"]),
+            "poupanca_operacional": float(proj["beneficios_anuais"]["poupanca_operacional"]),
+            "reducao_quebras": float(proj["beneficios_anuais"]["reducao_quebras"]),
+            "opex_incremental": float(
+                proj["beneficios_anuais"].get("opex_incremental")
+                or proj.get("opex_detalhe", {}).get("total", 0)
+            ),
+            "beneficio_liquido_anual": float(proj["beneficios_anuais"]["beneficio_liquido_anual"]),
+            "crescimento_anual": float(proj["beneficios_anuais"]["crescimento_anual"]),
+            "libertacao_inventario": float(proj["beneficios_pontuais"]["libertacao_inventario"]),
+            "ano_inventario": int(proj["beneficios_pontuais"]["ano"]),
+            "banco_montante": float(proj["financiamento"]["Banco_Hub"]["montante"]),
+            "banco_taxa_juro": float(proj["financiamento"]["Banco_Hub"]["taxa_juro"]),
+            "pt2030_montante": float(proj["financiamento"]["PT2030"]["montante"]),
+            "pt2030_ano": int(proj["financiamento"]["PT2030"]["ano_recebimento"]),
+            "ano_inicio_beneficios": int(proj["ano_inicio_beneficios"]),
         },
     }
 
@@ -556,7 +585,7 @@ def sensibilidade_hub(
     driver: str,
     valores: Sequence[float],
     hub_base: dict | None = None,
-    irc_taxa: float = 0.225,
+    irc_taxa: float | None = None,
 ) -> pd.DataFrame:
     """One-at-a-time sensibilidade do VPL do Hub."""
     if hub_base is None:
@@ -629,7 +658,7 @@ def sensibilidade_hub(
 
 def tornado_hub(
     hub_base: dict | None = None,
-    irc_taxa: float = 0.225,
+    irc_taxa: float | None = None,
 ) -> pd.DataFrame:
     """Tornado do VPL Hub: swing de cada driver principal."""
     if hub_base is None:
@@ -642,6 +671,7 @@ def tornado_hub(
     wacc_base = float(proj["viabilidade"]["wacc"])
     inv_base = float(proj["beneficios_pontuais"]["libertacao_inventario"])
     g_base = float(proj["beneficios_anuais"]["crescimento_anual"])
+    pt2030_montante = float(proj["financiamento"]["PT2030"]["montante"])
 
     vpl_base = viabilidade_hub(hub_base, irc_taxa=irc_taxa)["vpl"]
 
@@ -691,6 +721,24 @@ def tornado_hub(
                 "impacto_total": abs(vpl_high - vpl_low),
             }
         )
+
+    # Cenário sem PT2030: montante = 0 → sem reconhecimento anual nem cash-in
+    h_sem_pt2030 = copy.deepcopy(hub_base)
+    h_sem_pt2030["projeto_hub"]["financiamento"]["PT2030"]["montante"] = 0.0
+    vpl_sem_pt2030 = viabilidade_hub(h_sem_pt2030, irc_taxa=irc_taxa)["vpl"]
+
+    rows.append(
+        {
+            "driver": "pt2030",
+            "label": "PT2030 (sem vs. com subsídio)",
+            "valor_low": 0.0,
+            "valor_high": pt2030_montante,
+            "vpl_low": vpl_sem_pt2030,
+            "vpl_base": vpl_base,
+            "vpl_high": vpl_base,
+            "impacto_total": abs(vpl_base - vpl_sem_pt2030),
+        }
+    )
 
     return (
         pd.DataFrame(rows)

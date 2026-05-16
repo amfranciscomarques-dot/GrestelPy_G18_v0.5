@@ -36,15 +36,15 @@ crescimento_pvu_vendas:
 qtd_produto_crescimento:
   # Crescimento de quantidade por produto — grandeza física, valor directo
   Pratos:
-    base_2025: 0.01
+    base_2025: 0.05
   Tigelas:
-    base_2025: 0.01
+    base_2025: 0.05
   Canecas:
-    base_2025: 0.01
+    base_2025: 0.05
   Pecas_Servir:
-    base_2025: 0.01
+    base_2025: 0.03
   Forno_Cozinha:
-    base_2025: 0.01
+    base_2025: 0.03
 
 qtd_mercadorias_crescimento:
   # Crescimento de quantidade de mercadorias — grandeza física, valor directo
@@ -65,16 +65,16 @@ pvu_produto_crescimento:
   Canecas:
     base_2025: 0.076
   Pecas_Servir:
-    base_2025: 0.076
+    base_2025: 0.23
   Forno_Cozinha:
-    base_2025: 0.076
+    base_2025: 0.23
 
 pvu_mercadorias_crescimento:
   # Spread real de PVU de mercadorias.
-  # 0.8% real + 2.2% inflação ≈ 3.0% nominal
+  # 1% real + 2.2% inflação ≈ 3.2% nominal
   Cutelaria:
-    base_2025: 0.008
+    base_2025: 0.01
   Vidros_Cristais:
-    base_2025: 0.008
+    base_2025: 0.01
   Texteis_Acessorios:
-    base_2025: 0.008
+    base_2025: 0.01

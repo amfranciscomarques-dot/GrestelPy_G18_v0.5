@@ -395,10 +395,12 @@ const GRESTEL = (() => {
 
   // Hub Logístico — viabilidade
   function hubViability(wacc = 0.08) {
-    // Reconstrução das contas do m6_hub_assumptions.yaml
-    const irc_taxa = 0.21;
-    const capex = [0, 3300000, 2200000, 0, 0, 0, 0, 0, 0, 0, 0]; // 2025-2034 (idx0 = 2024)
-    const beneficio_anual_base = 255000;
+    // Fallback — espelha m6_hub_assumptions.yaml (CAPEX fase 1 otimizado: 3 800 k€)
+    const irc_taxa = 0.215;
+    const capex = [0, 2280000, 1520000, 0, 0, 0, 0, 0, 0, 0, 0]; // 2025-2034 (idx0 = 2024)
+    const dep_anual = 380000;      // 3 800 k€ × 10 %
+    const beneficio_anual_base = 310000;
+    const pt2030_anual = 171000;   // 1 710 k€ / 10 anos (reconhecimento SNC)
     const fcf_livre = [];
     let cumulative = 0;
     const cumulative_arr = [];
@@ -408,20 +410,21 @@ const GRESTEL = (() => {
       fcf -= capex[i];
       if (year >= 2026) {
         const yIdx = year - 2026;
-        const beneficio = beneficio_anual_base * Math.pow(1.02, yIdx) * (1 - irc_taxa);
-        fcf += beneficio + 550000 * irc_taxa; // tax shield via depreciação
+        const ebitda = (beneficio_anual_base + pt2030_anual) * Math.pow(1.04, yIdx);
+        const ebit = ebitda - dep_anual;
+        const nopat = ebit > 0 ? ebit * (1 - irc_taxa) : ebit;
+        fcf += nopat + dep_anual;
       }
-      if (year === 2026) fcf += 1500000; // libertação de inventário
-      if (year === 2027) fcf += 2200000; // PT2030
+      if (year === 2026) fcf += 2000000; // libertação de inventário (WMS centralizado)
       fcf_livre.push(fcf);
       cumulative += fcf;
       cumulative_arr.push(cumulative);
     }
-    // VAN
-    const vpl = fcf_livre.reduce((a, v, i) => a + v / Math.pow(1 + wacc, i), 0) + 600000; // valor terminal aprox
-    // TIR aproximada via busca binária
+    // VAN com valor terminal aprox.
+    const vt = 500000;
+    const vpl = fcf_livre.reduce((a, v, i) => a + v / Math.pow(1 + wacc, i), 0) + vt;
     function npv(rate) {
-      return fcf_livre.reduce((a, v, i) => a + v / Math.pow(1 + rate, i), 0) + 600000;
+      return fcf_livre.reduce((a, v, i) => a + v / Math.pow(1 + rate, i), 0) + vt;
     }
     let lo = -0.5, hi = 1.0;
     for (let k = 0; k < 80; k++) {
@@ -429,21 +432,20 @@ const GRESTEL = (() => {
       if (npv(mid) > 0) lo = mid; else hi = mid;
     }
     const tir = (lo + hi) / 2;
-    // Payback (simples e atualizado)
     let pay_s = null, pay_a = null;
     let acum_s = 0, acum_a = 0;
     for (let i = 0; i < fcf_livre.length; i++) {
       acum_s += fcf_livre[i];
       acum_a += fcf_livre[i] / Math.pow(1 + wacc, i);
-      if (pay_s === null && acum_s > 0) pay_s = 2024 + i;
-      if (pay_a === null && acum_a > 0) pay_a = 2024 + i;
+      if (pay_s === null && acum_s > 0) pay_s = i;
+      if (pay_a === null && acum_a > 0) pay_a = i;
     }
     return {
       vpl, tir, payback_simples: pay_s, payback_atualizado: pay_a,
-      valor_terminal: 600000,
+      valor_terminal: vt,
       fcf: fcf_livre, fcf_cumulativo: cumulative_arr,
       anos: YEARS.concat([2030, 2031, 2032, 2033, 2034]),
-      parametros: { wacc, capex_total: 5500000, beneficio_liquido_anual: 255000 },
+      parametros: { wacc, capex_total: 3800000, beneficio_liquido_anual: 310000 },
     };
   }
 

@@ -1,24 +1,29 @@
-#Projeto com 5 vetores tecnologicos 
-#VLMs + Cobots + AMRs + Box-on-Demand -> interligados entre si controlados por Digital twin 
-##CAPEX estimado para terrenos 500k a 1M?
-#CAPEX em construção -> 2.2M a 3.3M
-#honorarios em multiplos projetos de especialidade 70k a 130k
-#taxas urbanisticas 15k a 35k
-#investimento em pavimento tecnico 165k a 238k
-#4 modulos VLM 300k-360k por modulo de 14 metros -> total 4 modulos = 1.2M a 1.5M
-#3 a 4 estaçoes pick and pack -> 270k a 550k
-#5 AMRs + support system -> 650k a 950k
-#linha para box-on-demand 250k a 350k
-#wms + digital twin -> 350k a 650k
-#integraçao + cad + formaçao + transporte 250k a 450k
+# Hub Logístico 4.0 — Costa Nova (Vagos) — pressupostos M6
+#
+# Vetores tecnológicos: VLMs (4 módulos) + AMRs (3 unidades fase 1) + Cobots
+#   + WMS integrado — interligados via plataforma de gestão de armazém
+#
+# CAPEX fase 1 por componente (otimizado):
+#   Terreno / preparação (Lote 29 ZI Vagos já detido pela Grestel)  100 k€ –  200 k€
+#   Construção civil (reabilitação unidade G1, não nova)           1 000 k€ – 1 800 k€
+#   Honorários e licenças                                             85 k€ –  165 k€
+#   4 módulos VLM (14 m) — inalterado; core value driver           1 200 k€ – 1 500 k€
+#   3 AMRs + suporte (fase 1 de 5; escalável c/ cash-flow)           390 k€ –  570 k€
+#   Estações pick-and-pack                                           270 k€ –  420 k€
+#   WMS integrado (Digital Twin deferido para fase 2)                200 k€ –  350 k€
+#   Integração / formação                                            150 k€ –  300 k€
+#   Total adoptado fase 1                                          3 800 k€
+#
+# Deferido fase 2 (~700 k€ – 1 000 k€): 2 AMRs + Box-on-Demand + Digital Twin
+
 incluir_hub: false
 
 projeto_hub:
   capex:
-    base: 5500000
+    base: 3800000
     cronograma:
-      2025: 3300000
-      2026: 2200000
+      2025: 2280000  # 60 % — obras civis + reabilitação G1 + estrutura metálica
+      2026: 1520000  # 40 % — VLMs + 3 AMRs + WMS
     taxa_depreciacao: 0.10
     vida_util_anos: 10
 
@@ -26,31 +31,35 @@ projeto_hub:
 
   financiamento:
     Banco_Hub:
-      montante: 4125000
+      montante: 2850000         # 75 % do CAPEX — CGD / BPI, prazo 10 anos
       taxa_juro: 0.0415
-      amortizacao_anual: 412500
-      inicio_amortizacao: 2028
+      amortizacao_anual: 285000
+      inicio_amortizacao: 2028  # carência 3 anos: 2025-26 obra + 2027 ramp-up
       desembolso: 2025
     PT2030:
-      montante: 2200000
-      ano_recebimento: 2027
+      montante: 1710000         # subsídio não reembolsável (45 % do CAPEX — majoração REGIOSTARS 2024)
+      ano_recebimento: 2027     # aprovação esperada após arranque operacional
 
   beneficios_anuais:
-    poupanca_operacional: 300000 #440k por ano -> impacto pleno a partir do 3º ano, reduçao tempos mortos, etc
-    reducao_quebras: 75000 #80k anuais box oon demand
-    opex_incremental: 120000 #so cresce até ao ano 3? 
+    # Poupança operacional = 68 % pessoal + 32 % FSE (externalização atual)
+    poupanca_operacional: 380000  # conservador c/ 3 AMRs fase 1; pleno a partir do 3.º ano
+    reducao_quebras: 50000        # ganho VLMs/picking (Box-on-Demand deferida para fase 2)
+    opex_incremental: 120000      # custos recorrentes hub (manutenção, energia líq. de PV, IT)
+    # opex_incremental cresce à mesma taxa anual que os benefícios (crescimento_anual)
 
-    beneficio_liquido_anual: 255000
-    crescimento_anual: 0.02
+    beneficio_liquido_anual: 310000  # poupanca_operacional + reducao_quebras - opex_incremental
+    crescimento_anual: 0.04          # crescimento composto dos benefícios a partir do ano 3
 
   beneficios_pontuais:
-    libertacao_inventario: 1500000     #libertaçao de inventario 650k (quando)?
+    libertacao_inventario: 2000000  # WMS centralizado; 13 M€ em stock → meta conservadora de 15 %
     ano: 2026
 
   opex_detalhe:
-    total: 120000
+    total: 120000  # alinhado com opex_incremental acima
 
   viabilidade:
-    wacc: 0.08 
-    taxa_crescimento_terminal: 0.015 #?
+    wacc: 0.08
+    irc_taxa: 0.215               # IRC (20 %) + derrama estadual (3 %) + derrama municipal (1,5 %)
+    taxa_crescimento_terminal: 0.02
     horizonte_anos: 10
+    #ter em conta beneficios fiscais de investimento e o seu impacto no projeto

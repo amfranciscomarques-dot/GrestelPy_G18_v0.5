@@ -8,7 +8,7 @@ router = APIRouter(prefix="/api")
 
 
 @router.get("/hub/viability")
-def get_hub_viability(irc_taxa: float = Query(0.225), wacc: float = Query(None)):
+def get_hub_viability(irc_taxa: float = Query(None), wacc: float = Query(None)):
     hub = hub_load()
     res = viabilidade_hub(hub, irc_taxa=irc_taxa, wacc=wacc)
 
@@ -17,6 +17,7 @@ def get_hub_viability(irc_taxa: float = Query(0.225), wacc: float = Query(None))
         "tir": res.get("tir"),
         "payback_simples": res.get("payback_simples"),
         "payback_atualizado": res.get("payback_atualizado"),
+        "indice_rendibilidade": res.get("indice_rendibilidade"),
         "valor_terminal": res.get("valor_terminal"),
         "fcf": [float(v) for v in res.get("fcf_df", {}).get("fcf_livre", [])]
         if hasattr(res.get("fcf_df"), "get") else [],

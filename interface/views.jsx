@@ -676,11 +676,12 @@ function HubView({ ctx }) {
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
       .then(data => {
         const fcf = data.fcf || [];
-        const fcf_cumulativo = fcf.reduce((acc, v) => {
+        const fcf_actualizado = fcf.map((v, t) => v / Math.pow(1 + wacc, t));
+        const fcf_cumulativo = fcf_actualizado.reduce((acc, v) => {
           acc.push((acc[acc.length - 1] || 0) + v);
           return acc;
         }, []);
-        const anos = Array.from({ length: fcf.length }, (_, i) => 2024 + i);
+        const anos = Array.from({ length: fcf.length }, (_, i) => 2025 + i);
         setViab({ ...data, fcf, fcf_cumulativo, anos });
       })
       .catch(() => setViab(GRESTEL.hubViability(wacc)));
@@ -704,15 +705,15 @@ function HubView({ ctx }) {
   return (
     <>
       <div className="grid-4">
-        <KPI label="VAN @ 8%" value={fmt.eurC(viabData.vpl)} tone={viabData.vpl >= 0 ? "pos" : "neg"} sub="horizonte 10 anos + valor terminal" />
-        <KPI label="TIR" value={fmt.pct(viabData.tir, 1)} tone={viabData.tir >= 0.08 ? "pos" : "neg"} sub={"vs WACC " + fmt.pct(0.08, 0)} />
-        <KPI label="Payback simples" value={viabData.payback_simples ? String(viabData.payback_simples) : "—"} sub={"em anos · ref. 2024"} />
-        <KPI label="Payback actualizado" value={viabData.payback_atualizado ? String(viabData.payback_atualizado) : "—"} sub={"descontado a 8%"} />
+        <KPI label={`VAN @ ${fmt.pct(wacc, 0)}`} value={fmt.eurC(viabData.vpl)} tone={viabData.vpl >= 0 ? "pos" : "neg"} sub="horizonte 10 anos + valor terminal" />
+        <KPI label="TIR" value={fmt.pct(viabData.tir, 1)} tone={viabData.tir >= 0.08 ? "pos" : "neg"} sub={"vs WACC " + fmt.pct(wacc, 0)} />
+        <KPI label="Índice de Rendibilidade" value={viabData.indice_rendibilidade != null ? viabData.indice_rendibilidade.toFixed(2) : "—"} tone={viabData.indice_rendibilidade >= 1 ? "pos" : "neg"} sub="IR = 1 + VAN / CAPEX · >1 cria valor" />
+        <KPI label="Payback actualizado" value={viabData.payback_atualizado ? viabData.payback_atualizado.toFixed(1) + " anos" : "—"} sub={"descontado a " + fmt.pct(wacc, 0)} />
       </div>
 
       <Panel
         title="Fluxos de caixa livres · projeto Hub Logístico (M6)"
-        sub={"CAPEX € 5,5 M (2025-26) · benefício líquido base 255 k€/ano · WACC " + fmt.pct(wacc)}
+        sub={"CAPEX € 3,8 M (2025-26, fase 1) · benefício líquido base 310 k€/ano · WACC " + fmt.pct(wacc)}
         right={
           <div className="seg seg--sm">
             {[0.06, 0.07, 0.08, 0.09, 0.10].map(t => (
@@ -724,7 +725,7 @@ function HubView({ ctx }) {
         <LineChart series={fcfSeries} height={300} />
         <div className="legend" style={{ marginTop: 8 }}>
           <div className="legend-row"><span className="swatch" style={{ background: "var(--ink)" }} /><span>FCF anual</span></div>
-          <div className="legend-row"><span className="swatch" style={{ background: "var(--accent)" }} /><span>FCF acumulado</span></div>
+          <div className="legend-row"><span className="swatch" style={{ background: "var(--accent)" }} /><span>{"VAN acumulada (descontada a " + fmt.pct(wacc, 0) + ")"}</span></div>
         </div>
       </Panel>
 
@@ -732,23 +733,28 @@ function HubView({ ctx }) {
         <Panel title="Análise de sensibilidade · tornado" sub="impacto na VAN em milhões de euros">
           <TornadoChart rows={tornData} height={300} />
         </Panel>
-        <Panel title="Parâmetros do projeto" sub="src/engine/data/subsidiarias/hub_logistico/m6_hub_assumptions.yaml">
-          <dl className="kv">
-            <KV k="CAPEX base" v={fmt.eurC(5500000)} />
-            <KV k="Cronograma 2025" v={fmt.eurC(3300000)} />
-            <KV k="Cronograma 2026" v={fmt.eurC(2200000)} />
-            <KV k="Vida útil" v="10 anos · taxa depr. 10%" />
-            <KV k="WACC" v="8,0%" />
-            <KV k="Crescimento terminal" v="1,5%" />
-            <KV k="Poupança operacional" v={fmt.eurC(300000) + " / ano"} />
-            <KV k="Redução quebras" v={fmt.eurC(75000) + " / ano"} />
-            <KV k="OPEX incremental" v={"− " + fmt.eurC(120000) + " / ano"} />
-            <KV k="Crescimento benefícios" v="+2,0% / ano" />
-            <KV k="Libertação inventário 2026" v={fmt.eurC(1500000)} />
-            <KV k="Banco Hub" v={fmt.eurC(4125000) + " @ 4,15%"} />
-            <KV k="PT2030" v={fmt.eurC(2200000) + " · 2027"} />
-            <KV k="Início benefícios" v="2026" />
-          </dl>
+        <Panel title="Parâmetros do projeto" sub="m6_hub_assumptions.yaml · actualizado em tempo real">
+          {(() => {
+            const p = viabData.parametros || {};
+            return (
+              <dl className="kv">
+                <KV k="CAPEX base" v={fmt.eurC(p.capex_base)} />
+                <KV k="Cronograma 2025" v={fmt.eurC(p.capex_2025)} />
+                <KV k="Cronograma 2026" v={fmt.eurC(p.capex_2026)} />
+                <KV k="Vida útil" v={(p.vida_util || "—") + " anos · taxa depr. " + fmt.pct(p.taxa_depreciacao, 0)} />
+                <KV k="WACC" v={fmt.pct(p.wacc, 1)} />
+                <KV k="Crescimento terminal" v={fmt.pct(p.crescimento_terminal, 1)} />
+                <KV k="Poupança operacional" v={fmt.eurC(p.poupanca_operacional) + " / ano"} />
+                <KV k="Redução quebras" v={fmt.eurC(p.reducao_quebras) + " / ano"} />
+                <KV k="OPEX incremental" v={"− " + fmt.eurC(p.opex_incremental) + " / ano"} />
+                <KV k="Benefício líquido/ano" v={fmt.eurC(p.beneficio_liquido_anual) + " · +" + fmt.pct(p.crescimento_anual, 0) + "/ano"} />
+                <KV k="Libertação inventário" v={fmt.eurC(p.libertacao_inventario) + " · " + (p.ano_inventario || "")} />
+                <KV k="Banco Hub" v={fmt.eurC(p.banco_montante) + " @ " + fmt.pct(p.banco_taxa_juro, 2)} />
+                <KV k="PT2030" v={fmt.eurC(p.pt2030_montante) + " · " + (p.pt2030_ano || "")} />
+                <KV k="Início benefícios" v={String(p.ano_inicio_beneficios || "—")} />
+              </dl>
+            );
+          })()}
         </Panel>
       </div>
     </>

@@ -1,0 +1,10 @@
+atualizar pressupostos do hub logistico na frontend
+verificar impacto em todo o modelo
+adicionar pagina fronend para vendas que inclua mixes 2025 e pvu para produtos e mercadorias
+taxas de depreciaçao do projeto dependem do ativo a ser depreciado?
+van para val
+verificar se os beneficios operacionais do projeto como aumento de vendas ou assim nao deveriam estar integrados diretamente nas contas e nas demonstraçoes financeiras
+isto vai tornar necessário extender todo o modelo ate á data de payback do projeto? ou vida util?!
+como devem ser feitas as amortizaçoes de capital e depreciaçoes dos ativos ?
+separar cenarios e hub logistico ativo? para determinar elasticidades e reduçao de perdas em quebras por exemplo
+
