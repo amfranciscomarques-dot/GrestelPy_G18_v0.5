@@ -1,7 +1,9 @@
 """Constantes partilhadas do modelo financeiro."""
 
-YEARS = [2025, 2026, 2027, 2028, 2029]
-ALL_YEARS = [2024] + YEARS
+from src.engine.config import ANOS_PROJECAO, ANOS_MODELO
+
+YEARS = ANOS_PROJECAO
+ALL_YEARS = ANOS_MODELO
 
 PRODUTOS = ["Pratos", "Tigelas", "Canecas", "Pecas_Servir", "Forno_Cozinha"]
 MERCADORIAS = ["Cutelaria", "Vidros_Cristais", "Texteis_Acessorios"]

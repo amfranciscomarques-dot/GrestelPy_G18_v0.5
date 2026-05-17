@@ -557,6 +557,8 @@ def vendas_mercadorias_anuais(
             {
                 "ano": 2024,
                 "mercadoria": nome,
+                "qtd": qty_2024,
+                "pvu": pvu_2024,
                 "vn": qty_2024 * pvu_2024,
             }
         )
@@ -578,6 +580,8 @@ def vendas_mercadorias_anuais(
             {
                 "ano": 2025,
                 "mercadoria": nome,
+                "qtd": qty_2025,
+                "pvu": pvu_2025,
                 "vn": qty_2025 * pvu_2025,
             }
         )
@@ -599,6 +603,8 @@ def vendas_mercadorias_anuais(
                 {
                     "ano": y,
                     "mercadoria": nome,
+                    "qtd": prev_qty,
+                    "pvu": prev_pvu,
                     "vn": prev_qty * prev_pvu,
                 }
             )

@@ -54,7 +54,7 @@ def _apply_irc_taxa(a, b, s, delta):
     _ = b, s
 
     a.raw["impostos"]["IRC_taxa_geral"] = (
-        float(a.raw["impostos"].get("IRC_taxa_geral", 0.21))
+        float(a.raw["impostos"].get("IRC_taxa_geral", 0.20))
         + float(delta)
     )
 

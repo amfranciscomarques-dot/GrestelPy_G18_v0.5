@@ -226,14 +226,12 @@ function DFCView({ ctx }) {
   const [year, setYear] = useState(2025);
   const r = dfc.find(d => d.year === year);
   const items = [
-    { label: "Resultado Líquido", value: r.rl, type: "delta" },
-    { label: "Dep. & Amort.", value: r.dep_amort, type: "delta" },
-    { label: "Juros pagos (ajust.)", value: r.juros_pagos, type: "delta" },
-    { label: "Variação NFM", value: r.var_nfm, type: "delta" },
-    { label: "IRC pago", value: r.irc_pago, type: "delta" },
+    { label: "Recebimentos clientes", value: r.recebimentos, type: "delta" },
+    { label: "Pagamentos fornecedores", value: r.pag_fornecedores, type: "delta" },
+    { label: "Pagamentos pessoal", value: r.pag_pessoal, type: "delta" },
     { label: "Fluxo operacional", value: r.fluxo_operacional, type: "total" },
-    { label: "CAPEX AFT", value: r.pag_aft, type: "delta" },
-    { label: "Dividendos recebidos", value: r.div_recebidos, type: "delta" },
+    { label: "CAPEX", value: r.capex_aft, type: "delta" },
+    { label: "Dividendos recebidos", value: r.dividendos_recebidos, type: "delta" },
     { label: "Fluxo investimento", value: r.fluxo_investimento, type: "total" },
     { label: "Recebimento emp.", value: r.rec_emprestimos, type: "delta" },
     { label: "Pagamento emp.", value: r.pag_emprestimos, type: "delta" },
@@ -251,7 +249,7 @@ function DFCView({ ctx }) {
 
       <Panel
         title={"Demonstração de Fluxos de Caixa · " + year}
-        sub="método indirecto"
+        sub="método directo"
         right={
           <div className="seg seg--sm">
             {GRESTEL.YEARS.map(y => (
@@ -263,7 +261,7 @@ function DFCView({ ctx }) {
         <WaterfallChart items={items} height={360} />
       </Panel>
 
-      <Panel title="Fluxos por ano" sub="€ · valores anuais · método indirecto">
+      <Panel title="Fluxos por ano" sub="€ · valores anuais">
         <table className="ftable ftable--dense">
           <thead>
             <tr>
@@ -272,24 +270,15 @@ function DFCView({ ctx }) {
             </tr>
           </thead>
           <tbody>
-            <tr className="is-section"><td colSpan={GRESTEL.YEARS.length + 1}>Atividades Operacionais</td></tr>
-            <FRow label="Resultado Líquido" values={dfc.map(d => d.rl)} />
-            <FRow label="Depreciações & Amortizações" values={dfc.map(d => d.dep_amort)} />
-            <FRow label="Imparidades" values={dfc.map(d => d.imparidades)} />
-            <FRow label="Juros pagos (ajust.)" values={dfc.map(d => d.juros_pagos)} />
-            <FRow label="Variação do Fundo de Maneio" values={dfc.map(d => d.var_nfm)} />
-            <FRow label="IRC pago" values={dfc.map(d => d.irc_pago)} />
+            <FRow label="Recebimentos clientes" values={dfc.map(d => d.recebimentos)} />
+            <FRow label="Pagamentos fornecedores" values={dfc.map(d => d.pag_fornecedores)} />
+            <FRow label="Pagamentos pessoal" values={dfc.map(d => d.pag_pessoal)} />
             <tr className="is-subtotal"><td>Fluxo operacional</td>{dfc.map((d, i) => <td key={i} className="mono num">{fmt.eur(d.fluxo_operacional)}</td>)}</tr>
-            <tr className="is-section"><td colSpan={GRESTEL.YEARS.length + 1}>Atividades de Investimento</td></tr>
-            <FRow label="CAPEX — Ativos Fixos Tangíveis" values={dfc.map(d => d.pag_aft)} />
-            <FRow label="CAPEX — Intangíveis" values={dfc.map(d => d.pag_intang)} />
-            <FRow label="Dividendos recebidos" values={dfc.map(d => d.div_recebidos)} />
+            <FRow label="CAPEX" values={dfc.map(d => d.capex_aft)} />
+            <FRow label="Dividendos recebidos" values={dfc.map(d => d.dividendos_recebidos)} />
             <tr className="is-subtotal"><td>Fluxo investimento</td>{dfc.map((d, i) => <td key={i} className="mono num">{fmt.eur(d.fluxo_investimento)}</td>)}</tr>
-            <tr className="is-section"><td colSpan={GRESTEL.YEARS.length + 1}>Atividades de Financiamento</td></tr>
-            <FRow label="Recebimentos de empréstimos" values={dfc.map(d => d.rec_emprestimos)} />
-            <FRow label="Pagamentos de empréstimos" values={dfc.map(d => d.pag_emprestimos)} />
-            <FRow label="Juros pagos" values={dfc.map(d => d.juros_pagos_fin)} />
-            <FRow label="Dividendos distribuídos" values={dfc.map(d => d.pag_dividendos)} />
+            <FRow label="Recebimentos empréstimos" values={dfc.map(d => d.rec_emprestimos)} />
+            <FRow label="Pagamentos empréstimos" values={dfc.map(d => d.pag_emprestimos)} />
             <tr className="is-subtotal"><td>Fluxo financiamento</td>{dfc.map((d, i) => <td key={i} className="mono num">{fmt.eur(d.fluxo_financiamento)}</td>)}</tr>
             <tr className="is-total"><td>Variação Caixa</td>{dfc.map((d, i) => <td key={i} className="mono num">{fmt.eur(d.variacao_caixa)}</td>)}</tr>
           </tbody>
@@ -309,7 +298,6 @@ function KPIView({ ctx }) {
     { label: "ROA",                key: "roa",                 fmt: v => fmt.pct(v) },
     { label: "ROE",                key: "roe",                 fmt: v => fmt.pct(v) },
     { label: "Autonomia Financeira", key: "autonomia_financeira", fmt: v => fmt.pct(v) },
-    { label: "Solvabilidade",      key: "solvabilidade",       fmt: v => fmt.ratio(v) },
     { label: "Endividamento",      key: "endividamento",       fmt: v => fmt.pct(v) },
     { label: "Liquidez Geral",     key: "liquidez_geral",      fmt: v => fmt.ratio(v) },
     { label: "Cobertura de Juros", key: "cobertura_juros",     fmt: v => fmt.ratio(v) },
@@ -375,7 +363,7 @@ function FSEView({ ctx }) {
       </div>
 
       <div className="grid-2-3">
-        <Panel title="FSE" sub="€">
+        <Panel title="FSE · composição por ano" sub="€ · barras empilhadas">
           <BarChart groups={stackGroups} stacked height={300} />
         </Panel>
         <Panel title="Mix 2024" sub="€ · 14 rubricas">
@@ -421,199 +409,10 @@ function FSEView({ ctx }) {
   );
 }
 
-// ---- Pessoal ---------------------------------------------------------------
-function PessoalView({ ctx }) {
-  const { pessoal_contab, pessoal_depart, dr } = ctx;
-  const [vista, setVista] = useState("contab");
-
-  // Ordem canónica das rubricas/departamentos
-  const CONTAB_ORDER  = ["Remuneracoes", "Encargos_TSU", "Seguros_AT", "Outros_Encargos"];
-  const CONTAB_LABELS = {
-    Remuneracoes:    "Remunerações",
-    Encargos_TSU:    "Encargos TSU (23,75%)",
-    Seguros_AT:      "Seguros AT (~1,3%)",
-    Outros_Encargos: "Outros Encargos",
-  };
-  const DEPART_ORDER  = ["Producao", "RD", "Comercial", "Financeira", "Marketing"];
-  const DEPART_LABELS = {
-    Producao:   "Produção",
-    RD:         "I&D (R&D)",
-    Comercial:  "Comercial",
-    Financeira: "Financeira / Admin.",
-    Marketing:  "Marketing",
-  };
-
-  // Palettes — família terracota para contab (4), escalonada para depart (5)
-  const CONTAB_PAL = [
-    "oklch(0.34 0.075 40)",
-    "oklch(0.54 0.115 45)",
-    "oklch(0.68 0.105 65)",
-    "oklch(0.83 0.035 75)",
-  ];
-  const DEPART_PAL = [
-    "oklch(0.30 0.070 35)",
-    "oklch(0.42 0.100 40)",
-    "oklch(0.54 0.115 45)",
-    "oklch(0.68 0.105 65)",
-    "oklch(0.80 0.050 80)",
-  ];
-
-  // Total pessoal por ano (soma das rubricas contab)
-  const total = GRESTEL.YEARS.map((_, i) =>
-    CONTAB_ORDER.reduce((a, k) => a + (pessoal_contab[k]?.[i] || 0), 0)
-  );
-
-  const dr2025 = dr.find(r => r.year === 2025) || { vn: 1 };
-  const hc     = ctx.eff?.hc_2025 || 744;
-
-  // ---- Gráfico contabilístico ----
-  const stackContab = GRESTEL.YEARS.map((y, i) => ({
-    label: String(y),
-    bars: CONTAB_ORDER.map((k, ki) => ({
-      key: k, value: pessoal_contab[k]?.[i] || 0, color: CONTAB_PAL[ki],
-    })),
-  }));
-  const donutContab = CONTAB_ORDER.map((k, ki) => ({
-    label: CONTAB_LABELS[k], value: pessoal_contab[k]?.[0] || 0, color: CONTAB_PAL[ki],
-  }));
-
-  // ---- Gráfico departamental ----
-  const stackDepart = GRESTEL.YEARS.map((y, i) => ({
-    label: String(y),
-    bars: DEPART_ORDER.map((k, ki) => ({
-      key: k, value: pessoal_depart[k]?.[i] || 0, color: DEPART_PAL[ki],
-    })),
-  }));
-  const donutDepart = DEPART_ORDER.map((k, ki) => ({
-    label: DEPART_LABELS[k], value: pessoal_depart[k]?.[0] || 0, color: DEPART_PAL[ki],
-  }));
-
-  // helpers
-  const isContab = vista === "contab";
-  const order    = isContab ? CONTAB_ORDER  : DEPART_ORDER;
-  const labels   = isContab ? CONTAB_LABELS : DEPART_LABELS;
-  const stack    = isContab ? stackContab   : stackDepart;
-  const donut    = isContab ? donutContab   : donutDepart;
-  const data     = isContab ? pessoal_contab : pessoal_depart;
-
-  return (
-    <>
-      <div className="grid-4">
-        <KPI label="Pessoal 2024"        value={fmt.eurC(total[0])}                   sub="auditado · R&C 2024" />
-        <KPI label="Pessoal 2025"        value={fmt.eurC(total[1])}                   trend={(total[1] - total[0]) / total[0]} />
-        <KPI label="% do VN 2025"        value={fmt.pct(total[1] / dr2025.vn)}        sub="peso no volume de negócios" />
-        <KPI label="Custo médio / FTE"   value={fmt.eurC(hc ? total[1] / hc : 0)}    sub={hc + " FTE · 2025"} />
-      </div>
-
-      <div className="grid-2-3">
-        <Panel
-          title={isContab ? "Pessoal · Natureza" : "Pessoal · Departamento"}
-          sub="€ · barras empilhadas"
-          right={
-            <div className="seg seg--sm">
-              <button className={"seg-btn " + (isContab ? "is-on" : "")} onClick={() => setVista("contab")}>Natureza</button>
-              <button className={"seg-btn " + (!isContab ? "is-on" : "")} onClick={() => setVista("depart")}>Departamento</button>
-            </div>
-          }
-        >
-          <BarChart groups={stack} stacked height={300} />
-        </Panel>
-
-        <Panel
-          title={isContab ? "Mix 2024 · Nota 28 / IAS 19" : "Mix 2024 · Imputação funcional"}
-          sub={isContab ? "4 rubricas contabilísticas" : "5 departamentos · " + hc + " FTE"}
-        >
-          <Donut items={donut} />
-          <div className="legend-col" style={{ marginTop: 10 }}>
-            {donut.map((it, i) => (
-              <div key={i} className="legend-row">
-                <span className="swatch" style={{ background: it.color }} />
-                <span className="legend-label">{it.label}</span>
-                <span className="legend-value mono">{fmt.eurC(it.value)}</span>
-              </div>
-            ))}
-          </div>
-        </Panel>
-      </div>
-
-      <Panel
-        title={isContab ? "Pessoal · Detalhe contabilístico" : "Pessoal · Detalhe departamental"}
-        sub={isContab
-          ? "Remunerações + encargos patronais · IAS 19"
-          : "Imputação funcional sobre custo total projetado"}
-      >
-        <table className="ftable ftable--dense">
-          <thead>
-            <tr>
-              <th>{isContab ? "Rubrica" : "Departamento"}</th>
-              {GRESTEL.YEARS.map(y => <th key={y} className="mono num">{y}</th>)}
-              <th className="mono num">% 2024</th>
-            </tr>
-          </thead>
-          <tbody>
-            {order.map((k, ki) => (
-              <tr key={k}>
-                <td>{labels[k]}</td>
-                {GRESTEL.YEARS.map((_, i) => (
-                  <td key={i} className="mono num">{fmt.eur(data[k]?.[i] || 0)}</td>
-                ))}
-                <td className="mono num">{fmt.pct((data[k]?.[0] || 0) / (total[0] || 1))}</td>
-              </tr>
-            ))}
-            <tr className="is-total">
-              <td>Total Pessoal</td>
-              {total.map((v, i) => <td key={i} className="mono num">{fmt.eur(v)}</td>)}
-              <td></td>
-            </tr>
-            <tr className="row-sep"><td colSpan={GRESTEL.YEARS.length + 2}></td></tr>
-            <tr>
-              <td className="muted">% do VN</td>
-              {GRESTEL.YEARS.map((_, i) => {
-                const vn = dr.find(r => r.year === GRESTEL.YEARS[i])?.vn || 1;
-                return <td key={i} className="mono num muted">{fmt.pct(total[i] / vn)}</td>;
-              })}
-              <td></td>
-            </tr>
-          </tbody>
-        </table>
-      </Panel>
-    </>
-  );
-}
-
 // ---- Rolling Forecast 2025 -------------------------------------------------
 function RollingView({ ctx }) {
-  const [apiRf, setApiRf] = useState(null);
-
-  useEffect(() => {
-    setApiRf(null);
-    fetch(`/api/rolling-forecast/mensal?scenario=${encodeURIComponent(ctx.scenario)}`)
-      .then(r => r.ok ? r.json() : Promise.reject(r.status))
-      .then(data => {
-        const dr = data.dr_mensal || [];
-        const teso = data.tesouraria || [];
-        const combined = dr.map((row, i) => {
-          const t = teso[i] || {};
-          return {
-            mes: row.mes || row.month || Object.keys(row)[0],
-            vn: row.vn || row.receitas_vendas || 0,
-            cmvmc: row.cmvmc || row.custo_merc || 0,
-            fse: row.fse || 0,
-            pessoal: row.gastos_pessoal || row.pessoal || 0,
-            ebitda: row.ebitda || 0,
-            recebimentos: t.recebimentos_clientes || t.recebimentos || t.entradas || 0,
-            pagamentos: t.pagamentos_fornecedores || t.pagamentos || t.saidas || 0,
-            investimento: t.capex_pagamento || t.investimento || t.fluxo_investimento || 0,
-            financiamento: t.fluxo_financiamento || t.financiamento || 0,
-            caixa_fim: t.caixa_fecho || t.caixa_fim || t.saldo_fim || t.caixa || 0,
-          };
-        });
-        if (combined.length > 0) setApiRf(combined);
-      })
-      .catch(() => setApiRf(null));
-  }, [ctx.scenario, ctx.hubOn]);
-
-  const rf = apiRf || GRESTEL.rollingForecast(ctx.scenario, { hubOn: ctx.hubOn, ecogresOn: ctx.ecogresOn });
+  const rf = useMemo(() => GRESTEL.rollingForecast(ctx.scenario, { hubOn: ctx.hubOn, ecogresOn: ctx.ecogresOn }),
+                     [ctx.scenario, ctx.hubOn, ctx.ecogresOn]);
 
   const cashSeries = [{ labels: rf.map(r => r.mes), values: rf.map(r => r.caixa_fim), color: "var(--accent)", fill: true }];
   const vendasGroups = rf.map(r => ({
@@ -668,237 +467,31 @@ function RollingView({ ctx }) {
 
 // ---- Hub Logístico ---------------------------------------------------------
 function HubView({ ctx }) {
-  const [wacc, setWacc] = useState(0.08);
-  const [viab, setViab] = useState(null);
-  const [torn, setTorn] = useState(null);
-  const [debtSvc, setDebtSvc] = useState(null);
-  const [invMap, setInvMap] = useState(null);
-
-  useEffect(() => {
-    fetch(`/api/hub/viability?wacc=${wacc}`)
-      .then(r => r.ok ? r.json() : Promise.reject(r.status))
-      .then(data => {
-        const fcf = data.fcf || [];
-        const fcf_actualizado = fcf.map((v, t) => v / Math.pow(1 + wacc, t));
-        const fcf_cumulativo = fcf_actualizado.reduce((acc, v) => {
-          acc.push((acc[acc.length - 1] || 0) + v);
-          return acc;
-        }, []);
-        const anos = Array.from({ length: fcf.length }, (_, i) => 2025 + i);
-        setViab({ ...data, fcf, fcf_cumulativo, anos });
-      })
-      .catch(() => setViab(GRESTEL.hubViability(wacc)));
-  }, [wacc]);
-
-  useEffect(() => {
-    fetch("/api/hub/tornado")
-      .then(r => r.ok ? r.json() : Promise.reject(r.status))
-      .then(data => setTorn(data.rows || []))
-      .catch(() => setTorn(GRESTEL.hubTornado()));
-
-    fetch("/api/hub/debt-service")
-      .then(r => r.ok ? r.json() : Promise.reject(r.status))
-      .then(data => setDebtSvc(data.rows || []))
-      .catch(() => setDebtSvc(null));
-
-    fetch("/api/hub/investment-map")
-      .then(r => r.ok ? r.json() : Promise.reject(r.status))
-      .then(data => setInvMap(data))
-      .catch(() => setInvMap(null));
-  }, []);
-
-  const viabData = viab || GRESTEL.hubViability(wacc);
-  const tornData = torn || GRESTEL.hubTornado();
+  const [irc, setIrc] = useState(0.21);
+  const viab = useMemo(() => GRESTEL.hubViability(irc), [irc]);
+  const torn = useMemo(() => GRESTEL.hubTornado(), []);
 
   const fcfSeries = [
-    { labels: viabData.anos.map(String), values: viabData.fcf, color: "var(--ink)" },
-    { labels: viabData.anos.map(String), values: viabData.fcf_cumulativo, color: "var(--accent)", fill: true },
+    { labels: viab.anos.map(String), values: viab.fcf, color: "var(--ink)" },
+    { labels: viab.anos.map(String), values: viab.fcf_cumulativo, color: "var(--accent)", fill: true },
   ];
-
-  // Equilíbrio financeiro pré/pós — lê dos KPIs consolidados do cenário activo
-  const kpis = ctx.kpis || [];
-  const k2024 = kpis[0] || {};
-  const ANOS_HUB = [2025, 2026, 2027, 2028, 2029];
-  const kpisHub = kpis.filter(k => ANOS_HUB.includes(k.year));
 
   return (
     <>
-      {/* ── Equilíbrio financeiro pré/pós-projeto (OE4) ── */}
-      <Panel title="Equilíbrio financeiro · pré e pós-projeto (OE4)" sub="condição mínima: autonomia financeira ≥ 30%">
-        <table className="ftable">
-          <thead>
-            <tr>
-              <th>Indicador</th>
-              <th className="mono num">2024 (pré)</th>
-              {ANOS_HUB.map(y => <th key={y} className="mono num">{y}</th>)}
-            </tr>
-          </thead>
-          <tbody>
-            {[
-              { label: "Autonomia Financeira", key: "autonomia_financeira", fmt: v => fmt.pct(v), min: 0.30 },
-              { label: "Solvabilidade (CP/Passivo)", key: "solvabilidade", fmt: v => fmt.ratio(v) },
-              { label: "Endividamento (Passivo/Ativo)", key: "endividamento", fmt: v => fmt.pct(v) },
-              { label: "Cobertura de Juros (EBIT/Juros)", key: "cobertura_juros", fmt: v => fmt.ratio(v) },
-            ].map(r => (
-              <tr key={r.key}>
-                <td>{r.label}</td>
-                <td className="mono num">{r.fmt(k2024[r.key] ?? 0)}</td>
-                {kpisHub.map((k, i) => {
-                  const v = k[r.key] ?? 0;
-                  const fail = r.min != null && v < r.min;
-                  return (
-                    <td key={i} className={"mono num" + (fail ? " is-neg" : v >= (r.min || 0) && r.min ? " is-pos" : "")}>
-                      {r.fmt(v)}{fail ? " ⚠" : ""}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <p style={{ marginTop: 8, fontSize: "0.8rem", color: "var(--muted)" }}>
-          ⚠ = autonomia financeira abaixo do mínimo de 30% exigido (OE4 §5.5)
-        </p>
-      </Panel>
-
-      {/* ── Mapa de Investimento (OE4) ── */}
-      {invMap && (
-        <div className="grid-2">
-          <Panel title="Mapa de investimento · CAPEX por pool de ativo" sub={"Total € " + fmt.eurC(invMap.capex_base) + " · fase 1 (2025-2026)"}>
-            <table className="ftable ftable--dense">
-              <thead>
-                <tr>
-                  <th>Pool / Ativo</th>
-                  <th className="mono num">Montante</th>
-                  <th className="mono num">Início</th>
-                  <th className="mono num">Vida útil</th>
-                  <th className="mono num">Taxa dep.</th>
-                </tr>
-              </thead>
-              <tbody>
-                {invMap.pools.map((p, i) => (
-                  <tr key={i}>
-                    <td>{p.descricao}</td>
-                    <td className="mono num">{fmt.eur(p.montante)}</td>
-                    <td className="mono num">{p.ano_inicio}</td>
-                    <td className="mono num">{p.vida_util_anos} anos</td>
-                    <td className="mono num">{fmt.pct(p.taxa_depreciacao, 0)}</td>
-                  </tr>
-                ))}
-                <tr className="is-total">
-                  <td>Total CAPEX</td>
-                  <td className="mono num">{fmt.eur(invMap.capex_base)}</td>
-                  <td colSpan={3}></td>
-                </tr>
-                <tr>
-                  <td>Subsídio PT2030 (não reembolsável)</td>
-                  <td className="mono num" style={{ color: "var(--pos)" }}>+ {fmt.eur(invMap.pt2030_montante)}</td>
-                  <td className="mono num" colSpan={3}>recebimento {invMap.pt2030_ano}</td>
-                </tr>
-                <tr className="is-subtotal">
-                  <td>Investimento líquido (CAPEX − PT2030)</td>
-                  <td className="mono num">{fmt.eur(invMap.capex_base - invMap.pt2030_montante)}</td>
-                  <td colSpan={3}></td>
-                </tr>
-              </tbody>
-            </table>
-          </Panel>
-
-          <Panel title="Mapa de investimento · Fundo de Maneio (NFM)" sub="variação anual das necessidades de fundo de maneio do hub">
-            <table className="ftable ftable--dense">
-              <thead>
-                <tr>
-                  <th>Ano</th>
-                  <th className="mono num">CAPEX caixa</th>
-                  <th className="mono num">ΔNFM</th>
-                  <th className="mono num">Investimento total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {invMap.capex_anual.map((row, i) => {
-                  const nfm = (invMap.nfm.find(n => n.ano === row.ano) || {}).delta_nfm || 0;
-                  return (
-                    <tr key={i}>
-                      <td className="mono">{row.ano}</td>
-                      <td className="mono num">{fmt.eur(row.capex)}</td>
-                      <td className="mono num">{nfm !== 0 ? fmt.eur(nfm) : "—"}</td>
-                      <td className="mono num">{fmt.eur(row.capex + nfm)}</td>
-                    </tr>
-                  );
-                })}
-                <tr className="is-total">
-                  <td>Total</td>
-                  <td className="mono num">{fmt.eur(invMap.capex_anual.reduce((a, r) => a + r.capex, 0))}</td>
-                  <td className="mono num">{fmt.eur(invMap.nfm.reduce((a, r) => a + r.delta_nfm, 0))}</td>
-                  <td className="mono num">{fmt.eur(invMap.capex_anual.reduce((a, r) => a + r.capex, 0) + invMap.nfm.reduce((a, r) => a + r.delta_nfm, 0))}</td>
-                </tr>
-              </tbody>
-            </table>
-          </Panel>
-        </div>
-      )}
-
-      {/* ── Mapa de Serviço da Dívida (OE4) ── */}
-      {debtSvc && debtSvc.length > 0 && (
-        <Panel title="Mapa de serviço da dívida · Hub Logístico (OE4)" sub="empréstimo bancário CGD/BPI · carência 2025-2027 · DSCR = EBITDA hub / serviço total">
-          <table className="ftable ftable--dense">
-            <thead>
-              <tr>
-                <th>Ano</th>
-                <th className="mono num">Saldo início</th>
-                <th className="mono num">Juros pagos</th>
-                <th className="mono num">Juros cap. (NCRF 10)</th>
-                <th className="mono num">Amortização</th>
-                <th className="mono num">Serviço total</th>
-                <th className="mono num">EBITDA hub</th>
-                <th className="mono num">DSCR</th>
-                <th className="mono num">Saldo fim</th>
-              </tr>
-            </thead>
-            <tbody>
-              {debtSvc.map((r, i) => {
-                const dscr = r.dscr_hub;
-                const dscrOk = dscr != null && dscr >= 1.2;
-                const dscrWarn = dscr != null && dscr > 0 && dscr < 1.2;
-                return (
-                  <tr key={i}>
-                    <td className="mono">{r.ano}{r.periodo_carencia ? " *" : ""}</td>
-                    <td className="mono num">{fmt.eur(r.saldo_em_divida)}</td>
-                    <td className="mono num">({fmt.eur(r.juros_pagos_total)})</td>
-                    <td className="mono num">{r.juros_capitalizados > 0 ? fmt.eur(r.juros_capitalizados) : "—"}</td>
-                    <td className="mono num">{r.amortizacao_capital > 0 ? "(" + fmt.eur(r.amortizacao_capital) + ")" : "—"}</td>
-                    <td className="mono num">({fmt.eur(r.servico_total_divida)})</td>
-                    <td className="mono num">{fmt.eur(r.ebitda_hub_incremental)}</td>
-                    <td className={"mono num" + (dscrOk ? " is-pos" : dscrWarn ? " is-neg" : "")}>
-                      {dscr != null ? dscr.toFixed(2) + "×" : "—"}
-                    </td>
-                    <td className="mono num">{fmt.eur(r.saldo_fim)}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          <p style={{ marginTop: 8, fontSize: "0.8rem", color: "var(--muted)" }}>
-            * Período de carência (apenas juros, sem amortização de capital) · DSCR mínimo bancário: 1,2×
-          </p>
-        </Panel>
-      )}
-
-      {/* ── VAL / FCF ── */}
       <div className="grid-4">
-        <KPI label={`VAL @ ${fmt.pct(wacc, 0)}`} value={fmt.eurC(viabData.vpl)} tone={viabData.vpl >= 0 ? "pos" : "neg"} sub="horizonte 10 anos + valor terminal" />
-        <KPI label="TIR" value={fmt.pct(viabData.tir, 1)} tone={viabData.tir >= 0.08 ? "pos" : "neg"} sub={"vs WACC " + fmt.pct(wacc, 0)} />
-        <KPI label="Índice de Rendibilidade" value={viabData.indice_rendibilidade != null ? viabData.indice_rendibilidade.toFixed(2) : "—"} tone={viabData.indice_rendibilidade >= 1 ? "pos" : "neg"} sub="IR = 1 + VAL / CAPEX · >1 cria valor" />
-        <KPI label="Payback actualizado" value={viabData.payback_atualizado ? viabData.payback_atualizado.toFixed(1) + " anos" : "—"} sub={"descontado a " + fmt.pct(wacc, 0)} />
+        <KPI label="VAL @ 8%" value={fmt.eurC(viab.vpl)} tone={viab.vpl >= 0 ? "pos" : "neg"} sub="horizonte 10 anos + valor terminal" />
+        <KPI label="TIR" value={fmt.pct(viab.tir, 1)} tone={viab.tir >= 0.08 ? "pos" : "neg"} sub={"vs WACC " + fmt.pct(0.08, 0)} />
+        <KPI label="Payback simples" value={viab.payback_simples ? String(viab.payback_simples) : "—"} sub={"em anos · ref. 2024"} />
+        <KPI label="Payback actualizado" value={viab.payback_atualizado ? String(viab.payback_atualizado) : "—"} sub={"descontado a 8%"} />
       </div>
 
       <Panel
         title="Fluxos de caixa livres · projeto Hub Logístico (M6)"
-        sub={"CAPEX € 3,8 M (2025-26, fase 1) · benefício líquido base 310 k€/ano · WACC " + fmt.pct(wacc)}
+        sub={"CAPEX € 5,5 M (2025-26) · benefício líquido base 255 k€/ano · IRC " + fmt.pct(irc)}
         right={
           <div className="seg seg--sm">
-            {[0.06, 0.07, 0.08, 0.09, 0.10].map(t => (
-              <button key={t} className={"seg-btn " + (Math.abs(wacc - t) < 0.001 ? "is-on" : "")} onClick={() => setWacc(t)}>{fmt.pct(t, 1)}</button>
+            {[0.17, 0.20, 0.21, 0.225, 0.24].map(t => (
+              <button key={t} className={"seg-btn " + (Math.abs(irc - t) < 0.001 ? "is-on" : "")} onClick={() => setIrc(t)}>{fmt.pct(t, 1)}</button>
             ))}
           </div>
         }
@@ -906,36 +499,31 @@ function HubView({ ctx }) {
         <LineChart series={fcfSeries} height={300} />
         <div className="legend" style={{ marginTop: 8 }}>
           <div className="legend-row"><span className="swatch" style={{ background: "var(--ink)" }} /><span>FCF anual</span></div>
-          <div className="legend-row"><span className="swatch" style={{ background: "var(--accent)" }} /><span>{"VAL acumulada (descontada a " + fmt.pct(wacc, 0) + ")"}</span></div>
+          <div className="legend-row"><span className="swatch" style={{ background: "var(--accent)" }} /><span>FCF acumulado</span></div>
         </div>
       </Panel>
 
       <div className="grid-2">
         <Panel title="Análise de sensibilidade · tornado" sub="impacto na VAL em milhões de euros">
-          <TornadoChart rows={tornData} height={300} />
+          <TornadoChart rows={torn} height={300} />
         </Panel>
-        <Panel title="Parâmetros do projeto" sub="m6_hub_assumptions.yaml · actualizado em tempo real">
-          {(() => {
-            const p = viabData.parametros || {};
-            return (
-              <dl className="kv">
-                <KV k="CAPEX base" v={fmt.eurC(p.capex_base)} />
-                <KV k="Cronograma 2025" v={fmt.eurC(p.capex_2025)} />
-                <KV k="Cronograma 2026" v={fmt.eurC(p.capex_2026)} />
-                <KV k="Depreciação" v={p.depreciacao_descricao || "por pools de ativo"} />
-                <KV k="WACC" v={fmt.pct(p.wacc, 1)} />
-                <KV k="Crescimento terminal" v={fmt.pct(p.crescimento_terminal, 1)} />
-                <KV k="Poupança operacional" v={fmt.eurC(p.poupanca_operacional) + " / ano"} />
-                <KV k="Redução quebras" v={fmt.eurC(p.reducao_quebras) + " / ano"} />
-                <KV k="OPEX incremental" v={"− " + fmt.eurC(p.opex_incremental) + " / ano"} />
-                <KV k="Benefício líquido/ano" v={fmt.eurC(p.beneficio_liquido_anual) + " · +" + fmt.pct(p.crescimento_anual, 0) + "/ano"} />
-                <KV k="Libertação inventário" v={fmt.eurC(p.libertacao_inventario) + " · " + (p.ano_inventario || "")} />
-                <KV k="Banco Hub" v={fmt.eurC(p.banco_montante) + " @ " + fmt.pct(p.banco_taxa_juro, 2)} />
-                <KV k="PT2030" v={fmt.eurC(p.pt2030_montante) + " · " + (p.pt2030_ano || "")} />
-                <KV k="Início benefícios" v={String(p.ano_inicio_beneficios || "—")} />
-              </dl>
-            );
-          })()}
+        <Panel title="Parâmetros do projeto" sub="src/engine/data/subsidiarias/hub_logistico/m6_hub_assumptions.yaml">
+          <dl className="kv">
+            <KV k="CAPEX base" v={fmt.eurC(5500000)} />
+            <KV k="Cronograma 2025" v={fmt.eurC(3300000)} />
+            <KV k="Cronograma 2026" v={fmt.eurC(2200000)} />
+            <KV k="Vida útil" v="10 anos · taxa depr. 10%" />
+            <KV k="WACC" v="8,0%" />
+            <KV k="Crescimento terminal" v="1,5%" />
+            <KV k="Poupança operacional" v={fmt.eurC(300000) + " / ano"} />
+            <KV k="Redução quebras" v={fmt.eurC(75000) + " / ano"} />
+            <KV k="OPEX incremental" v={"− " + fmt.eurC(120000) + " / ano"} />
+            <KV k="Crescimento benefícios" v="+2,0% / ano" />
+            <KV k="Libertação inventário 2026" v={fmt.eurC(1500000)} />
+            <KV k="Banco Hub" v={fmt.eurC(4125000) + " @ 4,15%"} />
+            <KV k="PT2030" v={fmt.eurC(2200000) + " · 2027"} />
+            <KV k="Início benefícios" v="2026" />
+          </dl>
         </Panel>
       </div>
     </>
@@ -953,34 +541,7 @@ function KV({ k, v }) {
 
 // ---- Ecogres ---------------------------------------------------------------
 function EcogresView({ ctx }) {
-  const [apiEco, setApiEco] = useState(null);
-
-  useEffect(() => {
-    setApiEco(null);
-    fetch(`/api/ecogres?hub_on=${ctx.hubOn}`)
-      .then(r => r.ok ? r.json() : Promise.reject(r.status))
-      .then(data => {
-        const rows = (data.rows || []).map(r => ({
-          year: r.ano,
-          subc: r.receita_subcontratacao || 0,
-          ced: r.cedencia_pessoal || 0,
-          transfer_hub: r.receita_hub || 0,
-          vendas_externas: 0,
-          rec_total: r.receita_total || 0,
-          custos_op: r.custo_total_operacional || 0,
-          dep: r.depreciacao || 0,
-          ebitda: r.ebitda || 0,
-          ebit: r.ebit || 0,
-          rai: r.rai || 0,
-          irc: r.irc || 0,
-          rl: r.rl || 0,
-        }));
-        if (rows.length > 0) setApiEco(rows);
-      })
-      .catch(() => setApiEco(null));
-  }, [ctx.hubOn]);
-
-  const eco = apiEco || GRESTEL.projectEcogres(ctx.hubOn);
+  const eco = useMemo(() => GRESTEL.projectEcogres(ctx.hubOn), [ctx.hubOn]);
   const lines = [
     { labels: eco.map(r => String(r.year)), values: eco.map(r => r.rec_total), color: "var(--ink)" },
     { labels: eco.map(r => String(r.year)), values: eco.map(r => r.ebitda), color: "var(--accent)", fill: true },
@@ -996,8 +557,8 @@ function EcogresView({ ctx }) {
       </div>
 
       <Panel
-        title="Ecogres"
-        sub="Demonstração dos Resultados"
+        title="Ecogres · subsidiária · Demonstração de Resultados"
+        sub="modelo independente · IRC 21%"
         right={<Legend items={[{ label: "Receitas", color: "var(--ink)" }, { label: "EBITDA", color: "var(--accent)" }, { label: "RL", color: "var(--pos)" }]} />}
       >
         <LineChart series={lines} height={280} />
@@ -1030,11 +591,356 @@ function EcogresView({ ctx }) {
   );
 }
 
+// ---- Análise de Vendas -----------------------------------------------------
+function VendasView({ ctx }) {
+  const [va, setVa] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState(null);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    API.vendasAnalise({ cenario: ctx.scenario, hub_on: ctx.hubOn, ecogres_on: ctx.ecogresOn })
+      .then(data => { if (!cancelled) { setVa(data); setLoading(false); } })
+      .catch(err => { if (!cancelled) { setError(err.message || String(err)); setLoading(false); } });
+    return () => { cancelled = true; };
+  }, [ctx.scenario, ctx.hubOn, ctx.ecogresOn]);
+
+  if (loading && !va) return <LoadingShell />;
+  if (error && !va) return <ErrorBanner message={error} onRetry={() => setVa(null)} />;
+  if (!va) return null;
+
+  const { full, annual, meses, familiasProd, mercadorias, totais_2025, mercados_2025, canais_2025 } = va;
+
+  const a24 = annual.find(a => a.year === 2024);
+  const a25 = annual.find(a => a.year === 2025);
+  const a29 = annual.find(a => a.year === 2029);
+  const cagr_25_29 = Math.pow(a29.vn / a25.vn, 1 / 4) - 1;
+
+  // Annual stacked bar — produtos / mercadorias (hist 2020-2024 + proj 2025-2029)
+  const annualGroups = full.map(r => ({
+    label: String(r.year),
+    bars: [
+      { key: "Produtos",    value: r.produtos,    color: MIX_PALETTE_4[1] },
+      { key: "Mercadorias", value: r.mercadorias, color: MIX_PALETTE_4[3] },
+    ],
+  }));
+
+  // Monthly stacked bar — 2025
+  const monthlyGroups = meses.map(m => ({
+    label: m.mes,
+    bars: [
+      { key: "Produtos",    value: m.produtos,    color: MIX_PALETTE_4[1] },
+      { key: "Mercadorias", value: m.mercadorias, color: MIX_PALETTE_4[3] },
+    ],
+  }));
+
+  // Famílias produto donut
+  const famDonut = familiasProd.map((f, i) => ({
+    label: f.fam, value: f.receita, color: MIX_PALETTE_7[i],
+  }));
+  const mercDonut = mercadorias.map((m, i) => ({
+    label: m.item, value: m.receita, color: MIX_PALETTE_7[i],
+  }));
+
+  const mercItems = Object.entries(mercados_2025).map(([k, v], i) => ({
+    label: v.label,
+    value: v.peso,
+    amount: totais_2025.total * v.peso,
+    color: MIX_PALETTE_4[i],
+    textColor: MIX_PALETTE_4_TEXT[i],
+  }));
+  const canalItems = Object.entries(canais_2025).map(([k, v], i) => ({
+    label: k.replace(/_/g, " "),
+    value: v,
+    amount: totais_2025.total * v,
+    color: MIX_PALETTE_4[i],
+    textColor: MIX_PALETTE_4_TEXT[i],
+  }));
+
+  // Monthly cumulative line
+  let cum = 0;
+  const cumSeries = [{
+    labels: meses.map(m => m.mes),
+    values: meses.map(m => { cum += m.total; return cum; }),
+    color: "var(--accent)", fill: true,
+  }];
+
+  return (
+    <>
+      <div className="grid-kpis">
+        <KPI
+          label="VN 2025"
+          value={fmt.eurC(a25.vn)}
+          trend={(a25.vn - a24.vn) / a24.vn}
+          sub="vs 2024 auditado"
+          spark={annual.map(a => a.vn)}
+          sparkColor="var(--ink)"
+        />
+        <KPI
+          label="Produtos 2025"
+          value={fmt.eurC(totais_2025.produtos)}
+          sub={fmt.pct(totais_2025.produtos / totais_2025.total, 0) + " do VN"}
+          spark={annual.map(a => a.produtos)}
+          sparkColor="var(--accent)"
+        />
+        <KPI
+          label="Mercadorias 2025"
+          value={fmt.eurC(totais_2025.mercadorias)}
+          sub={fmt.pct(totais_2025.mercadorias / totais_2025.total, 0) + " do VN"}
+          spark={annual.map(a => a.mercadorias)}
+          sparkColor="var(--pos)"
+        />
+        <KPI
+          label="CAGR 2025-29"
+          value={fmt.pctSigned(cagr_25_29)}
+          sub={"cenário " + ctx.scenario}
+        />
+        <KPI
+          label="Pico mensal · 2025"
+          value={fmt.eurC(Math.max(...meses.map(m => m.total)))}
+          sub={"Mês " + meses[meses.map(m => m.total).indexOf(Math.max(...meses.map(m => m.total)))].mes}
+        />
+        <KPI
+          label="Mês mais fraco · 2025"
+          value={fmt.eurC(Math.min(...meses.map(m => m.total)))}
+          sub={"Mês " + meses[meses.map(m => m.total).indexOf(Math.min(...meses.map(m => m.total)))].mes}
+        />
+      </div>
+
+      <Panel
+        title="Vendas anuais · Produtos vs Mercadorias"
+        sub="histórico 2020-2024 (auditado) + projeção 2025-2029 · cenário ativo"
+        right={
+          <Legend items={[
+            { label: "Produtos",    color: MIX_PALETTE_4[1] },
+            { label: "Mercadorias", color: MIX_PALETTE_4[3] },
+          ]} />
+        }
+      >
+        <BarChart groups={annualGroups} stacked height={280} />
+      </Panel>
+
+      <div className="grid-2-3">
+        <Panel
+          title="Vendas mensais · 2025"
+          sub="aplicação da sazonalidade dos mercados · stack Produtos + Mercadorias"
+          right={
+            <Legend items={[
+              { label: "Produtos",    color: MIX_PALETTE_4[1] },
+              { label: "Mercadorias", color: MIX_PALETTE_4[3] },
+            ]} />
+          }
+        >
+          <BarChart groups={monthlyGroups} stacked height={280} />
+        </Panel>
+        <Panel title="Acumulado de VN · 2025" sub="€ · ritmo de execução mensal">
+          <LineChart series={cumSeries} height={280} />
+        </Panel>
+      </div>
+
+      <Panel title="Detalhe mensal · 2025" sub="€ · cenário ativo">
+        <table className="ftable ftable--dense">
+          <thead>
+            <tr>
+              <th>Rubrica</th>
+              {meses.map(m => <th key={m.mes} className="mono num">{m.mes}</th>)}
+              <th className="mono num">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Produtos</td>
+              {meses.map((m, i) => <td key={i} className="mono num">{fmt.eur(m.produtos)}</td>)}
+              <td className="mono num">{fmt.eur(meses.reduce((a, m) => a + m.produtos, 0))}</td>
+            </tr>
+            <tr>
+              <td>Mercadorias</td>
+              {meses.map((m, i) => <td key={i} className="mono num">{fmt.eur(m.mercadorias)}</td>)}
+              <td className="mono num">{fmt.eur(meses.reduce((a, m) => a + m.mercadorias, 0))}</td>
+            </tr>
+            <tr className="is-total">
+              <td>Vendas totais</td>
+              {meses.map((m, i) => <td key={i} className="mono num">{fmt.eur(m.total)}</td>)}
+              <td className="mono num">{fmt.eur(meses.reduce((a, m) => a + m.total, 0))}</td>
+            </tr>
+            <tr className="row-sep"><td colSpan={14}></td></tr>
+            <tr>
+              <td className="muted">% do ano</td>
+              {meses.map((m, i) => (
+                <td key={i} className="mono num muted">
+                  {fmt.pct(m.total / meses.reduce((a, x) => a + x.total, 0), 1)}
+                </td>
+              ))}
+              <td className="mono num muted">100,0%</td>
+            </tr>
+          </tbody>
+        </table>
+      </Panel>
+
+      <div className="grid-2">
+        <Panel title="Mix 2025 · mercados" sub="peso geográfico — share do VN total">
+          <div className="donut-row">
+            <Donut
+              items={Object.entries(mercados_2025).map(([k, v], i) => ({
+                label: v.label, value: totais_2025.total * v.peso, color: MIX_PALETTE_4[i],
+              }))}
+              size={172} thickness={26}
+            />
+            <div className="legend-col">
+              {mercItems.map((it, i) => (
+                <div key={i} className="legend-row">
+                  <span className="swatch" style={{ background: it.color }} />
+                  <span className="legend-label">{it.label}</span>
+                  <span className="legend-value mono">{fmt.eurC(it.amount)}</span>
+                  <span className="legend-value mono" style={{ minWidth: 48, textAlign: "right" }}>
+                    {fmt.pct(it.value, 0)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Panel>
+        <Panel title="Mix 2025 · canais comerciais" sub="share do VN total">
+          <StackedBar items={canalItems} height={34} />
+          <div className="legend-col" style={{ marginTop: 14 }}>
+            {canalItems.map((it, i) => (
+              <div key={i} className="legend-row">
+                <span className="swatch" style={{ background: it.color }} />
+                <span className="legend-label">{it.label}</span>
+                <span className="legend-value mono">{fmt.eurC(it.amount)}</span>
+                <span className="legend-value mono" style={{ minWidth: 48, textAlign: "right" }}>
+                  {fmt.pct(it.value, 0)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </Panel>
+      </div>
+
+      <div className="grid-2">
+        <Panel title="Mix 2025 · famílias de produtos" sub="share do VN de Produtos">
+          <div className="donut-row">
+            <Donut items={famDonut} size={172} thickness={26} />
+            <div className="legend-col">
+              {familiasProd.map((f, i) => (
+                <div key={i} className="legend-row">
+                  <span className="swatch" style={{ background: MIX_PALETTE_7[i] }} />
+                  <span className="legend-label">{f.fam}</span>
+                  <span className="legend-value mono">{fmt.pct(f.peso, 0)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Panel>
+        <Panel title="Mix 2025 · mercadorias" sub="share do VN de Mercadorias">
+          <div className="donut-row">
+            <Donut items={mercDonut} size={172} thickness={26} />
+            <div className="legend-col">
+              {mercadorias.map((m, i) => (
+                <div key={i} className="legend-row">
+                  <span className="swatch" style={{ background: MIX_PALETTE_7[i] }} />
+                  <span className="legend-label">{m.item}</span>
+                  <span className="legend-value mono">{fmt.pct(m.peso, 0)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Panel>
+      </div>
+
+      <Panel title="PVU 2025 · Produtos" sub="Preço de Venda Unitário · receita / unidades vendidas">
+        <table className="ftable ftable--dense">
+          <thead>
+            <tr>
+              <th>Família</th>
+              <th className="num">Receita 2025</th>
+              <th className="num">% do total</th>
+              <th className="num">Unidades</th>
+              <th className="num">PVU 2024</th>
+              <th className="num">PVU 2025</th>
+              <th className="num">Δ PVU</th>
+            </tr>
+          </thead>
+          <tbody>
+            {familiasProd.map((f, i) => (
+              <tr key={f.fam}>
+                <td>
+                  <span className="swatch" style={{ background: MIX_PALETTE_7[i], marginRight: 8, verticalAlign: "middle" }} />
+                  {f.fam}
+                </td>
+                <td className="mono num">{fmt.eur(f.receita)}</td>
+                <td className="mono num">{fmt.pct(f.peso, 1)}</td>
+                <td className="mono num">{fmt.num(f.unidades)}</td>
+                <td className="mono num">€{f.pvu_2024.toFixed(2).replace(".", ",")}</td>
+                <td className="mono num">€{f.pvu_25.toFixed(2).replace(".", ",")}</td>
+                <td className={"mono num " + (f.delta_pvu >= 0 ? "pos" : "neg")}>{fmt.pctSigned(f.delta_pvu)}</td>
+              </tr>
+            ))}
+            <tr className="is-total">
+              <td>Total Produtos</td>
+              <td className="mono num">{fmt.eur(totais_2025.produtos)}</td>
+              <td className="mono num">100,0%</td>
+              <td className="mono num">{fmt.num(familiasProd.reduce((a, f) => a + f.unidades, 0))}</td>
+              <td className="mono num muted">—</td>
+              <td className="mono num">
+                €{(totais_2025.produtos / familiasProd.reduce((a, f) => a + f.unidades, 0)).toFixed(2).replace(".", ",")}
+              </td>
+              <td className="mono num muted">—</td>
+            </tr>
+          </tbody>
+        </table>
+      </Panel>
+
+      <Panel title="PVU 2025 · Mercadorias" sub="Preço de Venda Unitário · receita / unidades vendidas">
+        <table className="ftable ftable--dense">
+          <thead>
+            <tr>
+              <th>Mercadoria</th>
+              <th className="num">Receita 2025</th>
+              <th className="num">% do total</th>
+              <th className="num">Unidades</th>
+              <th className="num">PVU 2024</th>
+              <th className="num">PVU 2025</th>
+              <th className="num">Δ PVU</th>
+            </tr>
+          </thead>
+          <tbody>
+            {mercadorias.map((m, i) => (
+              <tr key={m.item}>
+                <td>
+                  <span className="swatch" style={{ background: MIX_PALETTE_7[i], marginRight: 8, verticalAlign: "middle" }} />
+                  {m.item}
+                </td>
+                <td className="mono num">{fmt.eur(m.receita)}</td>
+                <td className="mono num">{fmt.pct(m.peso, 1)}</td>
+                <td className="mono num">{fmt.num(m.unidades)}</td>
+                <td className="mono num">€{m.pvu_2024.toFixed(2).replace(".", ",")}</td>
+                <td className="mono num">€{m.pvu_25.toFixed(2).replace(".", ",")}</td>
+                <td className={"mono num " + (m.delta_pvu >= 0 ? "pos" : "neg")}>{fmt.pctSigned(m.delta_pvu)}</td>
+              </tr>
+            ))}
+            <tr className="is-total">
+              <td>Total Mercadorias</td>
+              <td className="mono num">{fmt.eur(totais_2025.mercadorias)}</td>
+              <td className="mono num">100,0%</td>
+              <td className="mono num">{fmt.num(mercadorias.reduce((a, m) => a + m.unidades, 0))}</td>
+              <td className="mono num muted">—</td>
+              <td className="mono num">
+                €{(totais_2025.mercadorias / mercadorias.reduce((a, m) => a + m.unidades, 0)).toFixed(2).replace(".", ",")}
+              </td>
+              <td className="mono num muted">—</td>
+            </tr>
+          </tbody>
+        </table>
+      </Panel>
+    </>
+  );
+}
+
 // ---- Pressupostos ----------------------------------------------------------
 function PressupostosView({ ctx }) {
-  const e = ctx.eff || {};
-  const p = (v, d = 1) => v != null ? fmt.pct(v / 100, d) : "—";
-  const dias = (v) => v != null ? v + " dias" : "—";
   const sc = GRESTEL.SCENARIOS;
   return (
     <>
@@ -1073,51 +979,51 @@ function PressupostosView({ ctx }) {
       </Panel>
 
       <div className="grid-2">
-        <Panel title="Globais · Fiscalidade & Estrutura" sub="src/engine/data/pressupostos/globais.yaml">
+        <Panel title="Globais · fiscalidade & estrutura" sub="src/engine/data/pressupostos/globais.yaml">
           <dl className="kv">
-            <KV k="IRC taxa geral" v={p(e.irc_taxa_geral)} />
-            <KV k="IRC taxa reduzida" v={p(e.irc_taxa_reduzida)} />
-            <KV k="Derrama Municipal" v={p(e.derrama_municipal)} />
-            <KV k="Derrama Estadual" v={e.derrama_estadual != null ? p(e.derrama_estadual, 2) + " (limiar " + fmt.eurC(e.derrama_estadual_limiar) + ")" : "—"} />
-            <KV k="TSU empresa" v={p(e.tsu_empresa, 2)} />
-            <KV k="SAT" v={p(e.sat)} />
-            <KV k="SIFIDE" v={p(e.sifide_taxa)} />
-            <KV k="Tributação autónoma" v={p(e.tributacao_autonoma)} />
-            <KV k="Majoração energia" v={p(e.majoracao_energia, 0)} />
-            <KV k="IVA Vendas / FSE" v={p(e.iva_vendas, 0)} />
+            <KV k="IRC taxa geral" v="20,0%" />
+            <KV k="IRC taxa reduzida" v="17,0%" />
+            <KV k="Derrama Municipal" v="1,5%" />
+            <KV k="Derrama Estadual" v="1,35% (limiar 1,5 M€)" />
+            <KV k="TSU empresa" v="23,75%" />
+            <KV k="SAT" v="3,0%" />
+            <KV k="SIFIDE" v="32,5%" />
+            <KV k="Tributação autónoma" v="10,0%" />
+            <KV k="Majoração energia" v="20%" />
+            <KV k="IVA Vendas / FSE" v="23%" />
           </dl>
         </Panel>
-        <Panel title="Prazos · Gestão do fundo de maneio">
+        <Panel title="Prazos · gestão de fundo de maneio">
           <dl className="kv">
-            <KV k="PMR — recebimento" v={dias(e.pmr_dias)} />
-            <KV k="PMP — fornecedores" v={dias(e.pmp_dias)} />
-            <KV k="DMI — produto acabado" v={dias(e.dmi_pa_dias)} />
-            <KV k="DMI — matéria-prima" v={dias(e.dmi_mp_dias)} />
-            <KV k="DMI — mercadorias" v={dias(e.dmi_merc_dias)} />
-            <KV k="Caixa mínima" v={e.caixa_minima != null ? fmt.eurC(e.caixa_minima) : "—"} />
-            <KV k="Caixa máxima" v={e.caixa_maxima != null ? fmt.eurC(e.caixa_maxima) : "—"} />
-            <KV k="Payout ratio" v={p(e.payout_ratio, 0)} />
-            <KV k="Reserva legal" v={p(e.reserva_legal_pct, 0)} />
-            <KV k="Início distribuição" v={e.inicio_distribuicao ?? "—"} />
+            <KV k="PMR — recebimento" v="45 dias" />
+            <KV k="PMP — fornecedores" v="63 dias" />
+            <KV k="DMI — produto acabado" v="160 dias" />
+            <KV k="DMI — matéria-prima" v="160 dias" />
+            <KV k="DMI — mercadorias" v="60 dias" />
+            <KV k="Caixa mínima" v="500 k€" />
+            <KV k="Caixa máxima" v="1,5 M€" />
+            <KV k="Payout ratio" v="20%" />
+            <KV k="Reserva legal" v="5%" />
+            <KV k="Início distribuição" v="2026" />
           </dl>
         </Panel>
       </div>
 
       <div className="grid-2">
-        <Panel title="Pessoal" sub="Custos Historicos + Elasticidade Crescimento Vendas">
+        <Panel title="Pessoal" sub="custos auditados + elasticidade ao volume">
           <dl className="kv">
-            <KV k="Gastos com Pessoal 2024" v={e.custo_total_2024 != null ? fmt.eurC(e.custo_total_2024) : "—"} />
-            <KV k="Headcount 2024" v={e.hc_2024 ?? "—"} />
-            <KV k="Headcount 2025" v={e.hc_2025 ?? "—"} />
-            <KV k="Crescimento base 2025" v={e.taxa_cresc_custo_2025 != null ? "+" + p(e.taxa_cresc_custo_2025) + " (IRCT)" : "—"} />
-            <KV k="Elasticidade α sem Hub" v={e.alpha_sem_hub != null ? (e.alpha_sem_hub / 100).toFixed(2).replace(".", ",") : "—"} />
-            <KV k="Elasticidade α com Hub" v={e.alpha_com_hub != null ? (e.alpha_com_hub / 100).toFixed(2).replace(".", ",") : "—"} />
-            <KV k="TSU" v={p(e.tsu_empregador, 2)} />
-            <KV k="Subsídio Férias" v={e.subsidio_ferias_mes ?? "—"} />
-            <KV k="Subsídio Natal" v={e.subsidio_natal_mes ?? "—"} />
+            <KV k="Custo total 2024 (auditado)" v={fmt.eurC(14371358)} />
+            <KV k="Headcount 2024" v="734" />
+            <KV k="Headcount 2025" v="744" />
+            <KV k="Cresc. base 2025" v="+3,5% (acordos IRCT)" />
+            <KV k="Elasticidade α sem Hub" v="0,40" />
+            <KV k="Elasticidade α com Hub" v="0,15" />
+            <KV k="TSU empregador" v="23,75%" />
+            <KV k="Subsídio férias" v="Junho" />
+            <KV k="Subsídio Natal" v="Novembro" />
           </dl>
         </Panel>
-        <Panel title="Mercados & Canais" sub="Mix Global 2024">
+        <Panel title="Mercados & Canais" sub="mix global 2024">
           <div className="sub-section">
             <div className="sub-label">Geografia · peso global</div>
             <StackedBar
@@ -1136,7 +1042,7 @@ function PressupostosView({ ctx }) {
             </div>
           </div>
           <div className="sub-section">
-            <div className="sub-label">Canais Comerciais 2024</div>
+            <div className="sub-label">Canais comerciais 2024</div>
             <StackedBar
               items={Object.entries(GRESTEL.CANAIS).map(([k, v], i) => ({
                 label: k.replace(/_/g, " "), value: v, color: MIX_PALETTE_4[i], textColor: MIX_PALETTE_4_TEXT[i],
@@ -1159,5 +1065,5 @@ function PressupostosView({ ctx }) {
 }
 
 Object.assign(window, {
-  DRView, BalancoView, DFCView, KPIView, FSEView, PessoalView, RollingView, HubView, EcogresView, PressupostosView, KV,
+  DRView, BalancoView, DFCView, KPIView, FSEView, RollingView, HubView, EcogresView, PressupostosView, VendasView, KV,
 });

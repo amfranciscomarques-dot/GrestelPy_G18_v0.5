@@ -29,8 +29,8 @@ def _load_ecogres_impact(a: Assumptions, df_vn: pd.DataFrame | None = None) -> d
             return None
 
         irc_taxa = (
-            float(a.impostos.get("IRC_taxa_geral", 0.21))
-            + float(a.impostos.get("Derrama", 0.015))
+            float(a.impostos.get("IRC_taxa_geral", 0.20))
+            + float(a.impostos.get("Derrama_Municipal", 0.015))
         )
 
         hub_ativo = a.raw.get("hub_logistico", {}).get("incluir_hub", False)
@@ -113,12 +113,14 @@ def investimento_anual(
         dep_hub_y = 0.0
         capex_hub_y = 0.0
 
+        jc_hub_y = 0.0
         if hub_capex_map and y in hub_capex_map:
             dep_hub_y = float(hub_capex_map[y].get("depreciacao", 0.0))
             capex_hub_y = float(hub_capex_map[y].get("capex", 0.0))
+            jc_hub_y = float(hub_capex_map[y].get("juros_capitalizados_aft", 0.0))
 
         aft = aft - d_aft + float(novo_aft.get(y, 0.0))
-        hub_aft = hub_aft + capex_hub_y - dep_hub_y
+        hub_aft = hub_aft + capex_hub_y + jc_hub_y - dep_hub_y
 
         intang = (
             intang

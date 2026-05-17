@@ -139,9 +139,6 @@ def build_kpis(
     """Calcula KPIs financeiros a partir da DR, Balanço e DFC."""
     rows = []
 
-    # Mantido por compatibilidade: df_dfc pode ser usado futuramente para KPIs de cash-flow.
-    _ = df_dfc
-
     for y in ALL_YEARS:
         dr = df_dr[df_dr.ano == y].iloc[0]
         bs = df_balanco[df_balanco.ano == y].iloc[0]
@@ -230,6 +227,22 @@ def build_kpis(
 
         cob_juros = ebit / juros_abs if juros_abs else 0.0
 
+        # DSCR: EBITDA / (juros_pagos + amortização capital líquida)
+        # Usa amortização líquida de novos empréstimos para não penalizar anos de refinanciamento
+        # (em anos de rolagem a componente de amortização cancela-se com novos draws)
+        dfc_row = df_dfc[df_dfc.ano == y]
+        if not dfc_row.empty:
+            _r = dfc_row.iloc[0]
+            _pag = abs(float(_r.get("pag_emprestimos", 0.0)))
+            _rec = max(0.0, float(_r.get("rec_emprestimos", 0.0)))
+            amort_capital = max(0.0, _pag - _rec)   # amortização líquida de novos draws
+            juros_pagos_fin = abs(float(_r.get("juros_pagos_fin", juros_abs)))
+        else:
+            amort_capital = 0.0
+            juros_pagos_fin = juros_abs
+        servico_divida = juros_pagos_fin + amort_capital
+        dscr = ebitda / servico_divida if servico_divida else 0.0
+
         rows.append(
             {
                 "ano": y,
@@ -274,6 +287,8 @@ def build_kpis(
                 "DMI": dmi,
                 "ciclo_caixa": ciclo_caixa,
                 "cobertura_juros": cob_juros,
+                "dscr": dscr,
+                "amort_capital": amort_capital,
             }
         )
 

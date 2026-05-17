@@ -101,7 +101,7 @@ investimento:
   taxa_amort_intang: 0.2
 financiamento:
   juros_total:
-    2024: 318853.73000000004
+    2024: 528161.02          # gastos financeiros auditados DR 2024 (R&C Nota 31)
     2025: 419000.0
     2026: 318061.38
     2027: 259708.24999999997

@@ -34,14 +34,11 @@ import pandas as pd
 import yaml
 from pathlib import Path
 
-from ..inputs import DATA_DIR
+from ..inputs import DATA_DIR, YEARS
 
 
 def _hub_assumptions_path() -> Path:
     return DATA_DIR / "subsidiarias" / "hub_logistico" / "m6_hub_assumptions.yaml"
-
-
-YEARS = [2025, 2026, 2027, 2028, 2029]
 
 
 def load() -> dict:

@@ -1,149 +1,23 @@
 // app.jsx — Grestel Financial Dashboard
 
-const { useState, useMemo, useEffect } = React;
+const { useState, useMemo, useEffect, useCallback } = React;
 
 // -----------------------------------------------------------------------------
 // Navigation config
 // -----------------------------------------------------------------------------
 const NAV = [
   { id: "overview",     label: "Visão Geral",       group: "Síntese" },
-  { id: "dr",           label: "Demonstração dos Resultados", group: "Demonstrações" },
+  { id: "dr",           label: "Demonstração de Resultados", group: "Demonstrações" },
   { id: "balanco",      label: "Balanço",           group: "Demonstrações" },
   { id: "dfc",          label: "Fluxos de Caixa",   group: "Demonstrações" },
+  { id: "vendas",       label: "Análise de Vendas", group: "Análise" },
   { id: "kpis",         label: "KPIs & Rácios",     group: "Análise" },
-  { id: "fse",          label: "FSE",               group: "Análise" },
-  { id: "pessoal",      label: "Pessoal",            group: "Análise" },
-  { id: "rolling",      label: "2025",  group: "Análise" },
+  { id: "fse",          label: "FSE — detalhe",     group: "Análise" },
+  { id: "rolling",      label: "Rolling Forecast",  group: "Análise" },
   { id: "hub",          label: "Hub Logístico",     group: "Projetos" },
   { id: "ecogres",      label: "Ecogres",           group: "Projetos" },
   { id: "pressupostos", label: "Pressupostos",      group: "Configuração" },
 ];
-
-// -----------------------------------------------------------------------------
-// API adapter utilities
-// -----------------------------------------------------------------------------
-const API_BASE = "";
-
-function adaptDR(rows) {
-  return rows.map(r => ({
-    year: r.ano,
-    vn: r.vn,
-    outros_rend: r.outros_rend,
-    cmvmc: -(r.cmvmc || 0),
-    fse: -(r.fse || 0),
-    pessoal: -(r.gastos_pessoal || 0),
-    outros_gastos: -((r.outros_gastos || 0) + (r.imparidades || 0)),
-    ebitda: r.ebitda,
-    dep: -(r.depreciacoes || 0),
-    ebit: r.ebit,
-    juros: -(r.juros || 0) - (r.rend_financeiros || 0),
-    rai: r.rai,
-    irc: -(r.irc || 0),
-    rl: r.rl,
-  }));
-}
-
-function adaptBalanco(rows) {
-  return rows.map(r => ({
-    year: r.ano,
-    AFT_liquido: r.aft_liquido || 0,
-    Goodwill: r.goodwill || 0,
-    Intangiveis: r.intangiveis || 0,
-    Subsidiarias: r.subsidiarias || 0,
-    Ativos_Fin_Justo_Valor: r.ativos_fin_justo_valor || 0,
-    Outros_Ativos_Fixos: r.outros_ativos_fixos || 0,
-    Impostos_Diferidos_Ativos: r.impostos_dif_ativos || 0,
-    Inventarios: r.inventarios || 0,
-    Clientes: r.clientes || 0,
-    Outros_AC: (r.outros_ac || 0) + (r.aplicacoes_fin_cp || 0) + (r.eoep_devedor || 0),
-    Caixa: r.caixa || 0,
-    Capital_Social: r.capital_social || 0,
-    Premios_Emissao: r.premios_emissao || 0,
-    Outros_IC_Proprio: r.outros_ic_proprio || 0,
-    Reservas_Legais: r.reservas_legais || 0,
-    Ajust_AF: r.ajust_af || 0,
-    Resultados_Transitados: r.resultados_transitados || 0,
-    Outras_Var_CP: r.outras_var_cp || 0,
-    RL: r.rl || 0,
-    Emprestimos_NC: r.emprestimos_nc || 0,
-    Impostos_Diferidos_Passivos: r.imp_dif_passivos || 0,
-    Emprestimos_C: r.emprestimos_c || 0,
-    Fornecedores: r.fornecedores || 0,
-    Outros_PC: (r.outros_pc || 0) + (r.eoep_credor || 0) + (r.linha_credito_cp || 0),
-    ativo_total: r.total_ativo || 0,
-    passivo_total: r.total_passivo || 0,
-    capital_total: r.total_cp || 0,
-  }));
-}
-
-function adaptKPIs(rows) {
-  return rows.map(r => ({
-    year: r.ano,
-    margem_ebitda: r.margem_ebitda || r.ebitda_margin || 0,
-    margem_ebit: r.margem_ebit || r.ebit_margin || 0,
-    margem_liquida: r.margem_rl || r.rl_margin || 0,
-    roa: r.roa || r.ROA || 0,
-    roe: r.roe || r.ROE || 0,
-    autonomia_financeira: r.autonomia_financeira || 0,
-    solvabilidade: r.solvabilidade || 0,
-    liquidez_geral: r.liquidez_geral || 0,
-    endividamento: r.endividamento || 0,
-    cobertura_juros: r.cobertura_juros || 0,
-    pmr_dias: r.PMR || 45,
-    pmp_dias: r.PMP || 63,
-  }));
-}
-
-function adaptDFC(rows) {
-  return rows.map(r => ({
-    year: r.ano,
-    rl: r.rl || 0,
-    dep_amort: r.dep_amort || 0,
-    imparidades: r.imparidades || 0,
-    juros_pagos: r.juros_pagos || 0,
-    rend_fin: r.rend_fin || 0,
-    var_nfm: r.var_nfm || 0,
-    irc_pago: r.irc_pago || 0,
-    fluxo_operacional: r.fluxo_operacional || 0,
-    pag_aft: r.pag_aft || 0,
-    pag_intang: r.pag_intang || 0,
-    div_recebidos: r.div_recebidos || 0,
-    fluxo_investimento: r.fluxo_investimento || 0,
-    rec_emprestimos: r.rec_emprestimos || 0,
-    pag_emprestimos: r.pag_emprestimos || 0,
-    juros_pagos_fin: r.juros_pagos_fin || 0,
-    pag_dividendos: r.pag_dividendos || 0,
-    fluxo_financiamento: r.fluxo_financiamento || 0,
-    variacao_caixa: r.variacao_caixa || 0,
-  }));
-}
-
-function pivotFSE(rows) {
-  const grouped = {};
-  for (const row of rows) {
-    if (!grouped[row.rubrica]) grouped[row.rubrica] = [];
-    grouped[row.rubrica].push({ ano: row.ano, valor: row.valor });
-  }
-  const result = {};
-  for (const [rubrica, entries] of Object.entries(grouped)) {
-    result[rubrica] = entries.sort((a, b) => a.ano - b.ano).map(e => e.valor);
-  }
-  return result;
-}
-
-function pivotPessoal(rows, key) {
-  const grouped = {};
-  for (const row of rows) {
-    const k = row[key];
-    if (!grouped[k]) grouped[k] = [];
-    grouped[k].push({ ano: row.ano, valor: row.valor });
-  }
-  const result = {};
-  for (const [k, entries] of Object.entries(grouped)) {
-    result[k] = entries.sort((a, b) => a.ano - b.ano).map(e => e.valor);
-  }
-  return result;
-}
 
 // -----------------------------------------------------------------------------
 // Shell
@@ -155,60 +29,58 @@ function App() {
   // Ecogres é subsidiária — sempre consolidada
   const ecogresOn = true;
 
-  const [apiData, setApiData] = useState(null);
-  const [apiStatus, setApiStatus] = useState("loading");
-  const [lastRun, setLastRun] = useState(null);
-  const [apiEff, setApiEff] = useState(null);
+  // Estado assíncrono
+  const [ctx, setCtx] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [apiStatus, setApiStatus] = useState({
+    source: API.useMock ? "mock" : "live",
+    connected: false,
+    lastRun: null,
+    engineVersion: null,
+  });
 
+  // Health check inicial
   useEffect(() => {
-    setApiStatus("loading");
-    const params = new URLSearchParams({ hub_on: hubOn, ecogres_on: ecogresOn });
-    fetch(`${API_BASE}/api/scenarios/all?${params}`)
-      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+    API.health()
+      .then(h => setApiStatus(s => ({
+        ...s,
+        connected: true,
+        lastRun: h.last_engine_run,
+        engineVersion: h.engine_version,
+      })))
+      .catch(() => setApiStatus(s => ({ ...s, connected: false })));
+  }, []);
+
+  // Fetch da projeção quando muda cenário/hub
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    API.projecao({ cenario: scenario, hub_on: hubOn, ecogres_on: ecogresOn })
       .then(data => {
-        setApiData(data);
-        setApiStatus("ok");
-        setLastRun(new Date());
+        if (cancelled) return;
+        setCtx({
+          dr: data.dr,
+          bal: data.balanco,
+          dfc: data.dfc,
+          kpis: data.kpis,
+          fse: data.fse,
+          scenario, hubOn, ecogresOn,
+        });
+        setLoading(false);
       })
-      .catch(() => setApiStatus("error"));
-  }, [hubOn, ecogresOn]);
-
-  useEffect(() => {
-    const params = new URLSearchParams({ cenario: scenario, hub_on: hubOn, ecogres_on: ecogresOn });
-    fetch(`${API_BASE}/api/assumptions/effective?${params}`)
-      .then(r => r.ok ? r.json() : Promise.reject(r.status))
-      .then(data => setApiEff(data.effective ?? null))
-      .catch(() => setApiEff(null));
+      .catch(err => {
+        if (cancelled) return;
+        setError(err.message || String(err));
+        setLoading(false);
+      });
+    return () => { cancelled = true; };
   }, [scenario, hubOn, ecogresOn]);
-
-  const ctx = useMemo(() => {
-    if (apiData && apiData[scenario]) {
-      const sc = apiData[scenario];
-      const dr = adaptDR(sc.dr.rows);
-      const bal = adaptBalanco(sc.balanco.rows);
-      const dfc = adaptDFC(sc.dfc.rows);
-      const kpis = adaptKPIs(sc.kpis.rows);
-      const fse = pivotFSE(sc.fse_detalhe_anual.rows);
-      const pessoal_contab = pivotPessoal((sc.pessoal_contab_anual?.rows) || [], "rubrica");
-      const pessoal_depart = pivotPessoal((sc.pessoal_depart_anual?.rows) || [], "departamento");
-      const allDR = {};
-      for (const k of Object.keys(apiData)) allDR[k] = adaptDR(apiData[k].dr.rows);
-      return { dr, bal, dfc, kpis, fse, pessoal_contab, pessoal_depart, scenario, hubOn, ecogresOn, allDR, eff: apiEff };
-    }
-    // Fallback to client-side while API loads or on error
-    const dr = GRESTEL.projectDR(scenario, { hubOn, ecogresOn });
-    const bal = GRESTEL.projectBalanco(dr, { hubOn });
-    const dfc = GRESTEL.projectDFC(dr, bal, { hubOn });
-    const kpis = GRESTEL.projectKPIs(dr, bal);
-    const fse = GRESTEL.projectFSE(scenario);
-    const pessoal_contab = GRESTEL.projectPessoalContab(scenario, { hubOn, ecogresOn });
-    const pessoal_depart = GRESTEL.projectPessoalDepart(scenario, { hubOn, ecogresOn });
-    return { dr, bal, dfc, kpis, fse, pessoal_contab, pessoal_depart, scenario, hubOn, ecogresOn, allDR: null, eff: apiEff };
-  }, [apiData, scenario, hubOn, ecogresOn, apiEff]);
 
   return (
     <div className="app">
-      <Sidebar view={view} setView={setView} apiStatus={apiStatus} lastRun={lastRun} />
+      <Sidebar view={view} setView={setView} apiStatus={apiStatus} />
       <div className="main">
         <Topbar
           view={view}
@@ -216,37 +88,135 @@ function App() {
           setScenario={setScenario}
           hubOn={hubOn}
           setHubOn={setHubOn}
+          loading={loading}
         />
         <div className="content">
-          {view === "overview" && <OverviewView ctx={ctx} />}
-          {view === "dr" && <DRView ctx={ctx} />}
-          {view === "balanco" && <BalancoView ctx={ctx} />}
-          {view === "dfc" && <DFCView ctx={ctx} />}
-          {view === "kpis" && <KPIView ctx={ctx} />}
-          {view === "fse" && <FSEView ctx={ctx} />}
-          {view === "pessoal" && <PessoalView ctx={ctx} />}
-          {view === "rolling" && <RollingView ctx={ctx} />}
-          {view === "hub" && <HubView ctx={ctx} />}
-          {view === "ecogres" && <EcogresView ctx={ctx} />}
-          {view === "pressupostos" && <PressupostosView ctx={ctx} />}
+          {error && <ErrorBanner message={error} onRetry={() => setScenario(s => s)} />}
+          {!ctx && loading && <LoadingShell view={view} />}
+          {loading && ctx && <LoadingOverlay hubOn={hubOn} scenario={scenario} />}
+          {ctx && (
+            <>
+              {view === "overview" && <OverviewView ctx={ctx} />}
+              {view === "dr" && <DRView ctx={ctx} />}
+              {view === "balanco" && <BalancoView ctx={ctx} />}
+              {view === "dfc" && <DFCView ctx={ctx} />}
+              {view === "kpis" && <KPIView ctx={ctx} />}
+              {view === "vendas" && <VendasView ctx={ctx} />}
+              {view === "fse" && <FSEView ctx={ctx} />}
+              {view === "rolling" && <RollingView ctx={ctx} />}
+              {view === "hub" && <HubView ctx={ctx} />}
+              {view === "ecogres" && <EcogresView ctx={ctx} />}
+              {view === "pressupostos" && <PressupostosView ctx={ctx} />}
+            </>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-function Sidebar({ view, setView, apiStatus, lastRun }) {
+// ---------------------------------------------------------------------------
+// Loading + Error
+// ---------------------------------------------------------------------------
+function Skeleton({ width = "100%", height = 14, style }) {
+  return (
+    <div
+      style={{
+        width, height,
+        background: "linear-gradient(90deg, var(--surface-2) 0%, var(--rule) 50%, var(--surface-2) 100%)",
+        backgroundSize: "200% 100%",
+        animation: "sk-shimmer 1.4s ease-in-out infinite",
+        ...style,
+      }}
+    />
+  );
+}
+
+function SkeletonKPI() {
+  return (
+    <div className="kpi">
+      <Skeleton width="55%" height={10} style={{ marginBottom: 10 }} />
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+        <Skeleton width="60%" height={22} />
+        <Skeleton width={80} height={28} />
+      </div>
+      <div style={{ marginTop: 8 }}>
+        <Skeleton width="40%" height={11} />
+      </div>
+    </div>
+  );
+}
+
+function SkeletonPanel({ chartHeight = 280 }) {
+  return (
+    <div className="panel">
+      <div className="panel-head">
+        <div>
+          <Skeleton width={220} height={14} style={{ marginBottom: 6 }} />
+          <Skeleton width={140} height={11} />
+        </div>
+      </div>
+      <div className="panel-body">
+        <Skeleton width="100%" height={chartHeight} />
+      </div>
+    </div>
+  );
+}
+
+function LoadingShell({ view }) {
+  return (
+    <>
+      <div className="grid-kpis">
+        {Array.from({ length: 6 }).map((_, i) => <SkeletonKPI key={i} />)}
+      </div>
+      <div className="grid-2-3">
+        <SkeletonPanel chartHeight={300} />
+        <SkeletonPanel chartHeight={300} />
+      </div>
+      <SkeletonPanel chartHeight={220} />
+    </>
+  );
+}
+
+function ErrorBanner({ message, onRetry }) {
+  return (
+    <div
+      className="panel"
+      style={{
+        borderColor: "var(--neg)",
+        borderLeftWidth: 3,
+        background: "var(--neg-soft)",
+      }}
+    >
+      <div style={{ padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
+        <div>
+          <div style={{ fontWeight: 500, color: "var(--ink)", fontSize: 13 }}>Falha ao carregar dados</div>
+          <div style={{ fontSize: 12, color: "var(--ink-2)", marginTop: 2, fontFamily: "var(--mono)" }}>{message}</div>
+        </div>
+        <button className="btn-ghost" onClick={onRetry}>Tentar de novo</button>
+      </div>
+    </div>
+  );
+}
+
+function Sidebar({ view, setView, apiStatus }) {
   const groups = {};
   for (const item of NAV) {
     (groups[item.group] ||= []).push(item);
   }
+  const isMock = apiStatus.source === "mock";
+  const connected = apiStatus.connected;
+  const dotClass = connected
+    ? (isMock ? "dot dot--mock" : "dot dot--ok")
+    : "dot dot--err";
+  const statusLabel = !connected ? "offline" : (isMock ? "mock" : "live");
+  const lastRun = apiStatus.lastRun ? fmtIsoDate(apiStatus.lastRun) : "—";
   return (
     <aside className="sidebar">
       <div className="brand">
-        <div className="brand-mark">G</div>
+        <img className="brand-logo" src="assets/grestel-logo.png" alt="Grestel" />
         <div>
-          <div className="brand-name">Grestel</div>
-          <div className="brand-sub">Modelo financeiro · v0.5</div>
+          <div className="brand-sub">PEF G18 M6 · v0.7</div>
         </div>
       </div>
       <nav className="nav">
@@ -268,25 +238,29 @@ function Sidebar({ view, setView, apiStatus, lastRun }) {
       <div className="sidebar-foot">
         <div className="foot-row">
           <span>API</span>
-          <span className={"dot dot--" + (apiStatus === "ok" ? "ok" : apiStatus === "error" ? "err" : "warn")} />
-          <span className="mono">{apiStatus === "ok" ? "8000" : apiStatus === "error" ? "offline" : "…"}</span>
+          <span><span className={dotClass} /> <span className="mono">{statusLabel}</span></span>
         </div>
-        <div className="foot-row"><span>Engine</span><span className="mono">v0.5.0</span></div>
-        <div className="foot-row">
-          <span>Última corrida</span>
-          <span className="mono">
-            {lastRun
-              ? lastRun.toLocaleDateString("pt-PT", { day: "2-digit", month: "short", year: "2-digit" }) + " · " +
-                lastRun.toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" })
-              : "—"}
-          </span>
-        </div>
+        <div className="foot-row"><span>Engine</span><span className="mono">{apiStatus.engineVersion || "—"}</span></div>
+        <div className="foot-row"><span>Última corrida</span><span className="mono">{lastRun}</span></div>
       </div>
     </aside>
   );
 }
 
-function Topbar({ view, scenario, setScenario, hubOn, setHubOn }) {
+function fmtIsoDate(iso) {
+  try {
+    const d = new Date(iso);
+    const dd = String(d.getDate()).padStart(2, "0");
+    const months = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+    const mm = months[d.getMonth()];
+    const yy = String(d.getFullYear()).slice(2);
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mi = String(d.getMinutes()).padStart(2, "0");
+    return `${dd} ${mm} ${yy} · ${hh}:${mi}`;
+  } catch { return "—"; }
+}
+
+function Topbar({ view, scenario, setScenario, hubOn, setHubOn, loading }) {
   const title = NAV.find(n => n.id === view)?.label || "";
   const desc = GRESTEL.SCENARIOS[scenario].desc;
   return (
@@ -296,6 +270,7 @@ function Topbar({ view, scenario, setScenario, hubOn, setHubOn }) {
           <span className="crumb-muted">{NAV.find(n => n.id === view)?.group}</span>
           <span className="crumb-sep">/</span>
           <span className="crumb">{title}</span>
+          {loading && <span className="loading-dot" title="A carregar..." />}
         </div>
         <div className="topbar-desc">{desc}</div>
       </div>
@@ -379,7 +354,7 @@ function OverviewView({ ctx }) {
   const compareSeries = useMemo(() => {
     const colors = { Base: "var(--ink)", Upside: "var(--pos)", Downside: "var(--accent)", Stress: "var(--neg)" };
     return Object.keys(GRESTEL.SCENARIOS).map(k => {
-      const d = ctx.allDR?.[k] || GRESTEL.projectDR(k, { hubOn: ctx.hubOn, ecogresOn: ctx.ecogresOn });
+      const d = GRESTEL.projectDR(k, { hubOn: ctx.hubOn, ecogresOn: ctx.ecogresOn });
       return {
         labels: GRESTEL.YEARS.map(String),
         values: d.map(r => r.vn),
@@ -389,7 +364,7 @@ function OverviewView({ ctx }) {
         name: k,
       };
     });
-  }, [ctx.hubOn, ctx.ecogresOn, ctx.scenario, ctx.allDR]);
+  }, [ctx.hubOn, ctx.ecogresOn, ctx.scenario]);
 
   const ebitdaSeries = [{
     labels: GRESTEL.YEARS.map(String),
@@ -593,4 +568,18 @@ function Legend({ items }) {
   );
 }
 
-Object.assign(window, { App, Sidebar, Topbar, Toggle, KPI, Panel, FRow, Legend });
+function LoadingOverlay({ hubOn, scenario }) {
+  return (
+    <div className="loading-overlay">
+      <div className="loading-overlay-card">
+        <div className="loading-spinner" />
+        <div className="loading-overlay-label">A calcular projeção…</div>
+        <div className="loading-overlay-sub">
+          {scenario} · Hub Logístico {hubOn ? "ativo" : "desativado"}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+Object.assign(window, { App, Sidebar, Topbar, Toggle, KPI, Panel, FRow, Legend, Skeleton, SkeletonKPI, SkeletonPanel, LoadingShell, LoadingOverlay, ErrorBanner });

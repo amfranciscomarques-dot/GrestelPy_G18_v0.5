@@ -133,7 +133,7 @@ def build_pressupostos_summary(
         "id": "impostos_prazos",
         "label": "Impostos & Prazos",
         "items": [
-            _item("Taxa IRC geral", _pct(impostos.get("IRC_taxa_geral", 0.21), 1), "%"),
+            _item("Taxa IRC geral", _pct(impostos.get("IRC_taxa_geral", 0.20), 1), "%"),
             _item("PMR (prazo médio de recebimento)", int(prazos.get("pmr_dias", 60)), "dias"),
             _item("PMP (prazo médio de pagamento)", int(prazos.get("pmp_dias", 45)), "dias"),
             _item("DMI (dias de inventário)", int(prazos.get("dmi_dias", 45)), "dias"),

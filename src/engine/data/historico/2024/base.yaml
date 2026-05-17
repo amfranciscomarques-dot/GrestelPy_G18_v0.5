@@ -49,15 +49,26 @@ dr_2024_real:
 
 # R&C 2024 — DFC método directo consolidado
 dfc_2024_real:
+  # Atividades Operacionais
   recebimentos_clientes: 39676113.70
   pagamentos_fornecedores: -25706012.11
   pagamentos_pessoal: -13696972.32
+  irc_pago: -6418.14
+  outros_op_operacionais: -1932023.02        # inclui FSE, IVA e outros pagamentos operacionais
   fluxo_operacional: -1665311.89
+  # Atividades de Investimento
   capex_aft: -1224709.40
+  capex_intang: -53632.50
+  rec_aft: 42475.53                          # recebimentos de alienações de AFT
   dividendos_recebidos: 656742.53
+  rec_outros_investimento: 170127.68         # recebimentos de outros ativos
+  juros_recebidos_inv: 64177.79              # juros e rendimentos similares recebidos
   fluxo_investimento: -344818.37
+  # Atividades de Financiamento
   rec_emprestimos: 17636212.43
   pag_emprestimos: -14829115.28
+  juros_pagos_fin: -498084.13                # juros e gastos similares pagos
+  outras_op_financiamento: -308333.34        # reembolso de outros instrumentos de capital próprio
   fluxo_financiamento: 2000679.68
 
 vendas_2024_por_mercado:

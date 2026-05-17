@@ -104,6 +104,9 @@ def run_model(
     df_merc = vendas_mod.vendas_mercadorias_anuais(a, base)
     df_total = vendas_mod.resumo_anual(df_prod, df_merc)
 
+    dfs["vendas_produto_anual"] = df_prod
+    dfs["vendas_mercadoria_anual"] = df_merc
+
     vn_2024 = float(df_total[df_total.ano == 2024]["vn_total"].iloc[0])
     vn_2025 = float(df_total[df_total.ano == 2025]["vn_total"].iloc[0])
     factor_vn = vn_2025 / vn_2024 if vn_2024 > 0 else 1.0

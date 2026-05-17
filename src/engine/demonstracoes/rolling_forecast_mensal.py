@@ -171,6 +171,17 @@ def _hub_monthly_impact(a: Assumptions) -> dict | None:
             if mes:
                 capex_por_mes[mes] = float(v)
 
+        # Normalizar para que o total mensal coincida com o CAPEX anual.
+        # cronograma_mensal define o perfil de obra mas o total deve fechar
+        # com o cronograma anual usado no Balanco/DFC anual (articulacao M3-M6).
+        df_cap_hub = hub_mod.hub_capex(raw_hub)
+        _cap_2025_row = df_cap_hub[df_cap_hub.ano == 2025]
+        capex_anual_2025 = float(_cap_2025_row["capex"].iloc[0]) if not _cap_2025_row.empty else 0.0
+        _total_mes = sum(capex_por_mes.values())
+        if _total_mes > 0 and abs(_total_mes - capex_anual_2025) > 1.0:
+            _fct = capex_anual_2025 / _total_mes
+            capex_por_mes = {m: v * _fct for m, v in capex_por_mes.items()}
+
         meses_data = {
             m: {
                 "capex":       capex_por_mes[m],
@@ -202,9 +213,9 @@ def _build_integrated_monthly(
 
     Args:
         anual_ref: valores do modelo anual 2025 (live) para ancoragem.
-            Chaves usadas: inventarios, outros_pc (endpoints de interpolação),
-            clientes, fornecedores (âncora de Dezembro).
-            Se None, usa reference_balanco do schedules.yaml.
+            Chaves usadas: inventarios, outros_pc, clientes, fornecedores,
+            subs_2025, rend_equiv_2025, dividendos_2025.
+            Se None, usa reference_balanco do schedules.yaml e sem ajustes.
 
     Retorna:
         tuple[pd.DataFrame, pd.DataFrame]: df_balanco, df_dfc.
@@ -223,12 +234,25 @@ def _build_integrated_monthly(
     ref = sched.reference_balanco
 
     # ── Constantes ─────────────────────────────────────────────────────────────
-    anc_outros_base = (
-    b["ativo_nao_corrente"]["Goodwill"]
-    + b["ativo_nao_corrente"]["Subsidiarias"]
-    + b["ativo_nao_corrente"]["Ativos_Fin_Justo_Valor"]
-    + b["ativo_nao_corrente"]["Outros_Ativos_Fixos"]
-)
+    # Subsidiárias: interpoladas linearmente 2024→2025 usando schedules.yaml.
+    # Não requer modelo anual externo — valores pré-calculados no schedule.
+    subs_ini = float(b["ativo_nao_corrente"]["Subsidiarias"])
+    _inv_s        = sched.investimento
+    _rend_eq_2025 = float(_inv_s.get("rend_equiv_patrimonial", {}).get(2025, 0.0))
+    _div_2025     = float(_inv_s.get("dividendos_recebidos",   {}).get(2025, 0.0))
+    subs_fin      = subs_ini + _rend_eq_2025 - _div_2025
+
+    # DFC — ajustes pelo método indireto para rendimentos não-monetários:
+    #   rend_equiv_m : incluído no RL mas não é caixa → subtrai de fluxo_op
+    #   dividendos_m : caixa real recebido das subsidiárias → fluxo_inv
+    rend_equiv_m = _rend_eq_2025 / 12.0
+    dividendos_m = _div_2025 / 12.0
+
+    anc_outros_nosubs = (
+        b["ativo_nao_corrente"]["Goodwill"]
+        + b["ativo_nao_corrente"]["Ativos_Fin_Justo_Valor"]
+        + b["ativo_nao_corrente"]["Outros_Ativos_Fixos"]
+    )
 
     impost_dif_a = b["ativo_nao_corrente"]["Impostos_Diferidos_Ativos"]
     impost_dif_p = b["passivo"]["Impostos_Diferidos_Passivos"]
@@ -261,7 +285,7 @@ def _build_integrated_monthly(
     outros_pc_fin = (
         float(anual_ref["outros_pc"])
         if anual_ref and "outros_pc" in anual_ref
-        else ref["outros_pc"][2025]
+        else outros_pc_ini
     )
 
     inv_ini = b["ativo_corrente"]["Inventarios"]
@@ -332,6 +356,8 @@ def _build_integrated_monthly(
         intang_m = intang_prev + cap["capex_int"] - cap["dep_int"]
         intang_m = max(intang_m, 0.0)
 
+        subs_m = _interp(subs_ini, subs_fin, i)
+
         inv_m = _interp(inv_ini, inv_fin, i)
 
         cli_m = (
@@ -348,8 +374,8 @@ def _build_integrated_monthly(
             - t["pagamentos_fornecedores"]
         )
 
-        # Âncora de Dezembro: fecha clientes/fornecedores ao balanço anual 2025.
-        # A diferença metodológica (DFC-first PMR cash vs. PMR/365 rácio) flui
+        # Ancoragem de Dezembro: clientes e fornecedores forçados ao valor anual.
+        # A diferença metodológica (DFC-first PMR cash vs. PMR/365 ratio) flui
         # integralmente por var_nfm → var_caixa → caixa_m (DFC-first preservado).
         if anual_ref is not None and m == "Dez":
             cli_m  = float(anual_ref.get("clientes",     cli_m))
@@ -383,8 +409,11 @@ def _build_integrated_monthly(
         )
 
         # ── 3. Fluxos base ────────────────────────────────────────────────────
-        fluxo_op = dr["rl"] + dep_m + juros_m + var_nfm
-        fluxo_inv_base = -capex_m  # core Grestel + hub CAPEX
+        # rend_equiv_patrimonial é não-monetário: incluso no RL (via outros_ebitda_m)
+        # mas não gera caixa — subtrai do fluxo_op (NCRF 2 método indireto).
+        # Dividendos recebidos são caixa real das subsidiárias → fluxo_investimento.
+        fluxo_op = dr["rl"] + dep_m + juros_m - rend_equiv_m + var_nfm
+        fluxo_inv_base = -capex_m + dividendos_m
         # Hub: desembolso bancário (entrada Jan) − juros totais pagos (saída mensal)
         # Os juros hub são sempre saída de caixa real (NCRF 2 §33b), mesmo
         # os capitalizados no AFT (NCRF 10) — distinção contabilística, não financeira.
@@ -420,7 +449,7 @@ def _build_integrated_monthly(
         reconciliacao = round((caixa_prev + var_caixa) - caixa_m, 2)
 
         # ── Totais do Balanço ─────────────────────────────────────────────────
-        anc_outros_m = anc_outros_base + intang_m
+        anc_outros_m = anc_outros_nosubs + subs_m + intang_m
         total_anc = aft_m + anc_outros_m + impost_dif_a
         total_ac = aplic_cp_m + inv_m + cli_m + eoep_dev_m + outros_ac + caixa_m
         total_ativo = total_anc + total_ac
@@ -489,6 +518,7 @@ def _build_integrated_monthly(
                 "var_nfm_total": round(var_nfm),
                 "fluxo_operacional": round(fluxo_op),
                 "capex": round(-capex_m),
+                "dividendos_recebidos": round(dividendos_m),
                 "var_aplic_cp": round(d_aplic),
                 "fluxo_investimento": round(fluxo_inv),
                 "amortizacoes": round(-amort_m),
@@ -528,7 +558,6 @@ def build_balanco_mensal(
     sched: Schedules,
     _df_dr_m: pd.DataFrame | None = None,
     _df_t_m: pd.DataFrame | None = None,
-    anual_ref: dict | None = None,
 ) -> pd.DataFrame:
     """Balanço mensal 2025, com Caixa derivada dos fluxos DFC."""
     if _df_dr_m is None:
@@ -537,7 +566,7 @@ def build_balanco_mensal(
     if _df_t_m is None:
         _df_t_m = teso_mod.build_tesouraria(a, base, sched)
 
-    df_bs, _ = _build_integrated_monthly(a, base, sched, _df_dr_m, _df_t_m, anual_ref=anual_ref)
+    df_bs, _ = _build_integrated_monthly(a, base, sched, _df_dr_m, _df_t_m)
     return df_bs
 
 
@@ -551,19 +580,14 @@ def build_dfc_mensal(
     sched: Schedules,
     df_bs: pd.DataFrame | None = None,
     df_dr_m: pd.DataFrame | None = None,
-    anual_ref: dict | None = None,
 ) -> pd.DataFrame:
-    """DFC mensal 2025 pelo método indireto, reconciliada com o Balanço.
-
-    O parâmetro df_bs é aceite por compatibilidade, mas o cálculo integrado
-    reconstrói internamente o Balanço e a DFC para garantir consistência.
-    """
+    """DFC mensal 2025 pelo método indireto, reconciliada com o Balanço."""
     if df_dr_m is None:
         df_dr_m = teso_mod.build_dr_mensal(a, base, sched)
 
     df_t_m = teso_mod.build_tesouraria(a, base, sched)
 
-    _, df_dfc = _build_integrated_monthly(a, base, sched, df_dr_m, df_t_m, anual_ref=anual_ref)
+    _, df_dfc = _build_integrated_monthly(a, base, sched, df_dr_m, df_t_m)
     return df_dfc
 
 
@@ -812,6 +836,50 @@ def build_reconciliacao_mensal_anual(
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+# Opção B — overlay mensal Dezembro → Balanço anual 2025
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _overlay_dez_mensal_no_anual(
+    df_bs_mensal: pd.DataFrame,
+    df_balanco_anual: pd.DataFrame,
+) -> pd.DataFrame:
+    """Substitui a linha 2025 do Balanço anual pelos valores de Dezembro do mensal.
+
+    Implementa Option B: M3 DFC-first é a fonte de verdade para 2025.
+    As linhas 2026-2029 ficam inalteradas mas o DFC anual passará a usar os
+    valores mensais como fecho de 2025 (abertura de 2026), propagando M3→M6→OE4.
+
+    Colunas com breakdown detalhado de CP e ANC (goodwill, reservas, etc.)
+    mantêm-se do modelo anual — só os totais e os itens NFM/caixa são
+    substituídos pelo mensal.
+    """
+    dez = df_bs_mensal[df_bs_mensal["mes"] == "Dez"].iloc[0]
+
+    # Colunas NFM + caixa + financiamento + totais — computadas pelo DFC-first
+    _OVERLAY = [
+        "aft_liquido", "total_anc",
+        "aplicacoes_fin_cp", "inventarios", "clientes",
+        "eoep_devedor", "outros_ac", "caixa",
+        "total_ac", "total_ativo",
+        "total_cp",
+        "emprestimos_nc", "emprestimos_c",
+        "fornecedores", "eoep_credor", "outros_pc",
+        "linha_credito_cp", "total_passivo", "total_cp_passivo",
+    ]
+
+    df = df_balanco_anual.copy()
+    mask = df["ano"] == 2025
+    for col in _OVERLAY:
+        if col in dez.index and col in df.columns:
+            df.loc[mask, col] = float(dez[col])
+
+    df.loc[mask, "controlo"] = (
+        df.loc[mask, "total_cp_passivo"] - df.loc[mask, "total_ativo"]
+    )
+    return df
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # Ponto de Entrada
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -821,50 +889,54 @@ def build_rolling_forecast(
     sched: Schedules,
     ov: Optional[Dict[str, Any]] = None,
 ) -> dict:
-    """Constrói todas as demonstrações mensais articuladas.
+    """Constrói todas as demonstrações mensais articuladas (M3) e propaga para M6/OE4.
 
-    Args:
-        a: Assumptions com overrides já aplicados.
-        base: Base2024.
-        sched: Schedules.
-        ov: Overrides do dashboard, aceite por compatibilidade.
-
-    Returns:
-        dict com:
-        dr_mensal, balanco_mensal, dfc_mensal, nfm_mensal,
-        tesouraria_completa.
+    Fluxo Option B — M3 → M6 → OE4:
+      1. Modelo mensal DFC-first — fonte de verdade para 2025
+      2. Modelo anual DR + Balanço + DFC construídos independentemente
+      3. Linha 2025 do Balanço anual substituída pelo fecho de Dezembro mensal
+      4. DFC anual reconstruída com o Balanço híbrido — 2026-2029 usam o
+         fecho mensal de 2025 como abertura, propagando M3 → M6 → OE4
     """
-    from .statements import build_statements
+    from .dr import build_dr as _build_dr_anual
+    from .balanco import build_balanco as _build_balanco_anual
+    from .dfc import build_dfc as _build_dfc_anual
 
+    # ── 1. Modelo mensal DFC-first ────────────────────────────────────────────
     df_dr = teso_mod.build_dr_mensal(a, base, sched)
     df_t  = teso_mod.build_tesouraria(a, base, sched)
-
-    # Modelo anual calculado uma vez: alimenta âncora de Dezembro + reconciliação
-    stmt = build_statements(a, base, sched)
-    _row = stmt["balanco"][stmt["balanco"]["ano"] == 2025].iloc[0]
-    anual_ref = {
-        "inventarios":  float(_row["inventarios"]),
-        "outros_pc":    float(_row["outros_pc"]),
-        "clientes":     float(_row["clientes"]),
-        "fornecedores": float(_row["fornecedores"]),
-    }
-
-    # Único loop integrado: DFC determina Caixa; Balanço fecha por construção
-    df_bs, df_dfc = _build_integrated_monthly(
-        a, base, sched, df_dr, df_t, anual_ref=anual_ref
-    )
+    df_bs, df_dfc = _build_integrated_monthly(a, base, sched, df_dr, df_t)
 
     df_nfm = build_nfm_mensal(df_bs, df_dr)
     df_tc  = build_tesouraria_completa(a, base, sched, df_bs=df_bs)
+
+    # ── 2. Modelo anual independente (DR → Balanço → DFC) ────────────────────
+    df_dr_anual     = _build_dr_anual(a, base, sched)
+    df_bs_anual_raw = _build_balanco_anual(a, base, sched, df_dr_anual)
+
+    # ── 3. Opção B: fecho Dez mensal ancora Balanço anual 2025 ───────────────
+    df_bs_hibrido = _overlay_dez_mensal_no_anual(df_bs, df_bs_anual_raw)
+
+    # ── 4. DFC anual reconstruída — 2026-2029 partem do fecho mensal 2025 ────
+    df_dfc_anual = _build_dfc_anual(a, df_dr_anual, df_bs_hibrido, sched, base)
+
+    stmt_m6 = {
+        "dr":      df_dr_anual,
+        "balanco": df_bs_hibrido,
+        "dfc":     df_dfc_anual,
+    }
+
+    # ── 5. Reconciliação DR/DFC (Balanço Dez = anual 2025 por construção) ────
     reconciliacao = build_reconciliacao_mensal_anual(
-        a, base, df_bs, df_dr, df_dfc, sched, stmt=stmt
+        a, base, df_bs, df_dr, df_dfc, sched, stmt=stmt_m6
     )
 
     return {
-        "dr_mensal": df_dr,
-        "balanco_mensal": df_bs,
-        "dfc_mensal": df_dfc,
-        "nfm_mensal": df_nfm,
+        "dr_mensal":           df_dr,
+        "balanco_mensal":      df_bs,
+        "dfc_mensal":          df_dfc,
+        "nfm_mensal":          df_nfm,
         "tesouraria_completa": df_tc,
         "reconciliacao_anual": reconciliacao,
+        "stmt_m6":             stmt_m6,
     }

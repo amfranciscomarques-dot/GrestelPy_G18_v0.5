@@ -233,7 +233,7 @@ const GRESTEL = (() => {
     return { year, ...bal, ativo_total: ativos(bal), passivo_total: passivos(bal), capital_total: capitais(bal) };
   }
 
-  // DFC método indireto (fallback; via API é usado adaptDFC com dados do engine)
+  // DFC simplificado
   function projectDFC(dr, balancos, opts = {}) {
     const hubOn = !!opts.hubOn;
     const rows = [];
@@ -241,64 +241,42 @@ const GRESTEL = (() => {
       const y = YEARS[i];
       const r = dr[i];
       if (i === 0) {
-        // 2024 histórico — valores derivados do engine (método indireto)
+        // Histórico 2024 directo
         rows.push({
           year: y,
-          rl: 1390208.75,
-          dep_amort: 2168714.67,
-          imparidades: 1904.88,
-          juros_pagos: 528161.02,
-          rend_fin: -64677.79,
-          var_nfm: -5562351.13,
-          irc_pago: -127272.29,
+          recebimentos: 39676113.70,
+          pag_fornecedores: -25706012.11,
+          pag_pessoal: -13696972.32,
           fluxo_operacional: -1665311.89,
-          pag_aft: -1224709.40,
-          pag_intang: 0,
-          div_recebidos: 656742.53,
+          capex_aft: -1224709.40,
+          dividendos_recebidos: 656742.53,
           fluxo_investimento: -344818.37,
           rec_emprestimos: 17636212.43,
           pag_emprestimos: -14829115.28,
-          juros_pagos_fin: -528161.02,
-          pag_dividendos: 0,
           fluxo_financiamento: 2000679.68,
           variacao_caixa: -9450.58,
         });
         continue;
       }
-      // Ajustamentos não-caixa (dep e juros estão negativos em adaptDR)
-      const dep_amort = -r.dep;
-      const juros_pagos = -r.juros;
-      const imparidades = 0;
-      const rend_fin = 0;
-      const irc_pago = r.irc;  // negativo em adaptDR
-      // Variação do fundo de maneio estimada via balanços
-      const b = balancos[i], bPrev = balancos[i - 1];
-      const var_nfm = bPrev
-        ? (bPrev.Inventarios - b.Inventarios) + (bPrev.Clientes - b.Clientes) + (b.Fornecedores - bPrev.Fornecedores)
-        : 0;
-      const fluxo_operacional = r.rl + dep_amort + juros_pagos + var_nfm + irc_pago;
-      // Investimento
-      let pag_aft = -r.vn * 0.015;
-      if (hubOn && y === 2025) pag_aft -= 3300000;
-      if (hubOn && y === 2026) pag_aft -= 2200000;
-      const pag_intang = 0;
-      const div_recebidos = 250000;
-      const fluxo_investimento = pag_aft + pag_intang + div_recebidos;
-      // Financiamento
-      let rec_emprestimos = 0, pag_emprestimos = -1000000;
-      if (hubOn && y === 2025) rec_emprestimos += 4125000;
-      if (hubOn && y === 2027) rec_emprestimos += 2200000;
-      if (hubOn && y >= 2028) pag_emprestimos -= 412500;
-      const juros_pagos_fin = r.juros;  // negativo
-      const pag_dividendos = 0;
-      const fluxo_financiamento = rec_emprestimos + pag_emprestimos + juros_pagos_fin + pag_dividendos;
+      const recebimentos = r.vn * 1.04;
+      const pag_fornecedores = -(r.cmvmc + r.fse) * 1.02;
+      const pag_pessoal = -r.pessoal;
+      const fluxo_operacional = recebimentos + pag_fornecedores + pag_pessoal - r.irc + r.outros_rend - r.outros_gastos;
+      let capex = -r.vn * 0.015;
+      if (hubOn && y === 2025) capex += -3300000;
+      if (hubOn && y === 2026) capex += -2200000;
+      const dividendos_recebidos = 250000;
+      const fluxo_investimento = capex + dividendos_recebidos;
+      let rec = 0, pag = -1000000;
+      if (hubOn && y === 2025) rec += 4125000;
+      if (hubOn && y === 2027) rec += 2200000; // PT2030
+      if (hubOn && y >= 2028) pag -= 412500;
+      const fluxo_financiamento = rec + pag - r.juros;
       const variacao_caixa = fluxo_operacional + fluxo_investimento + fluxo_financiamento;
       rows.push({
-        year: y,
-        rl: r.rl, dep_amort, imparidades, juros_pagos, rend_fin, var_nfm, irc_pago,
-        fluxo_operacional,
-        pag_aft, pag_intang, div_recebidos, fluxo_investimento,
-        rec_emprestimos, pag_emprestimos, juros_pagos_fin, pag_dividendos, fluxo_financiamento,
+        year: y, recebimentos, pag_fornecedores, pag_pessoal, fluxo_operacional,
+        capex_aft: capex, dividendos_recebidos, fluxo_investimento,
+        rec_emprestimos: rec, pag_emprestimos: pag, fluxo_financiamento,
         variacao_caixa,
       });
     }
@@ -316,7 +294,6 @@ const GRESTEL = (() => {
         roa: r.rl / b.ativo_total,
         roe: r.rl / b.capital_total,
         autonomia_financeira: b.capital_total / b.ativo_total,
-        solvabilidade: b.passivo_total > 0 ? b.capital_total / b.passivo_total : 0,
         liquidez_geral: (b.Inventarios + b.Clientes + b.Outros_AC + b.Caixa) / (b.Emprestimos_C + b.Fornecedores + b.Outros_PC),
         endividamento: (b.Emprestimos_NC + b.Emprestimos_C) / b.ativo_total,
         cobertura_juros: r.ebit / Math.max(r.juros, 1),
@@ -324,50 +301,6 @@ const GRESTEL = (() => {
         pmp_dias: 63,
       };
     });
-  }
-
-  // Pessoal detalhe 2024 (base.yaml + globais.yaml)
-  const PESSOAL_CONTAB_2024 = {
-    Remuneracoes:    11400000.00,
-    Encargos_TSU:     2707500.00,
-    Seguros_AT:        150480.00,
-    Outros_Encargos:   113377.70,
-  };
-  const PESSOAL_DEPART_PESOS = {
-    Producao:   0.65,
-    RD:         0.05,
-    Comercial:  0.10,
-    Financeira: 0.12,
-    Marketing:  0.08,
-  };
-
-  function projectPessoalContab(scenarioKey, opts = {}) {
-    const dr = projectDR(scenarioKey, opts);
-    const total2024 = DR_2024.gastos_pessoal;
-    const remun2024 = PESSOAL_CONTAB_2024.Remuneracoes;
-    const tsu = 0.2375;
-    const sat = 0.0132;
-    const series = { Remuneracoes: [], Encargos_TSU: [], Seguros_AT: [], Outros_Encargos: [] };
-    for (let i = 0; i < YEARS.length; i++) {
-      const total = dr[i].pessoal;
-      const remun = remun2024 * (total / total2024);
-      const tsu_v = remun * tsu;
-      const sat_v = remun * sat;
-      series.Remuneracoes.push(remun);
-      series.Encargos_TSU.push(tsu_v);
-      series.Seguros_AT.push(sat_v);
-      series.Outros_Encargos.push(total - remun - tsu_v - sat_v);
-    }
-    return series;
-  }
-
-  function projectPessoalDepart(scenarioKey, opts = {}) {
-    const dr = projectDR(scenarioKey, opts);
-    const series = {};
-    for (const [k, p] of Object.entries(PESSOAL_DEPART_PESOS)) {
-      series[k] = dr.map(r => r.pessoal * p);
-    }
-    return series;
   }
 
   // FSE detalhe 2024 (base.yaml)
@@ -395,17 +328,11 @@ const GRESTEL = (() => {
   }
 
   // Hub Logístico — viabilidade
-  function hubViability(wacc = 0.08) {
-    // Fallback — espelha m6_hub_assumptions.yaml (CAPEX fase 1 otimizado: 3 800 k€)
-    const irc_taxa = 0.215;
-    const capex = [0, 2280000, 1520000, 0, 0, 0, 0, 0, 0, 0, 0]; // 2025-2034 (idx0 = 2024)
-    // Depreciação por pool de ativo (DR 25/2009) — idx0=2024
-    // construção 2130k×4%=85200 + integração 150k/3=50000 + VLM 870k/8=108750
-    // + AMR 375k/5=75000 + WMS 275k/4=68750; pools expiram progressivamente
-    const dep = [0, 0, 387700, 387700, 387700, 337700, 268950, 193950, 193950, 193950, 85200];
-    // PT2030: 1710k reconhecido proporcionalmente à dep anual / CAPEX total (3800k)
-    const pt2030 = [0, 0, 174465, 174465, 174465, 151965, 121028, 87278, 87278, 87278, 38340];
-    const beneficio_anual_base = 310000;
+  function hubViability(irc_taxa = 0.21) {
+    // Reconstrução das contas do m6_hub_assumptions.yaml
+    const wacc = 0.08;
+    const capex = [0, 3300000, 2200000, 0, 0, 0, 0, 0, 0, 0, 0]; // 2025-2034 (idx0 = 2024)
+    const beneficio_anual_base = 255000;
     const fcf_livre = [];
     let cumulative = 0;
     const cumulative_arr = [];
@@ -415,24 +342,20 @@ const GRESTEL = (() => {
       fcf -= capex[i];
       if (year >= 2026) {
         const yIdx = year - 2026;
-        const dep_y = dep[i];
-        const pt2030_y = pt2030[i];
-        const ben_y = beneficio_anual_base * Math.pow(1.04, yIdx);
-        const ebitda = ben_y + pt2030_y;
-        const ebit = ebitda - dep_y;
-        const nopat = ebit > 0 ? ebit * (1 - irc_taxa) : ebit;
-        fcf += nopat + dep_y;
+        const beneficio = beneficio_anual_base * Math.pow(1.02, yIdx) * (1 - irc_taxa);
+        fcf += beneficio + 550000 * irc_taxa; // tax shield via depreciação
       }
-      if (year === 2026) fcf += 2000000; // libertação de inventário (WMS centralizado)
+      if (year === 2026) fcf += 1500000; // libertação de inventário
+      if (year === 2027) fcf += 2200000; // PT2030
       fcf_livre.push(fcf);
       cumulative += fcf;
       cumulative_arr.push(cumulative);
     }
-    // VAL com valor terminal aprox.
-    const vt = 500000;
-    const vpl = fcf_livre.reduce((a, v, i) => a + v / Math.pow(1 + wacc, i), 0) + vt;
+    // VAL
+    const vpl = fcf_livre.reduce((a, v, i) => a + v / Math.pow(1 + wacc, i), 0) + 600000; // valor terminal aprox
+    // TIR aproximada via busca binária
     function npv(rate) {
-      return fcf_livre.reduce((a, v, i) => a + v / Math.pow(1 + rate, i), 0) + vt;
+      return fcf_livre.reduce((a, v, i) => a + v / Math.pow(1 + rate, i), 0) + 600000;
     }
     let lo = -0.5, hi = 1.0;
     for (let k = 0; k < 80; k++) {
@@ -440,20 +363,21 @@ const GRESTEL = (() => {
       if (npv(mid) > 0) lo = mid; else hi = mid;
     }
     const tir = (lo + hi) / 2;
+    // Payback (simples e atualizado)
     let pay_s = null, pay_a = null;
     let acum_s = 0, acum_a = 0;
     for (let i = 0; i < fcf_livre.length; i++) {
       acum_s += fcf_livre[i];
       acum_a += fcf_livre[i] / Math.pow(1 + wacc, i);
-      if (pay_s === null && acum_s > 0) pay_s = i;
-      if (pay_a === null && acum_a > 0) pay_a = i;
+      if (pay_s === null && acum_s > 0) pay_s = 2024 + i;
+      if (pay_a === null && acum_a > 0) pay_a = 2024 + i;
     }
     return {
       vpl, tir, payback_simples: pay_s, payback_atualizado: pay_a,
-      valor_terminal: vt,
+      valor_terminal: 600000,
       fcf: fcf_livre, fcf_cumulativo: cumulative_arr,
       anos: YEARS.concat([2030, 2031, 2032, 2033, 2034]),
-      parametros: { wacc, capex_total: 3800000, beneficio_liquido_anual: 310000 },
+      parametros: { wacc, capex_total: 5500000, beneficio_liquido_anual: 255000 },
     };
   }
 
@@ -513,6 +437,105 @@ const GRESTEL = (() => {
     Private_Label: 0.25, Hotelaria: 0.31, Retalho: 0.26, E_Commerce: 0.18,
   };
 
+  // ---------------------------------------------------------------------------
+  // Análise de Vendas — split Produtos / Mercadorias, mix 2025 e PVU 2025
+  // ---------------------------------------------------------------------------
+  // 2024 real: produtos ≈ 87,2% das vendas, mercadorias ≈ 12,8% (R&C 2024)
+  const VN_SPLIT_2024 = { produtos: 0.872, mercadorias: 0.128 };
+
+  // Histórico anual 2020-2024 (real, R&C anteriores)
+  const VN_HIST = {
+    2020: { produtos: 28140000, mercadorias: 3260000 },
+    2021: { produtos: 30910000, mercadorias: 3940000 },
+    2022: { produtos: 32540000, mercadorias: 4380000 },
+    2023: { produtos: 33980000, mercadorias: 4720000 },
+    2024: { produtos: 37884115.64 * 0.872, mercadorias: 37884115.64 * 0.128 },
+  };
+  const HIST_YEARS = [2020, 2021, 2022, 2023, 2024];
+
+  // Sazonalidade mensal 2025 — peso de cada mês no ano (somar ≈ 1)
+  const SAZ_MENSAL_2025 = {
+    produtos:    [0.082, 0.085, 0.090, 0.088, 0.090, 0.088, 0.072, 0.060, 0.085, 0.094, 0.092, 0.074],
+    mercadorias: [0.072, 0.078, 0.082, 0.085, 0.090, 0.095, 0.085, 0.065, 0.082, 0.092, 0.094, 0.080],
+  };
+
+  // Famílias de produtos 2025 (peso no VN de produtos)
+  const FAMILIAS_PRODUTO_2025 = [
+    { fam: "Pratos & Travessas",      peso: 0.34, unidades: 4120000, pvu_2024: 2.78 },
+    { fam: "Tigelas & Bowls",         peso: 0.22, unidades: 2980000, pvu_2024: 2.42 },
+    { fam: "Canecas",                 peso: 0.18, unidades: 3840000, pvu_2024: 1.55 },
+    { fam: "Conjuntos & Aparelhos",   peso: 0.11, unidades:  210000, pvu_2024: 17.30 },
+    { fam: "Peças decorativas",       peso: 0.09, unidades:  520000, pvu_2024: 5.70 },
+    { fam: "Edição limitada · chefs", peso: 0.06, unidades:   96000, pvu_2024: 20.40 },
+  ];
+
+  // Mercadorias 2025 (peso no VN de mercadorias)
+  const MERCADORIAS_2025 = [
+    { item: "Embalagens primárias",      peso: 0.32, unidades: 1900000, pvu_2024: 0.82 },
+    { item: "Acessórios servir (metal)", peso: 0.24, unidades:  420000, pvu_2024: 2.78 },
+    { item: "Tabuleiros de madeira",     peso: 0.18, unidades:   98000, pvu_2024: 9.20 },
+    { item: "Têxteis (panos, aventais)", peso: 0.14, unidades:  180000, pvu_2024: 3.85 },
+    { item: "Velas & aromas",            peso: 0.08, unidades:   62000, pvu_2024: 6.40 },
+    { item: "Outros importados",         peso: 0.04, unidades:   44000, pvu_2024: 4.50 },
+  ];
+
+  // Mix 2025 por mercado (UE e USA reforçam vs 2024)
+  const MERCADOS_2025 = {
+    PT:  { peso: 0.16, label: "Portugal" },
+    UE:  { peso: 0.31, label: "União Europeia" },
+    USA: { peso: 0.36, label: "Estados Unidos" },
+    ROW: { peso: 0.17, label: "Resto do Mundo" },
+  };
+  const CANAIS_2025 = {
+    Private_Label: 0.24, Hotelaria: 0.33, Retalho: 0.25, E_Commerce: 0.18,
+  };
+
+  function projectVendasAnalise(dr) {
+    const split = VN_SPLIT_2024;
+    const annual = dr.map(r => ({
+      year: r.year,
+      vn: r.vn,
+      produtos:    r.vn * split.produtos,
+      mercadorias: r.vn * split.mercadorias,
+    }));
+    // Histórico 2020-2023 + projeção 2024-2029
+    const full = HIST_YEARS.slice(0, -1).map(y => ({
+      year: y,
+      vn: VN_HIST[y].produtos + VN_HIST[y].mercadorias,
+      produtos: VN_HIST[y].produtos,
+      mercadorias: VN_HIST[y].mercadorias,
+      hist: true,
+    })).concat(annual.map(a => ({ ...a, hist: a.year === 2024 })));
+
+    const r25 = dr.find(r => r.year === 2025);
+    const prod_25 = r25.vn * split.produtos;
+    const merc_25 = r25.vn * split.mercadorias;
+    const meses = MESES.map((m, i) => ({
+      mes: m,
+      produtos:    prod_25 * SAZ_MENSAL_2025.produtos[i],
+      mercadorias: merc_25 * SAZ_MENSAL_2025.mercadorias[i],
+      total:       prod_25 * SAZ_MENSAL_2025.produtos[i] + merc_25 * SAZ_MENSAL_2025.mercadorias[i],
+    }));
+
+    const familiasProd = FAMILIAS_PRODUTO_2025.map(f => {
+      const receita = prod_25 * f.peso;
+      const pvu_25 = receita / f.unidades;
+      return { ...f, receita, pvu_25, delta_pvu: (pvu_25 - f.pvu_2024) / f.pvu_2024 };
+    });
+    const mercadorias = MERCADORIAS_2025.map(m => {
+      const receita = merc_25 * m.peso;
+      const pvu_25 = receita / m.unidades;
+      return { ...m, receita, pvu_25, delta_pvu: (pvu_25 - m.pvu_2024) / m.pvu_2024 };
+    });
+
+    return {
+      full, annual, meses,
+      familiasProd, mercadorias,
+      mercados_2025: MERCADOS_2025, canais_2025: CANAIS_2025,
+      totais_2025: { produtos: prod_25, mercadorias: merc_25, total: r25.vn },
+    };
+  }
+
   // Pressupostos exibidos
   const ASSUMPTIONS = {
     IRC_taxa_geral: 0.20, Derrama_Municipal: 0.015, Derrama_Estadual: 0.0135,
@@ -527,11 +550,11 @@ const GRESTEL = (() => {
 
   return {
     YEARS, SCENARIOS, MESES, MERCADOS, CANAIS, ASSUMPTIONS,
-    DR_2024, FSE_2024, BAL_2024, PESSOAL_CONTAB_2024, PESSOAL_DEPART_PESOS,
+    DR_2024, FSE_2024, BAL_2024,
     projectDR, projectBalanco, projectDFC, projectKPIs,
     projectFSE, projectEcogres,
-    projectPessoalContab, projectPessoalDepart,
     hubViability, hubTornado,
     rollingForecast,
+    projectVendasAnalise,
   };
 })();

@@ -17,6 +17,8 @@ def get_rolling_forecast(scenario: str = Query("Base")):
     a, base, sched = load(cenario=scenario)
     rf = build_rolling_forecast(a, base, sched)
 
+    stmt_m6 = rf.get("stmt_m6", {})
+
     return {
         "dr_mensal": _df_to_records(rf.get("dr_mensal")),
         "balanco_mensal": _df_to_records(rf.get("balanco_mensal")),
@@ -24,6 +26,12 @@ def get_rolling_forecast(scenario: str = Query("Base")):
         "nfm_mensal": _df_to_records(rf.get("nfm_mensal")),
         "tesouraria": _df_to_records(rf.get("tesouraria_completa")),
         "reconciliacao_anual": rf.get("reconciliacao_anual", {}),
+        # Demonstrações anuais M6 — Opção B: Balanço 2025 ancorado no fecho mensal Dez
+        "stmt_m6": {
+            "dr": _df_to_records(stmt_m6.get("dr")),
+            "balanco": _df_to_records(stmt_m6.get("balanco")),
+            "dfc": _df_to_records(stmt_m6.get("dfc")),
+        },
     }
 
 
