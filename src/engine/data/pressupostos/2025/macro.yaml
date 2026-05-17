@@ -1,23 +1,24 @@
 # Pressupostos macroeconómicos 2025 — inflação e câmbio EUR/USD
 # Granularidade mensal (12 valores); a taxa anual é calculada pelo motor como média.
+# Inflação 2025: 2,3% a.a. — Banco de Portugal (março 2025), alinhado com M3.
 
 macro:
   inflacao:
     anual:
-      2025: 0.022
+      2025: 0.023
     mensal_2025:
-    - 0.0018
-    - 0.0018
-    - 0.0018
-    - 0.0018
-    - 0.0018
-    - 0.0018
-    - 0.0018
-    - 0.0018
-    - 0.0018
-    - 0.0018
-    - 0.0018
-    - 0.0018
+    - 0.00190
+    - 0.00190
+    - 0.00190
+    - 0.00190
+    - 0.00190
+    - 0.00190
+    - 0.00190
+    - 0.00190
+    - 0.00190
+    - 0.00190
+    - 0.00190
+    - 0.00190
   eur_usd:
     anual:
       2025: 1.08

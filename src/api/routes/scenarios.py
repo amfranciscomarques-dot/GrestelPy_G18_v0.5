@@ -37,6 +37,10 @@ def get_scenarios_all(
             "pessoal_contab_anual": _wrap_rows(rec.get("pessoal_contab_anual", [])),
             "pessoal_depart_anual": _wrap_rows(rec.get("pessoal_depart_anual", [])),
             "producao_anual": _wrap_rows(rec.get("producao_anual", [])),
+            "eoep_mensal_2025": _wrap_rows(rec.get("eoep_mensal_2025", [])),
+            "vendas_mensal_2025": _wrap_rows(rec.get("vendas_mensal_2025", [])),
+            "dr_mensal_2025": _wrap_rows(rec.get("dr_mensal_2025", [])),
+            "tesouraria_mensal_2025": _wrap_rows(rec.get("tesouraria_mensal_2025", [])),
         }
 
     return result

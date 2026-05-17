@@ -352,7 +352,7 @@ class Assumptions:
             return prod(1.0 + r for r in vals) - 1.0 if vals else 0.022
 
         return float(
-            self.macro.get("inflacao", {}).get("anual", {}).get(ano, 0.022)
+            self.macro.get("inflacao", {}).get("anual", {}).get(ano, 0.023)
         )
 
     def _nominal(self, real: float, ano: int) -> float:

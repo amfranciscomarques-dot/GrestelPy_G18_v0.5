@@ -78,6 +78,29 @@ from ..operacional import inventarios
 from ..operacional import fornecedores
 
 
+def _hub_inv_liberation(a: Assumptions) -> dict[int, float]:
+    """Redução acumulada de inventário pelo Hub por ano (só quando hub ativo).
+
+    A libertação de inventário do hub (ex: €1,5M em 2026) é um stock correction
+    permanente: o saldo de inventários diminui a partir do ano de libertação.
+    Retorna {ano: redução_acumulada} para todos os anos.
+    """
+    try:
+        raw_hub = a.raw.get("hub_logistico", {})
+        if not raw_hub.get("incluir_hub", False):
+            return {}
+        from ..projetos import hub_logistico as hub_mod
+        dr_imp = hub_mod.hub_dr_impact(raw_hub)
+        cumulative = 0.0
+        result: dict[int, float] = {}
+        for y in ALL_YEARS:
+            cumulative += dr_imp.get(y, {}).get("inventario_libertado", 0.0)
+            result[y] = cumulative
+        return result
+    except Exception:
+        return {}
+
+
 def _get_eoep_credor_2024(base: Base2024) -> float:
     """Obtém EOEP credor 2024 a partir dos dados base, com fallback seguro.
 
@@ -214,6 +237,7 @@ def build_balanco(
             outros_pc_yr[y] = outros_pc_yr[y - 1] * (1 + g_74)
 
     rows = []
+    hub_inv_lib = _hub_inv_liberation(a)
 
     caixa_min = a.caixa["minima"]
     caixa_max = a.caixa["maxima"]
@@ -236,6 +260,7 @@ def build_balanco(
         total_anc = aft + outros_anc + impostos_dif_a
 
         inv_st = float(df_inv_st[df_inv_st.ano == y]["inventarios"].iloc[0])
+        inv_st = max(0.0, inv_st - hub_inv_lib.get(y, 0.0))
         cli = float(df_cli[df_cli.ano == y]["saldo_clientes"].iloc[0])
         eoep_d = float(df_eoep[df_eoep.ano == y]["eoep_devedor"].iloc[0])
         out_ac = out_ac_yr[y]

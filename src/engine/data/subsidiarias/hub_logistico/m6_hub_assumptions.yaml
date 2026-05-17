@@ -85,6 +85,29 @@ projeto_hub:
     ano: 2026
 
   # ---------------------------------------------------------------------------
+  # BENEFÍCIOS COMERCIAIS — Acréscimo de VN por canais diretos habilitados pelo Hub
+  # ---------------------------------------------------------------------------
+  # Fonte: relatório estratégico Grestel → +€0,4M–€0,8M/ano a partir de 2026.
+  # Mecanismos:
+  #   • Fulfillment 24-48h (vs. 3-5 dias atual) → habilita B2C e hotelaria premium
+  #   • +150% SKUs geridos sem aumento de equipa → expansão de coleções
+  #   • Mix-shift B2C elimina intermediários → +18pp margem canal direto
+  # Nota: aplicado automaticamente em build_dr() quando hub_on=true.
+  #       NÃO repetir em custom_scenarios.yaml (evitar dupla contagem).
+  # cmvmc_pct_incremental: rácio de custo para vendas B2C adicionais (~55% VN,
+  #   mesma estrutura de produto; a margem extra vem de PVU mais alto, não de
+  #   custo mais baixo — consistente com benchmark B2C cerâmica premium).
+  # ---------------------------------------------------------------------------
+  beneficios_comerciais:
+    ano_inicio: 2026
+    vn_incremental:
+      2026: 400000    # H2 2026 — arranque faseado; baixo do range €0,4M–€0,8M
+      2027: 700000    # pleno: B2C consolidado + hotelaria premium + SKUs +150%
+      2028: 800000    # + receita fase 2 serviços logísticos terceiros (~€200k)
+      2029: 700000    # estabilização (efeito base maior, crescimento incremental cede)
+    cmvmc_pct_incremental: 0.55  # custo direto ~55% VN → margem bruta incremental ~45%
+
+  # ---------------------------------------------------------------------------
   # NECESSIDADES DE FUNDO DE MANEIO (NFM) — Ciclo de Exploração do Hub
   # ---------------------------------------------------------------------------
   # Fundamento académico: NFM = Stock Operacional + Crédito a Clientes

@@ -10,6 +10,9 @@ from src.engine.projetos.hub_logistico import (
     hub_capex,
     hub_nfm,
 )
+from src.engine.projetos.ecogres import ecogres_dr, load as eco_load
+from src.engine.modelo.model import dataframe_to_records, run_model
+from src.api.serializers import _wrap_rows
 
 router = APIRouter(prefix="/api")
 
@@ -38,12 +41,19 @@ def get_hub_tornado(irc_taxa: float = Query(0.245)):
     rows = [
         {
             "variavel": r["label"],
-            "low": round((r["vpl_low"] - r["vpl_base"]) / 1e6, 2),
-            "high": round((r["vpl_high"] - r["vpl_base"]) / 1e6, 2),
+            "driver": r["driver"],
+            "desc_low": r.get("desc_low", ""),
+            "desc_high": r.get("desc_high", ""),
+            "low": round((r["vpl_low"] - r["vpl_base"]) / 1e6, 3),
+            "high": round((r["vpl_high"] - r["vpl_base"]) / 1e6, 3),
+            "vpl_base": round(r["vpl_base"] / 1e6, 3),
+            "vpl_low_abs": round(r["vpl_low"] / 1e6, 3),
+            "vpl_high_abs": round(r["vpl_high"] / 1e6, 3),
+            "impacto_total": round(r["impacto_total"] / 1e6, 3),
         }
         for r in df.to_dict(orient="records")
     ]
-    return {"rows": rows}
+    return {"rows": rows, "vpl_base": round(df["vpl_base"].iloc[0] / 1e6, 3) if len(df) else 0}
 
 
 @router.get("/hub/debt-service")
@@ -89,4 +99,113 @@ def get_hub_investment_map():
         "nfm": nfm_rows,
         "pt2030_montante": float(pt["montante"]),
         "pt2030_ano": int(pt["ano_recebimento"]),
+    }
+
+
+@router.get("/hub/comparativo")
+def get_hub_comparativo(
+    cenario: str = Query("Base"),
+    ecogres_on: bool = Query(True),
+):
+    """DR/Balanço/DFC e KPIs comparativos: Grestel sem-Hub vs. com-Hub."""
+    dfs_sem = run_model(cenario=cenario, hub_on=False, ecogres_on=ecogres_on)
+    dfs_com = run_model(cenario=cenario, hub_on=True, ecogres_on=ecogres_on)
+    rec_sem = dataframe_to_records(dfs_sem)
+    rec_com = dataframe_to_records(dfs_com)
+    return {
+        "cenario": cenario,
+        "sem_hub": {
+            "dr":     _wrap_rows(rec_sem.get("dr")),
+            "balanco": _wrap_rows(rec_sem.get("balanco")),
+            "dfc":    _wrap_rows(rec_sem.get("dfc")),
+            "kpis":   _wrap_rows(rec_sem.get("kpis")),
+        },
+        "com_hub": {
+            "dr":     _wrap_rows(rec_com.get("dr")),
+            "balanco": _wrap_rows(rec_com.get("balanco")),
+            "dfc":    _wrap_rows(rec_com.get("dfc")),
+            "kpis":   _wrap_rows(rec_com.get("kpis")),
+        },
+    }
+
+
+@router.get("/hub/consolidado")
+def get_hub_consolidado(
+    cenario: str = Query("Base"),
+    irc_taxa: float = Query(None),
+    wacc: float = Query(None),
+):
+    """VAL, TIR, Payback consolidados — Hub Logístico + Ecogres + Grestel grupo."""
+    hub = hub_load()
+    hub_res = viabilidade_hub(hub, irc_taxa=irc_taxa, wacc=wacc)
+
+    # Ecogres — P&L projetado (com hub ativo para capturar transferência interna)
+    eco = eco_load()
+    df_eco = ecogres_dr(eco, hub_ativo=True)
+    eco_records = df_eco.to_dict(orient="records")
+    eco_anos = [int(r["ano"]) for r in eco_records]
+    eco_rl = [float(r["rl"]) for r in eco_records]
+    eco_ebitda = [float(r["ebitda"]) for r in eco_records]
+    eco_receita = [float(r["receita_total"]) for r in eco_records]
+    # Excluir 2024 (histórico) para somas prospetivas
+    eco_rl_proj = sum(eco_rl[1:])
+    eco_ebitda_2029 = eco_ebitda[-1] if eco_ebitda else 0.0
+
+    # Grestel grupo — DR sem e com hub para calcular impacto incremental
+    dfs_sem = run_model(cenario=cenario, hub_on=False, ecogres_on=True)
+    dfs_com = run_model(cenario=cenario, hub_on=True, ecogres_on=True)
+    rec_sem = dataframe_to_records(dfs_sem)
+    rec_com = dataframe_to_records(dfs_com)
+
+    dr_sem = rec_sem.get("dr", [])
+    dr_com = rec_com.get("dr", [])
+    kpis_sem = rec_sem.get("kpis", [])
+    kpis_com = rec_com.get("kpis", [])
+
+    # Impacto incremental hub no grupo (delta EBITDA e RL)
+    def _pick(rows, field, default=0.0):
+        return [float(r.get(field, default)) for r in rows]
+
+    ebitda_sem = _pick(dr_sem, "ebitda")
+    ebitda_com = _pick(dr_com, "ebitda")
+    rl_sem     = _pick(dr_sem, "rl")
+    rl_com     = _pick(dr_com, "rl")
+    anos_dr    = [int(r.get("ano", 0)) for r in dr_com]
+
+    delta_ebitda = [c - s for c, s in zip(ebitda_com, ebitda_sem)]
+    delta_rl     = [c - s for c, s in zip(rl_com, rl_sem)]
+
+    return {
+        "hub": {
+            "vpl": hub_res["vpl"],
+            "tir": hub_res["tir"],
+            "payback_simples": hub_res["payback_simples"],
+            "payback_atualizado": hub_res["payback_atualizado"],
+            "indice_rendibilidade": hub_res["indice_rendibilidade"],
+            "capex_base": hub_res["parametros"]["capex_base"],
+            "wacc": hub_res["parametros"]["wacc"],
+            "valor_terminal": hub_res["valor_terminal"],
+            "pt2030_montante": hub_res["parametros"]["pt2030_montante"],
+        },
+        "ecogres": {
+            "anos": eco_anos,
+            "rl_anual": eco_rl,
+            "ebitda_anual": eco_ebitda,
+            "receita_anual": eco_receita,
+            "rl_acumulado_projetado": eco_rl_proj,
+            "ebitda_2029": eco_ebitda_2029,
+        },
+        "grupo": {
+            "anos": anos_dr,
+            "ebitda_sem_hub": ebitda_sem,
+            "ebitda_com_hub": ebitda_com,
+            "rl_sem_hub": rl_sem,
+            "rl_com_hub": rl_com,
+            "delta_ebitda_hub": delta_ebitda,
+            "delta_rl_hub": delta_rl,
+            "dr_sem_hub": _wrap_rows(dr_sem),
+            "dr_com_hub": _wrap_rows(dr_com),
+            "kpis_sem_hub": _wrap_rows(kpis_sem),
+            "kpis_com_hub": _wrap_rows(kpis_com),
+        },
     }

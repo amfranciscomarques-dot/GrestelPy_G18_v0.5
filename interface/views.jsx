@@ -467,64 +467,373 @@ function RollingView({ ctx }) {
 
 // ---- Hub Logístico ---------------------------------------------------------
 function HubView({ ctx }) {
-  const [irc, setIrc] = useState(0.21);
-  const viab = useMemo(() => GRESTEL.hubViability(irc), [irc]);
-  const torn = useMemo(() => GRESTEL.hubTornado(), []);
+  const [viab, setViab] = React.useState(null);
+  const [torn, setTorn] = React.useState(null);
+  const [comp, setComp] = React.useState(null);
+  const [consol, setConsol] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState(null);
 
+  React.useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    Promise.all([
+      API.hubViability(),
+      API.hubTornado(),
+      API.hubComparativo({ cenario: ctx.scenario }),
+      API.hubConsolidado({ cenario: ctx.scenario }),
+    ])
+      .then(([v, t, c, s]) => {
+        if (cancelled) return;
+        setViab(v); setTorn(t); setComp(c); setConsol(s);
+        setLoading(false);
+      })
+      .catch(err => {
+        if (cancelled) return;
+        setError(err.message || String(err));
+        setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [ctx.scenario]);
+
+  if (loading && !viab) return <LoadingShell />;
+  if (error && !viab) return <ErrorBanner message={error} onRetry={() => setError(null)} />;
+  if (!viab) return null;
+
+  const wacc = viab.parametros?.wacc || 0.08;
   const fcfSeries = [
-    { labels: viab.anos.map(String), values: viab.fcf, color: "var(--ink)" },
-    { labels: viab.anos.map(String), values: viab.fcf_cumulativo, color: "var(--accent)", fill: true },
+    { labels: (viab.anos || []).map(String), values: viab.fcf || [], color: "var(--ink)" },
+    { labels: (viab.anos || []).map(String), values: viab.fcf_cumulativo || [], color: "var(--accent)", fill: true },
   ];
+
+  // Formatação do payback — aceita número ou string do backend
+  function fmtPayback(v) {
+    if (v == null) return "—";
+    if (typeof v === "string") return v;
+    return Number(v).toFixed(1) + " anos";
+  }
+
+  const p = viab.parametros || {};
 
   return (
     <>
+      {/* ── KPIs principais ─────────────────────────────────────────────── */}
       <div className="grid-4">
-        <KPI label="VAL @ 8%" value={fmt.eurC(viab.vpl)} tone={viab.vpl >= 0 ? "pos" : "neg"} sub="horizonte 10 anos + valor terminal" />
-        <KPI label="TIR" value={fmt.pct(viab.tir, 1)} tone={viab.tir >= 0.08 ? "pos" : "neg"} sub={"vs WACC " + fmt.pct(0.08, 0)} />
-        <KPI label="Payback simples" value={viab.payback_simples ? String(viab.payback_simples) : "—"} sub={"em anos · ref. 2024"} />
-        <KPI label="Payback actualizado" value={viab.payback_atualizado ? String(viab.payback_atualizado) : "—"} sub={"descontado a 8%"} />
+        <KPI label={"VAL @ " + fmt.pct(wacc, 0)} value={fmt.eurC(viab.vpl)} tone={viab.vpl >= 0 ? "pos" : "neg"} sub={"horizonte 10 anos + valor terminal " + fmt.eurC(viab.valor_terminal || 0)} />
+        <KPI label="TIR" value={viab.tir != null ? fmt.pct(viab.tir, 1) : "—"} tone={viab.tir != null && viab.tir >= wacc ? "pos" : "neg"} sub={"vs WACC " + fmt.pct(wacc, 0)} />
+        <KPI label="Payback simples" value={fmtPayback(viab.payback_simples)} sub="anos a partir de 2024" />
+        <KPI label="Payback actualizado" value={fmtPayback(viab.payback_atualizado)} sub={"descontado a " + fmt.pct(wacc, 0)} />
       </div>
 
+      {/* ── FCF ─────────────────────────────────────────────────────────── */}
       <Panel
-        title="Fluxos de caixa livres · projeto Hub Logístico (M6)"
-        sub={"CAPEX € 5,5 M (2025-26) · benefício líquido base 255 k€/ano · IRC " + fmt.pct(irc)}
-        right={
-          <div className="seg seg--sm">
-            {[0.17, 0.20, 0.21, 0.225, 0.24].map(t => (
-              <button key={t} className={"seg-btn " + (Math.abs(irc - t) < 0.001 ? "is-on" : "")} onClick={() => setIrc(t)}>{fmt.pct(t, 1)}</button>
-            ))}
-          </div>
-        }
+        title="Fluxos de caixa livres · Hub Logístico 4.0 (M6)"
+        sub={"CAPEX " + fmt.eurC(p.capex_base || 3800000) + " · poupança operacional " + fmt.eurC(p.poupanca_operacional || 380000) + "/ano · WACC " + fmt.pct(wacc, 0)}
       >
-        <LineChart series={fcfSeries} height={300} />
+        <LineChart series={fcfSeries} height={280} />
         <div className="legend" style={{ marginTop: 8 }}>
-          <div className="legend-row"><span className="swatch" style={{ background: "var(--ink)" }} /><span>FCF anual</span></div>
+          <div className="legend-row"><span className="swatch" style={{ background: "var(--ink)" }} /><span>FCF anual (FCFF)</span></div>
           <div className="legend-row"><span className="swatch" style={{ background: "var(--accent)" }} /><span>FCF acumulado</span></div>
         </div>
       </Panel>
 
+      {/* ── Tornado + Parâmetros ──────────────────────────────────────────── */}
       <div className="grid-2">
-        <Panel title="Análise de sensibilidade · tornado" sub="impacto na VAL em milhões de euros">
-          <TornadoChart rows={torn} height={300} />
+        <Panel title="Análise de sensibilidade · Tornado" sub="impacto no VAL em M€ — 6 variáveis críticas (one-at-a-time)">
+          {torn && torn.length > 0
+            ? <TornadoChart rows={torn} height={320} />
+            : <div className="muted" style={{ padding: 24 }}>A carregar tornado…</div>
+          }
+          {torn && torn.length > 0 && (
+            <table className="ftable ftable--dense" style={{ marginTop: 12 }}>
+              <thead>
+                <tr>
+                  <th>Variável</th>
+                  <th className="mono num">Pessimista</th>
+                  <th className="mono num">Otimista</th>
+                  <th className="mono num">Swing VAL</th>
+                </tr>
+              </thead>
+              <tbody>
+                {torn.map((row, i) => {
+                  const swing = typeof row.impacto_total === "number"
+                    ? row.impacto_total
+                    : Math.abs((row.high || 0) - (row.low || 0));
+                  return (
+                    <tr key={i}>
+                      <td style={{ fontSize: 11 }}>{row.variavel || row.label}</td>
+                      <td className="mono num neg" style={{ fontSize: 11 }}>{row.desc_low || fmt.num(row.low, 2) + " M€"}</td>
+                      <td className="mono num pos" style={{ fontSize: 11 }}>{row.desc_high || fmt.num(row.high, 2) + " M€"}</td>
+                      <td className="mono num" style={{ fontSize: 11, fontWeight: 600 }}>{fmt.num(swing, 2)} M€</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
         </Panel>
-        <Panel title="Parâmetros do projeto" sub="src/engine/data/subsidiarias/hub_logistico/m6_hub_assumptions.yaml">
+        <Panel title="Parâmetros do projeto" sub="m6_hub_assumptions.yaml">
           <dl className="kv">
-            <KV k="CAPEX base" v={fmt.eurC(5500000)} />
-            <KV k="Cronograma 2025" v={fmt.eurC(3300000)} />
-            <KV k="Cronograma 2026" v={fmt.eurC(2200000)} />
-            <KV k="Vida útil" v="10 anos · taxa depr. 10%" />
-            <KV k="WACC" v="8,0%" />
-            <KV k="Crescimento terminal" v="1,5%" />
-            <KV k="Poupança operacional" v={fmt.eurC(300000) + " / ano"} />
-            <KV k="Redução quebras" v={fmt.eurC(75000) + " / ano"} />
-            <KV k="OPEX incremental" v={"− " + fmt.eurC(120000) + " / ano"} />
-            <KV k="Crescimento benefícios" v="+2,0% / ano" />
-            <KV k="Libertação inventário 2026" v={fmt.eurC(1500000)} />
-            <KV k="Banco Hub" v={fmt.eurC(4125000) + " @ 4,15%"} />
-            <KV k="PT2030" v={fmt.eurC(2200000) + " · 2027"} />
-            <KV k="Início benefícios" v="2026" />
+            <KV k="CAPEX base" v={fmt.eurC(p.capex_base || 3800000)} />
+            <KV k="Cronograma 2025" v={fmt.eurC(p.capex_2025 || 2280000)} />
+            <KV k="Cronograma 2026" v={fmt.eurC(p.capex_2026 || 1520000)} />
+            <KV k="WACC" v={fmt.pct(wacc, 0)} />
+            <KV k="IRC taxa" v={fmt.pct(p.irc_taxa || 0.245, 1)} />
+            <KV k="Crescimento terminal" v={fmt.pct(p.crescimento_terminal || 0.02, 0)} />
+            <KV k="Horizonte" v={(p.horizonte_anos || 10) + " anos"} />
+            <KV k="Poupança operacional" v={fmt.eurC(p.poupanca_operacional || 380000) + " / ano"} />
+            <KV k="Redução quebras" v={fmt.eurC(p.reducao_quebras || 50000) + " / ano"} />
+            <KV k="OPEX incremental" v={"− " + fmt.eurC(p.opex_incremental || 120000) + " / ano"} />
+            <KV k="Benefício líquido base" v={fmt.eurC(p.beneficio_liquido_anual || 310000) + " / ano"} />
+            <KV k="Crescimento benefícios" v={"+" + fmt.pct(p.crescimento_anual || 0.04, 0) + " / ano"} />
+            <KV k="Libertação inventário 2026" v={fmt.eurC(p.libertacao_inventario || 2000000)} />
+            <KV k="Banco Hub" v={fmt.eurC(p.banco_montante || 2850000) + " @ " + fmt.pct(p.banco_taxa_juro || 0.0415, 2)} />
+            <KV k="PT2030" v={fmt.eurC(p.pt2030_montante || 1710000) + " · " + (p.pt2030_ano || 2027)} />
+            <KV k="RFAI crédito total" v={fmt.eurC(p.rfai_credito_total_gerado || 0)} />
+            <KV k="Índice rendibilidade" v={viab.indice_rendibilidade != null ? viab.indice_rendibilidade.toFixed(2) + "×" : "—"} />
           </dl>
         </Panel>
+      </div>
+
+      {/* ── DR/Balanço/DFC Comparativo sem vs com Hub ─────────────────────── */}
+      {comp && (
+        <Panel
+          title="DR comparativo · Sem Hub vs. Com Hub"
+          sub={"cenário " + (comp.cenario || ctx.scenario) + " · diferença = Com Hub − Sem Hub · em €"}
+        >
+          <HubComparativoDR sem={comp.sem_hub?.dr || []} com={comp.com_hub?.dr || []} />
+        </Panel>
+      )}
+
+      {comp && (
+        <Panel title="KPIs comparativos · Sem Hub vs. Com Hub" sub="rácios financeiros — impacto marginal do projeto">
+          <HubComparativoKPIs sem={comp.sem_hub?.kpis || []} com={comp.com_hub?.kpis || []} />
+        </Panel>
+      )}
+
+      {/* ── VAL/TIR/Payback Consolidados ─────────────────────────────────── */}
+      {consol && (
+        <Panel title="Consolidado · Hub + Ecogres + Grupo Grestel" sub="visão integrada do portfolio de investimentos">
+          <HubConsolidadoView consol={consol} />
+        </Panel>
+      )}
+    </>
+  );
+}
+
+// Sub-componente: tabela DR comparativa sem vs. com Hub
+function HubComparativoDR({ sem, com }) {
+  const years = GRESTEL.YEARS;
+  const semByYear = Object.fromEntries((sem || []).map(r => [r.year || r.ano, r]));
+  const comByYear = Object.fromEntries((com || []).map(r => [r.year || r.ano, r]));
+
+  const rows = [
+    { label: "Volume de Negócios", field: "vn", bold: false },
+    { label: "Outros Rendimentos", field: "outros_rend", bold: false },
+    { label: "CMVMC", field: "cmvmc", sign: -1 },
+    { label: "FSE", field: "fse", sign: -1 },
+    { label: "Gastos Pessoal", field: "pessoal", sign: -1 },
+    { label: "EBITDA", field: "ebitda", bold: true },
+    { label: "Depreciações", field: "dep", sign: -1 },
+    { label: "EBIT", field: "ebit", bold: true },
+    { label: "Resultado Líquido", field: "rl", bold: true },
+  ];
+
+  function val(byYear, y, field) {
+    const r = byYear[y];
+    return r != null ? (r[field] || 0) : null;
+  }
+
+  return (
+    <div style={{ overflowX: "auto" }}>
+      <table className="ftable ftable--dense">
+        <thead>
+          <tr>
+            <th style={{ minWidth: 180 }}>Rubrica</th>
+            {years.map(y => (
+              <React.Fragment key={y}>
+                <th className="mono num" colSpan={3} style={{ textAlign: "center", borderBottom: "1px solid var(--border)" }}>{y}</th>
+              </React.Fragment>
+            ))}
+          </tr>
+          <tr>
+            <th />
+            {years.map(y => (
+              <React.Fragment key={y}>
+                <th className="mono num" style={{ fontSize: 10, color: "var(--muted)" }}>Sem Hub</th>
+                <th className="mono num" style={{ fontSize: 10, color: "var(--accent)" }}>Com Hub</th>
+                <th className="mono num" style={{ fontSize: 10, color: "var(--pos)" }}>Δ</th>
+              </React.Fragment>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(({ label, field, bold }) => (
+            <tr key={field} className={bold ? "is-subtotal" : ""}>
+              <td style={{ fontWeight: bold ? 600 : undefined }}>{label}</td>
+              {years.map(y => {
+                const s = val(semByYear, y, field);
+                const c = val(comByYear, y, field);
+                const delta = (s != null && c != null) ? c - s : null;
+                return (
+                  <React.Fragment key={y}>
+                    <td className="mono num" style={{ fontSize: 11, color: "var(--muted)" }}>{s != null ? fmt.eur(s) : "—"}</td>
+                    <td className="mono num" style={{ fontSize: 11 }}>{c != null ? fmt.eur(c) : "—"}</td>
+                    <td className={"mono num " + (delta > 0 ? "pos" : delta < 0 ? "neg" : "")} style={{ fontSize: 11, fontWeight: 600 }}>
+                      {delta != null ? (delta >= 0 ? "+" : "") + fmt.eur(delta) : "—"}
+                    </td>
+                  </React.Fragment>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// Sub-componente: KPIs comparativos
+function HubComparativoKPIs({ sem, com }) {
+  const years = GRESTEL.YEARS;
+  const semByYear = Object.fromEntries((sem || []).map(r => [r.year || r.ano, r]));
+  const comByYear = Object.fromEntries((com || []).map(r => [r.year || r.ano, r]));
+
+  const rows = [
+    { label: "Margem EBITDA", field: "margem_ebitda", fmt: "pct" },
+    { label: "Margem EBIT", field: "margem_ebit", fmt: "pct" },
+    { label: "Margem Líquida", field: "margem_liquida", fmt: "pct" },
+    { label: "ROE", field: "roe", fmt: "pct" },
+    { label: "Autonomia Financeira", field: "autonomia_financeira", fmt: "pct" },
+    { label: "Cobertura de Juros", field: "cobertura_juros", fmt: "x" },
+  ];
+
+  function fmtKPI(v, type) {
+    if (v == null) return "—";
+    if (type === "pct") return fmt.pct(v, 1);
+    if (type === "x") return Number(v).toFixed(1) + "×";
+    return Number(v).toFixed(2);
+  }
+
+  return (
+    <table className="ftable ftable--dense">
+      <thead>
+        <tr>
+          <th style={{ minWidth: 180 }}>KPI</th>
+          {years.map(y => (
+            <React.Fragment key={y}>
+              <th className="mono num" colSpan={2} style={{ textAlign: "center" }}>{y}</th>
+            </React.Fragment>
+          ))}
+        </tr>
+        <tr>
+          <th />
+          {years.map(y => (
+            <React.Fragment key={y}>
+              <th className="mono num" style={{ fontSize: 10, color: "var(--muted)" }}>Sem Hub</th>
+              <th className="mono num" style={{ fontSize: 10, color: "var(--accent)" }}>Com Hub</th>
+            </React.Fragment>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map(({ label, field, fmt: ftype }) => (
+          <tr key={field}>
+            <td style={{ fontSize: 11 }}>{label}</td>
+            {years.map(y => {
+              const s = (semByYear[y] || {})[field];
+              const c = (comByYear[y] || {})[field];
+              const better = c != null && s != null && c > s;
+              return (
+                <React.Fragment key={y}>
+                  <td className="mono num" style={{ fontSize: 11, color: "var(--muted)" }}>{fmtKPI(s, ftype)}</td>
+                  <td className={"mono num " + (better ? "pos" : "")} style={{ fontSize: 11, fontWeight: better ? 600 : undefined }}>{fmtKPI(c, ftype)}</td>
+                </React.Fragment>
+              );
+            })}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+// Sub-componente: visão consolidada Hub + Ecogres + Grupo
+function HubConsolidadoView({ consol }) {
+  const hub = consol.hub || {};
+  const eco = consol.ecogres || {};
+  const grupo = consol.grupo || {};
+  const anos = grupo.anos || GRESTEL.YEARS.map(Number);
+
+  const deltaEbitda = grupo.delta_ebitda_hub || [];
+  const deltaRL     = grupo.delta_rl_hub     || [];
+
+  return (
+    <>
+      {/* Cards sumário */}
+      <div className="grid-3" style={{ marginBottom: 16 }}>
+        <div>
+          <div className="sub-label" style={{ marginBottom: 8, fontWeight: 600 }}>Hub Logístico 4.0</div>
+          <dl className="kv">
+            <KV k="VAL" v={fmt.eurC(hub.vpl)} />
+            <KV k="TIR" v={hub.tir != null ? fmt.pct(hub.tir, 1) : "—"} />
+            <KV k="Payback simples" v={hub.payback_simples != null ? Number(hub.payback_simples).toFixed(1) + " anos" : "—"} />
+            <KV k="Payback atualizado" v={hub.payback_atualizado != null ? Number(hub.payback_atualizado).toFixed(1) + " anos" : "—"} />
+            <KV k="CAPEX" v={fmt.eurC(hub.capex_base || 0)} />
+            <KV k="PT2030" v={fmt.eurC(hub.pt2030_montante || 0)} />
+            <KV k="WACC" v={fmt.pct(hub.wacc || 0.08, 0)} />
+            <KV k="Índice rendibilidade" v={hub.indice_rendibilidade != null ? hub.indice_rendibilidade.toFixed(2) + "×" : "—"} />
+          </dl>
+        </div>
+        <div>
+          <div className="sub-label" style={{ marginBottom: 8, fontWeight: 600 }}>Ecogres · Pasta & Grés</div>
+          <dl className="kv">
+            <KV k="RL acumulado 2025-29" v={fmt.eurC(eco.rl_acumulado_projetado || 0)} />
+            <KV k="EBITDA 2029" v={fmt.eurC(eco.ebitda_2029 || 0)} />
+          </dl>
+          {eco.anos && (
+            <table className="ftable ftable--dense" style={{ marginTop: 8 }}>
+              <thead>
+                <tr>
+                  <th>Ano</th>
+                  <th className="mono num">EBITDA</th>
+                  <th className="mono num">RL</th>
+                </tr>
+              </thead>
+              <tbody>
+                {eco.anos.slice(1).map((ano, i) => (
+                  <tr key={ano}>
+                    <td className="mono">{ano}</td>
+                    <td className="mono num">{fmt.eur(eco.ebitda_anual?.[i + 1] || 0)}</td>
+                    <td className={"mono num " + ((eco.rl_anual?.[i + 1] || 0) >= 0 ? "pos" : "neg")}>{fmt.eur(eco.rl_anual?.[i + 1] || 0)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+        <div>
+          <div className="sub-label" style={{ marginBottom: 8, fontWeight: 600 }}>Impacto Incremental Hub no Grupo</div>
+          <table className="ftable ftable--dense">
+            <thead>
+              <tr>
+                <th>Ano</th>
+                <th className="mono num">Δ EBITDA</th>
+                <th className="mono num">Δ RL</th>
+              </tr>
+            </thead>
+            <tbody>
+              {anos.map((ano, i) => (
+                <tr key={ano}>
+                  <td className="mono">{ano}</td>
+                  <td className={"mono num " + ((deltaEbitda[i] || 0) >= 0 ? "pos" : "neg")}>{fmt.eur(deltaEbitda[i] || 0)}</td>
+                  <td className={"mono num " + ((deltaRL[i] || 0) >= 0 ? "pos" : "neg")}>{fmt.eur(deltaRL[i] || 0)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </>
   );
@@ -1064,6 +1373,148 @@ function PressupostosView({ ctx }) {
   );
 }
 
+// ---- Objetivos SMART --------------------------------------------------------
+function SmartBadge({ status }) {
+  const cfg = {
+    cumprido:     { label: "Cumprido",     color: "var(--pos)",    bg: "var(--pos-soft)" },
+    em_risco:     { label: "Em risco",     color: "var(--accent)", bg: "var(--accent-soft)" },
+    nao_cumprido: { label: "Não cumprido", color: "var(--neg)",    bg: "var(--neg-soft)" },
+    sem_dados:    { label: "Sem dados",    color: "var(--muted)",  bg: "var(--surface-2)" },
+  };
+  const c = cfg[status] || cfg.sem_dados;
+  return (
+    <span style={{
+      display: "inline-block", padding: "2px 8px", borderRadius: 3,
+      fontSize: 11, fontWeight: 600, letterSpacing: "0.02em", whiteSpace: "nowrap",
+      color: c.color, background: c.bg,
+    }}>
+      {c.label}
+    </span>
+  );
+}
+
+function SmartView({ ctx }) {
+  const [tracker, setTracker] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    API.smartTracker({ cenario: ctx.scenario, hub_on: ctx.hubOn, ecogres_on: ctx.ecogresOn })
+      .then(data => { if (!cancelled) { setTracker(data); setLoading(false); } })
+      .catch(err => { if (!cancelled) { setError(err.message || String(err)); setLoading(false); } });
+    return () => { cancelled = true; };
+  }, [ctx.scenario, ctx.hubOn, ctx.ecogresOn]);
+
+  if (loading && !tracker) return <LoadingShell />;
+  if (error && !tracker) return <ErrorBanner message={error} onRetry={() => { setError(null); setTracker(null); setLoading(true); }} />;
+  if (!tracker) return null;
+
+  const CAT_LABEL = { economica: "Económica", financeira: "Financeira", operacional: "Operacional", esg: "ESG / Sustentabilidade" };
+  const CAT_ORDER = ["economica", "financeira", "operacional", "esg"];
+
+  function fmtVal(v, unit) {
+    if (v === null || v === undefined) return "—";
+    if (unit === "EUR")  return fmt.eurC(v);
+    if (unit === "pct")  return fmt.pct(v);
+    if (unit === "dias") return Math.round(v) + " d";
+    return String(v);
+  }
+
+  function fmtAlvo(alvo, unit, operador) {
+    return (operador === "gte" ? "≥ " : "≤ ") + fmtVal(alvo, unit);
+  }
+
+  const withData = tracker.filter(r => r.status !== "sem_dados");
+  const counts = { cumprido: 0, em_risco: 0, nao_cumprido: 0 };
+  for (const r of withData) counts[r.status] = (counts[r.status] || 0) + 1;
+  const total = withData.length;
+
+  const grouped = {};
+  for (const cat of CAT_ORDER) grouped[cat] = tracker.filter(r => r.categoria === cat);
+
+  return (
+    <>
+      <div className="grid-3">
+        <KPI
+          label="Cumpridos"
+          value={counts.cumprido + " / " + total}
+          tone={total > 0 && counts.cumprido === total ? "pos" : undefined}
+          sub={total > 0 ? fmt.pct(counts.cumprido / total, 0) + " dos objetivos avaliados" : "—"}
+        />
+        <KPI
+          label="Em risco"
+          value={String(counts.em_risco)}
+          tone={counts.em_risco > 0 ? undefined : "pos"}
+          sub="desvio dentro da margem de 5%"
+        />
+        <KPI
+          label="Não cumpridos"
+          value={String(counts.nao_cumprido)}
+          tone={counts.nao_cumprido > 0 ? "neg" : "pos"}
+          sub="desvio superior a 5% do alvo"
+        />
+      </div>
+
+      <Panel
+        title="Tracker de Objetivos SMART · cenário ativo"
+        sub="cumprido · em_risco · nao_cumprido — margem de tolerância 5%"
+      >
+        <table className="ftable ftable--dense">
+          <thead>
+            <tr>
+              <th style={{ width: "20%" }}>Objetivo</th>
+              <th>Descrição</th>
+              <th className="mono num" style={{ width: 46 }}>Ano</th>
+              <th className="mono num" style={{ width: 96 }}>Alvo</th>
+              <th className="mono num" style={{ width: 96 }}>Projeção</th>
+              <th className="mono num" style={{ width: 70 }}>Desvio</th>
+              <th style={{ width: 112 }}>Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            {CAT_ORDER.map(cat => (
+              grouped[cat].length === 0 ? null : (
+                <React.Fragment key={cat}>
+                  <tr className="is-section">
+                    <td colSpan={7}>{CAT_LABEL[cat]}</td>
+                  </tr>
+                  {grouped[cat].map((r, i) => {
+                    const isFirst = i === 0 || grouped[cat][i - 1].id !== r.id;
+                    const desvioColor = r.desvio_pct === null ? "var(--muted)"
+                      : r.status === "cumprido" ? "var(--pos)"
+                      : r.status === "em_risco" ? "var(--accent)"
+                      : "var(--neg)";
+                    return (
+                      <tr key={r.id + "_" + r.ano}>
+                        <td style={{ color: isFirst ? undefined : "var(--muted)", paddingLeft: isFirst ? undefined : 20 }}>
+                          {isFirst ? r.nome : ""}
+                        </td>
+                        <td style={{ fontSize: 11, color: "var(--muted)" }}>
+                          {isFirst ? r.descricao : ""}
+                        </td>
+                        <td className="mono num">{r.ano}</td>
+                        <td className="mono num">{fmtAlvo(r.alvo, r.unidade, r.operador)}</td>
+                        <td className="mono num">{fmtVal(r.valor, r.unidade)}</td>
+                        <td className="mono num" style={{ color: desvioColor }}>
+                          {r.desvio_pct !== null ? fmt.pctSigned(r.desvio_pct) : "—"}
+                        </td>
+                        <td><SmartBadge status={r.status} /></td>
+                      </tr>
+                    );
+                  })}
+                </React.Fragment>
+              )
+            ))}
+          </tbody>
+        </table>
+      </Panel>
+    </>
+  );
+}
+
 Object.assign(window, {
-  DRView, BalancoView, DFCView, KPIView, FSEView, RollingView, HubView, EcogresView, PressupostosView, VendasView, KV,
+  DRView, BalancoView, DFCView, KPIView, FSEView, RollingView, HubView, EcogresView, PressupostosView, VendasView, SmartView, SmartBadge, KV,
 });

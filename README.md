@@ -61,12 +61,25 @@ uvicorn server:app --reload --port 8000
 
 ## Cenários
 
-| Cenário | Volume vendas | Preço vendas | FSE |
+| Cenário | Volume vendas | Preço (spread real) | FSE / Pessoal |
 |---|---|---|---|
-| **Base** | YAML (referência) | YAML (referência) | YAML |
-| **Upside** | +5% a.a. | +5% → +3% | +4% em 2028-29 |
-| **Downside** | +2% → +1% | +1% a.a. | +4% → +6% |
-| **Stress** | −2% em 2025, depois +1-2% | 0-2% a.a. | +5-6% + pessoal |
+| **Base** | +3% a.a. | +0,8% real | YAML (referência) |
+| **Upside** | +4,5% → +3% | +1,8% → +1,4% | FSE controlado |
+| **Downside** | +1,5% → +2,5% | negativo → +0,4% | FSE+Pessoal acima |
+| **Stress** | −3% em 2025, depois +1-3% | negativo → +0,9% | FSE choque +9,6% |
+
+O toggle **Hub Logístico** é independente do cenário e aplica-se a **qualquer** combinação. Quando ativo, o engine incorpora automaticamente **todos** os benefícios do Hub no DR/Balanço/DFC:
+
+| Efeito Hub | Fonte | Magnitude |
+|---|---|---|
+| Poupança operacional (pessoal + FSE) | `hub_dr_impact()` | €380k/ano (cresce 4%/a) |
+| Redução de quebras | `hub_dr_impact()` | €50k/ano |
+| VN incremental B2C/e-commerce | `hub_dr_impact()` → `build_dr()` | €400k–€800k/ano (a partir de 2026) |
+| CAPEX e depreciações | `hub_capex()` | €3,8M (pools por ativo) |
+| Financiamento CGD/BPI | `hub_financing()` | €2,85M @ 4,15% |
+| Subsídio PT2030 | `pt2030_reconhecimento()` | €1,71M (reconhecido a/c depr.) |
+| Libertação de inventário | `hub_dr_impact()` + `balanco.py` | €2M em 2026 (one-time) |
+| Melhoria CCC (DMI) | `balanco.py` | redução inventários no balanço |
 
 Cenários customizados persistem em `src/engine/data/cenarios/custom_scenarios.yaml`.
 
@@ -117,8 +130,8 @@ Ver [docs/PEF_2025-26_Resumo_M3_M6_OE4.md](docs/PEF_2025-26_Resumo_M3_M6_OE4.md)
 ## To-do / Trabalho pendente
 
 ### API — expor outputs mensais
-- [ ] `GET /api/scenarios/all` — adicionar `eoep_mensal_2025`, `vendas_mensal_2025`, `dr_mensal_2025`, `tesouraria_mensal_2025` à resposta
-- [ ] `POST /api/run` — idem (os DataFrames já estão em `dfs`; falta serializar e incluir na resposta)
+- [x] `GET /api/scenarios/all` — adicionar `eoep_mensal_2025`, `vendas_mensal_2025`, `dr_mensal_2025`, `tesouraria_mensal_2025` à resposta
+- [x] `POST /api/run` — idem (os DataFrames já estão em `dfs`; falta serializar e incluir na resposta)
 
 ### Engine — cálculos em falta
 - [x] Pessoal mensal 2025 como output independente (`pessoal_mensal_2025`) — `build_pessoal_mensal()` em `tesouraria.py`

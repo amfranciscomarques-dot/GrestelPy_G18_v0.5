@@ -181,4 +181,14 @@ mix_canais_2024:
   Retalho: 0.26
   E_Commerce: 0.18
 
+cambio_usd:
+  # Taxa de referência M3 (Bloomberg Consensus) — base para o factor de conversão
+  eur_usd_base: 1.08
+  # Peso das vendas denominadas em USD no VN total:
+  #   60% das vendas no mercado USA × 35% do peso USA no VN = 21%
+  # Para validar o impacto de 2.050 k€ / 10% USD depreciation, este parâmetro
+  # precisaria ser ~0.54 (consistente com "60% do VN total em USD" de M1).
+  # Mantém-se 0.21 (base M2); ajustar aqui se a decomposição for expandida a ROW.
+  pct_vn_usd: 0.21
+
 triggers: {}

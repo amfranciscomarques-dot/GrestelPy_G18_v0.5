@@ -311,6 +311,14 @@ def gas_por_peca_anual(a, base) -> pd.DataFrame:
     cresc_pecas = esg_a.get("crescimento_producao_pecas", {})
     efic_gas = esg_a.get("eficiencia_gas_anual", {})
 
+    def _rate(val, year, default):
+        """Aceita scalar (aplica em todos os anos) ou dict (por ano)."""
+        if isinstance(val, dict):
+            return val.get(year, default)
+        if isinstance(val, (int, float)):
+            return float(val)
+        return default
+
     rows = [
         {
             "ano": 2024,
@@ -325,8 +333,8 @@ def gas_por_peca_anual(a, base) -> pd.DataFrame:
     prev_gpeca = gpeca_base
 
     for y in YEARS:
-        prev_pecas = prev_pecas * (1 + cresc_pecas.get(y, 0.03))
-        prev_gpeca = prev_gpeca * (1 + efic_gas.get(y, 0.0))
+        prev_pecas = prev_pecas * (1 + _rate(cresc_pecas, y, 0.03))
+        prev_gpeca = prev_gpeca * (1 - _rate(efic_gas, y, 0.0))
 
         gas_total = prev_pecas * prev_gpeca
         var = (prev_gpeca / gpeca_base - 1) if gpeca_base else 0.0

@@ -118,9 +118,9 @@ investimento_financiamento_2024:
   taxa_depreciacao_media: 0.1709
   depreciacao_mensal: 180726.22
 financiamento_2024:
-  Euribor_3M_base_2025: 0.0265
-  Spread_medio_ponderado: 0.015
-  Taxa_variavel_estimada: 0.0415
+  Euribor_3M_base_2025: 0.0290   # BCE mar-2025; corrigido de 0.0265 (M3)
+  Spread_medio_ponderado: 0.0125  # spread médio ponderado; corrigido de 0.015 (M3)
+  Taxa_variavel_estimada: 0.0415  # Euribor 2,90% + spread 1,25% = 4,15% inalterado
   BPI:
     capital_nominal: 10700000
     taxa_efetiva: 0.0281

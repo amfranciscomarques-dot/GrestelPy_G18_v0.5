@@ -227,5 +227,161 @@ const API = (() => {
     return out;
   }
 
-  return { useMock, health, projecao, vendasAnalise };
+  // ─── smartTracker ──────────────────────────────────────────────────────────
+
+  // Mirror of smart_objetivos.yaml — used only in mock mode.
+  // "fonte" is adjusted to "dr" for vn since the frontend DR array carries that field.
+  const _SMART_OBJS = [
+    { id: "vn_2025", nome: "Volume de Negócios", categoria: "economica",
+      descricao: "Atingir VN de 45,6 M€ até dezembro de 2025 (crescimento 20,3% vs 2024)",
+      kpi_field: "vn", fonte: "dr", anos_alvo: [2025], alvo: 45600000, operador: "gte", unidade: "EUR" },
+    { id: "ebitda_margin_2025", nome: "Margem EBITDA", categoria: "economica",
+      descricao: "Elevar margem EBITDA para ≥19,5% em 2025 via eficiência 4.0 e logística Ecogres",
+      kpi_field: "margem_ebitda", fonte: "kpis", anos_alvo: [2025], alvo: 0.195, operador: "gte", unidade: "pct" },
+    { id: "ebitda_margin_2027", nome: "Margem EBITDA (Hub)", categoria: "economica",
+      descricao: "Atingir margem EBITDA ≥12% em 2027 com poupanças operacionais do Hub 4.0 (≥€380k/ano)",
+      kpi_field: "margem_ebitda", fonte: "kpis", anos_alvo: [2027], alvo: 0.12, operador: "gte", unidade: "pct" },
+    { id: "autonomia_financeira", nome: "Autonomia Financeira", categoria: "financeira",
+      descricao: "Manter autonomia financeira ≥35% em todos os exercícios do plano (covenant ≥30%)",
+      kpi_field: "autonomia_financeira", fonte: "kpis", anos_alvo: [2025, 2026, 2027, 2028, 2029], alvo: 0.35, operador: "gte", unidade: "pct" },
+    { id: "ccc_2027", nome: "Ciclo de Conversão de Caixa", categoria: "operacional",
+      descricao: "Reduzir CCC para ≤260 dias até 2027 via hub logístico e plataforma B2B",
+      kpi_field: "ciclo_caixa", fonte: "kpis", anos_alvo: [2027], alvo: 260, operador: "lte", unidade: "dias" },
+    { id: "gas_peca_2026", nome: "Consumo Gás por Peça", categoria: "esg",
+      descricao: "Reduzir 10% o consumo de gás por peça até 2026 via misturas de hidrogénio",
+      kpi_field: "var_vs_2024", fonte: "gas", anos_alvo: [2026], alvo: -0.10, operador: "lte", unidade: "pct" },
+  ];
+
+  const _SMART_MARGIN = 0.05;
+  function _smartStatus(valor, alvo, operador) {
+    if (operador === "gte") {
+      if (valor >= alvo) return "cumprido";
+      if (valor >= alvo * (1 - _SMART_MARGIN)) return "em_risco";
+      return "nao_cumprido";
+    }
+    if (valor <= alvo) return "cumprido";
+    if (valor <= alvo * (1 + _SMART_MARGIN)) return "em_risco";
+    return "nao_cumprido";
+  }
+
+  async function smartTracker({ cenario, hub_on, ecogres_on }) {
+    if (useMock) {
+      const dr   = GRESTEL.projectDR(cenario, { hubOn: hub_on, ecogresOn: ecogres_on });
+      const bal  = GRESTEL.projectBalanco(dr, { hubOn: hub_on });
+      const kpis = GRESTEL.projectKPIs(dr, bal);
+      const drByYear   = Object.fromEntries(dr.map(r => [r.year, r]));
+      const kpisByYear = Object.fromEntries(kpis.map(r => [r.year, r]));
+
+      const rows = [];
+      for (const obj of _SMART_OBJS) {
+        for (const ano of obj.anos_alvo) {
+          let valor = null;
+          if (obj.fonte === "dr")   valor = drByYear[ano]?.[obj.kpi_field]   ?? null;
+          if (obj.fonte === "kpis") valor = kpisByYear[ano]?.[obj.kpi_field] ?? null;
+          // "gas" fonte not available in mock mode → sem_dados
+
+          if (valor === null) {
+            rows.push({ id: obj.id, nome: obj.nome, categoria: obj.categoria,
+              descricao: obj.descricao, ano, kpi_field: obj.kpi_field,
+              valor: null, alvo: obj.alvo, operador: obj.operador,
+              unidade: obj.unidade, status: "sem_dados", desvio_pct: null });
+          } else {
+            const desvio_pct = obj.alvo !== 0 ? (valor - obj.alvo) / Math.abs(obj.alvo) : 0;
+            rows.push({ id: obj.id, nome: obj.nome, categoria: obj.categoria,
+              descricao: obj.descricao, ano, kpi_field: obj.kpi_field,
+              valor, alvo: obj.alvo, operador: obj.operador, unidade: obj.unidade,
+              status: _smartStatus(valor, obj.alvo, obj.operador), desvio_pct });
+          }
+        }
+      }
+      return rows;
+    }
+
+    // Live: GET /api/smart/tracker
+    const params = new URLSearchParams({ cenario, hub_on: String(hub_on), ecogres_on: String(ecogres_on) });
+    const r = await fetch(BACKEND_URL + "/api/smart/tracker?" + params);
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({ detail: r.statusText }));
+      throw new Error(err.detail || "Erro na API SMART");
+    }
+    const d = await r.json();
+    return d.tracker;
+  }
+
+  // ─── hubViability ──────────────────────────────────────────────────────────
+  async function hubViability({ irc_taxa, wacc } = {}) {
+    if (useMock) {
+      const v = GRESTEL.hubViability(irc_taxa || 0.245);
+      return v;
+    }
+    const params = new URLSearchParams();
+    if (irc_taxa != null) params.set("irc_taxa", irc_taxa);
+    if (wacc != null) params.set("wacc", wacc);
+    const r = await fetch(BACKEND_URL + "/api/hub/viability?" + params);
+    if (!r.ok) throw new Error("Erro /hub/viability: " + r.status);
+    const d = await r.json();
+    // Normalizar para o mesmo formato do mock
+    const fcf = d.fcf || [];
+    let cumulative = 0;
+    const fcf_cumulativo = fcf.map(v => { cumulative += v; return cumulative; });
+    const anos = Array.from({ length: fcf.length }, (_, i) => 2024 + i);
+    return {
+      vpl: d.vpl,
+      tir: d.tir,
+      payback_simples: d.payback_simples != null ? d.payback_simples.toFixed(1) + " anos" : "—",
+      payback_atualizado: d.payback_atualizado != null ? d.payback_atualizado.toFixed(1) + " anos" : "—",
+      indice_rendibilidade: d.indice_rendibilidade,
+      valor_terminal: d.valor_terminal,
+      fcf, fcf_cumulativo, anos,
+      parametros: d.parametros || {},
+    };
+  }
+
+  // ─── hubTornado ────────────────────────────────────────────────────────────
+  async function hubTornado({ irc_taxa } = {}) {
+    if (useMock) {
+      return GRESTEL.hubTornado();
+    }
+    const params = new URLSearchParams();
+    if (irc_taxa != null) params.set("irc_taxa", irc_taxa);
+    const r = await fetch(BACKEND_URL + "/api/hub/tornado?" + params);
+    if (!r.ok) throw new Error("Erro /hub/tornado: " + r.status);
+    const d = await r.json();
+    return d.rows || [];
+  }
+
+  // ─── hubComparativo ────────────────────────────────────────────────────────
+  async function hubComparativo({ cenario = "Base", ecogres_on = true } = {}) {
+    const params = new URLSearchParams({ cenario, ecogres_on: String(ecogres_on) });
+    const r = await fetch(BACKEND_URL + "/api/hub/comparativo?" + params);
+    if (!r.ok) throw new Error("Erro /hub/comparativo: " + r.status);
+    const d = await r.json();
+    return {
+      cenario: d.cenario,
+      sem_hub: {
+        dr:     normalizeDR(d.sem_hub?.dr?.rows || []),
+        balanco: normalizeBal(d.sem_hub?.balanco?.rows || []),
+        dfc:    normalizeDFC(d.sem_hub?.dfc?.rows || []),
+        kpis:   normalizeKPIs(d.sem_hub?.kpis?.rows || []),
+      },
+      com_hub: {
+        dr:     normalizeDR(d.com_hub?.dr?.rows || []),
+        balanco: normalizeBal(d.com_hub?.balanco?.rows || []),
+        dfc:    normalizeDFC(d.com_hub?.dfc?.rows || []),
+        kpis:   normalizeKPIs(d.com_hub?.kpis?.rows || []),
+      },
+    };
+  }
+
+  // ─── hubConsolidado ────────────────────────────────────────────────────────
+  async function hubConsolidado({ cenario = "Base", irc_taxa, wacc } = {}) {
+    const params = new URLSearchParams({ cenario });
+    if (irc_taxa != null) params.set("irc_taxa", irc_taxa);
+    if (wacc != null) params.set("wacc", wacc);
+    const r = await fetch(BACKEND_URL + "/api/hub/consolidado?" + params);
+    if (!r.ok) throw new Error("Erro /hub/consolidado: " + r.status);
+    return await r.json();
+  }
+
+  return { useMock, health, projecao, vendasAnalise, smartTracker, hubViability, hubTornado, hubComparativo, hubConsolidado };
 })();

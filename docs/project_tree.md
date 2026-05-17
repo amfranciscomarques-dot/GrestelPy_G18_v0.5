@@ -1,6 +1,6 @@
-# GrestelPy — Project Tree
+﻿# GrestelPy — Project Tree
 
-> Estado actual: Engine v0.6+ · actualizado 2026-05-14
+> Estado actual: Engine v0.7 · actualizado 2026-05-17
 
 ```
 GrestelPy_G18/
@@ -78,7 +78,10 @@ GrestelPy_G18/
 │       │   │   └── schedules.yaml        ← Gerado: investimento, financiamento, EOEP saldos
 │       │   │
 │       │   ├── cenarios/
-│       │   │   └── custom_scenarios.yaml ← Cenários customizados persistidos
+│       │   │   └── custom_scenarios.yaml ← Cenários: Base, Upside, Downside, Stress
+│       │   │                                     O toggle Hub é ortogonal ao cenário:
+│       │   │                                     aplica-se a qualquer um, incorporando
+│       │   │                                     todos os benefícios do Hub no engine
 │       │   │
 │       │   └── subsidiarias/
 │       │       ├── ecogres/
@@ -136,6 +139,9 @@ GrestelPy_G18/
 │           ├── __init__.py
 │           ├── ecogres.py                ← Modelo financeiro Ecogres
 │           └── hub_logistico.py          ← Modelo financeiro Hub M6 (VAN/TIR)
+│                                             hub_dr_impact(): poupanças operacionais
+│                                             + vn_incremental B2C (beneficios_comerciais)
+│                                             + ebitda_impact para VAL/TIR
 │           (nota: pasta projetos/ está em engine/projetos/ — importada como engine.projetos)
 │
 └── tests/

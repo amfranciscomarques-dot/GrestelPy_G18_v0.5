@@ -2,10 +2,10 @@ objetivos:
   - id: vn_2025
     nome: Volume de Negócios
     categoria: economica
-    descricao: "Atingir VN de 45,6 M€ até dezembro de 2025 (crescimento 20,3% vs 2024)"
+    descricao: "Atingir VN de 45,6 M€ até dezembro de 2027 (crescimento 20,3% vs 2024)"
     kpi_field: vn
     fonte: kpis
-    anos_alvo: [2025]
+    anos_alvo: [2027]
     alvo: 45600000
     operador: gte
     unidade: EUR
@@ -13,11 +13,22 @@ objetivos:
   - id: ebitda_margin_2025
     nome: Margem EBITDA
     categoria: economica
-    descricao: "Elevar margem EBITDA para ≥19,5% em 2025 via eficiência 4.0 e logística Ecogres"
+    descricao: "Elevar margem EBITDA para ≥16% em 2027 via eficiência 4.0 e logística Ecogres"
     kpi_field: margem_ebitda
     fonte: kpis
-    anos_alvo: [2025]
-    alvo: 0.195
+    anos_alvo: [2029]
+    alvo: 0.16
+    operador: gte
+    unidade: pct
+
+  - id: ebitda_margin_2027
+    nome: Margem EBITDA (Hub)
+    categoria: economica
+    descricao: "Atingir margem EBITDA ≥12% em 2027 com poupanças operacionais do Hub 4.0 (≥€380k/ano)"
+    kpi_field: margem_ebitda
+    fonte: kpis
+    anos_alvo: [2027]
+    alvo: 0.12
     operador: gte
     unidade: pct
 
@@ -36,10 +47,10 @@ objetivos:
   - id: ccc_2027
     nome: Ciclo de Conversão de Caixa
     categoria: operacional
-    descricao: "Reduzir CCC para ≤260 dias até junho de 2027 via hub logístico e plataforma B2B"
+    descricao: "Reduzir CCC para ≤260 dias até 2027 via libertação de €1,5M de inventário (Hub) e plataforma B2B"
     kpi_field: ciclo_caixa
     fonte: kpis
-    anos_alvo: [2027]
+    anos_alvo: [2026]
     alvo: 260
     operador: lte
     unidade: dias

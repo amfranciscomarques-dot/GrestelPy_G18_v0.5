@@ -244,11 +244,33 @@ def _apply_hub_quebras(a, b, s, delta):
     ben["reducao_quebras"] = base * (1 + float(delta))
 
 
+def _apply_eur_usd(a, b, s, delta):
+    """Aplica choque proporcional à taxa EUR/USD em todos os anos.
+
+    delta > 0 → EUR/USD sobe → USD deprecia → VN EXT cai.
+    delta < 0 → EUR/USD desce → USD aprecia → VN EXT sobe.
+    O choque é multiplicativo sobre a taxa de cada ano.
+    """
+    _ = b, s
+    eurusd = a.raw.setdefault("macro", {}).setdefault("eur_usd", {})
+    anual = eurusd.setdefault("anual", {})
+    for y in [2025, 2026, 2027, 2028, 2029]:
+        base_y = float(anual.get(y, 1.08))
+        anual[y] = base_y * (1.0 + float(delta))
+    mensal = eurusd.get("mensal_2025", [1.08] * 12)
+    eurusd["mensal_2025"] = [v * (1.0 + float(delta)) for v in mensal]
+
+
 DRIVERS = {
     "volume_vn": (
         "Crescimento Volume",
         [-0.05, -0.025, 0, 0.025, 0.05],
         _apply_volume_vn,
+    ),
+    "eur_usd": (
+        "EUR/USD (câmbio)",
+        [-0.10, -0.05, 0, 0.05, 0.10],
+        _apply_eur_usd,
     ),
     "irc_taxa": (
         "Taxa IRC",

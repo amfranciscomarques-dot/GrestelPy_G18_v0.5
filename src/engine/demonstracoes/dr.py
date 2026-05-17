@@ -624,6 +624,9 @@ def build_dr(
             "hub_fse_reducao": 0.0,
             "hub_cmvmc_reducao": 0.0,
             "hub_fse_opex": 0.0,
+            "hub_vn_incremental": 0.0,
+            "hub_cmvmc_incremental": 0.0,
+            "hub_outros_rend_subsidio": 0.0,
             "fse_subcontratacao_ecogres": subc_map.get(2024, 0.0),
             "ecogres_reducao_mpsc": 0.0,
             "outros_rend_ced_loc": bk24["outros_rend_ced_loc"],
@@ -665,6 +668,9 @@ def build_dr(
         hub_fse_red = 0.0
         hub_cmvmc_red = 0.0
         hub_fse_opex = 0.0
+        hub_vn_inc = 0.0
+        hub_cmvmc_inc = 0.0
+        hub_outros_rend = 0.0
 
         if hub_dr and y in hub_dr:
             h = hub_dr[y]
@@ -672,10 +678,15 @@ def build_dr(
             hub_fse_red = h.get("fse_reducao", 0.0)
             hub_cmvmc_red = h.get("cmvmc_reducao", 0.0)
             hub_fse_opex = h.get("fse_opex_hub", 0.0)
+            hub_vn_inc = h.get("vn_incremental", 0.0)
+            hub_cmvmc_inc = h.get("cmvmc_incremental", 0.0)
+            hub_outros_rend = h.get("outros_rend_subsidio", 0.0)
 
+        vn = vn + hub_vn_inc
+        out_rend = out_rend + hub_outros_rend
         p = p_base - hub_pessoal_red
         f = f_adj - hub_fse_red + hub_fse_opex
-        c = c_adj - hub_cmvmc_red - eco_mpsc_red.get(y, 0.0)
+        c = c_adj - hub_cmvmc_red - eco_mpsc_red.get(y, 0.0) + hub_cmvmc_inc
 
         ebitda = vn + var_inv + out_rend - c - f - p - imp - out_gast
         ebit = ebitda - d
@@ -710,6 +721,9 @@ def build_dr(
                 "hub_fse_reducao": hub_fse_red,
                 "hub_cmvmc_reducao": hub_cmvmc_red,
                 "hub_fse_opex": hub_fse_opex,
+                "hub_vn_incremental": hub_vn_inc,
+                "hub_cmvmc_incremental": hub_cmvmc_inc,
+                "hub_outros_rend_subsidio": hub_outros_rend,
                 "fse_subcontratacao_ecogres": ecogres_subc,
                 "ecogres_reducao_mpsc": eco_mpsc_red.get(y, 0.0),
                 "outros_rend_ced_loc": bky["outros_rend_ced_loc"],

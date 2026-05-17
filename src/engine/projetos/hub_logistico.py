@@ -550,12 +550,23 @@ def hub_dr_impact(
     inventario_one_time = float(ben_pontual["libertacao_inventario"])
     ano_inventario = int(ben_pontual["ano"])
 
+    # Benefícios comerciais: acréscimo de VN por canal B2C direto
+    ben_com = proj.get("beneficios_comerciais", {})
+    ano_com = int(ben_com.get("ano_inicio", 9999))
+    vn_inc_map: dict = ben_com.get("vn_incremental", {})
+    cmvmc_pct_com = float(ben_com.get("cmvmc_pct_incremental", 0.55))
+
     df_cap = hub_capex(hub)
     capex_map = df_cap.set_index("ano")
 
     result: dict[int, dict] = {}
 
     for y in YEARS:
+        # Benefícios comerciais aplicáveis independentemente de ano_inicio_beneficios
+        vn_inc = float(vn_inc_map.get(y, 0.0)) if y >= ano_com else 0.0
+        cmvmc_inc = vn_inc * cmvmc_pct_com
+        contrib_com = vn_inc - cmvmc_inc  # margem bruta incremental B2C
+
         if y < inicio:
             result[y] = {
                 "pessoal_reducao": 0.0,
@@ -565,9 +576,11 @@ def hub_dr_impact(
                 "outros_rend_subsidio": 0.0,
                 "depreciacao_hub": 0.0,
                 "inventario_libertado": 0.0,
-                "beneficio_liquido": 0.0,
-                "ebitda_impact": 0.0,
-                "ebit_impact": 0.0,
+                "vn_incremental": vn_inc,
+                "cmvmc_incremental": cmvmc_inc,
+                "beneficio_liquido": contrib_com,
+                "ebitda_impact": contrib_com,
+                "ebit_impact": contrib_com,
             }
             continue
 
@@ -589,7 +602,7 @@ def hub_dr_impact(
         inventario = inventario_one_time if y == ano_inventario else 0.0
 
         beneficio_liq = pessoal_red + fse_red + cmvmc_red - fse_opex
-        ebitda_impact = beneficio_liq + subsidio_y
+        ebitda_impact = beneficio_liq + subsidio_y + contrib_com
         ebit_impact = ebitda_impact - dep_hub
 
         result[y] = {
@@ -600,6 +613,8 @@ def hub_dr_impact(
             "outros_rend_subsidio": subsidio_y,
             "depreciacao_hub": dep_hub,
             "inventario_libertado": inventario,
+            "vn_incremental": vn_inc,
+            "cmvmc_incremental": cmvmc_inc,
             "beneficio_liquido": beneficio_liq,
             "ebitda_impact": ebitda_impact,
             "ebit_impact": ebit_impact,
@@ -1338,6 +1353,30 @@ def sensibilidade_hub(
         elif driver == "crescimento":
             proj["beneficios_anuais"]["crescimento_anual"] = v
 
+        elif driver == "pt2030_taxa":
+            # v = fracção do CAPEX (ex: 0.20 = 20 %, 0.45 = 45 %)
+            capex_val = float(proj["capex"]["base"])
+            proj["financiamento"]["PT2030"]["montante"] = v * capex_val
+
+        elif driver == "pessoal":
+            # v = poupança operacional total (€/ano); base = 380 000 €
+            ben = proj["beneficios_anuais"]
+            ben["poupanca_operacional"] = v
+            quebras = float(ben.get("reducao_quebras", 0))
+            opex = abs(float(
+                ben.get("opex_incremental")
+                or proj.get("opex_detalhe", {}).get("total", 0)
+                or 0
+            ))
+            ben["beneficio_liquido_anual"] = v + quebras - opex
+
+        elif driver == "b2c":
+            # v = factor de escala sobre vn_incremental (1.0 = base; 0.5 = pessimista; 1.5 = otimista)
+            ben_com = proj.get("beneficios_comerciais", {})
+            vn_map = ben_com.get("vn_incremental", {})
+            for yr in list(vn_map.keys()):
+                vn_map[yr] = float(vn_map[yr]) * v
+
         else:
             raise ValueError(f"Driver desconhecido: {driver}")
 
@@ -1359,46 +1398,71 @@ def tornado_hub(
     hub_base: dict | None = None,
     irc_taxa: float | None = None,
 ) -> pd.DataFrame:
-    """Tornado do VPL Hub: swing de cada driver principal."""
+    """Tornado do VAL Hub — análise de sensibilidade one-at-a-time.
+
+    6 variáveis críticas identificadas no diagnóstico financeiro da Grestel:
+      1. Libertação de inventário  — maior motor de liquidez a curto prazo
+      2. Co-financiamento PT2030   — subsidio a fundo perdido que determina viabilidade
+      3. Crescimento B2C           — canal de margem superior (+18 pp vs retalho)
+      4. Poupança operacional      — eficácia da automação (AMR + VLM) no custo de pessoal
+      5. WACC                      — reflecte risco percebido pelo mercado/bancos
+      6. Desvio no CAPEX           — risco de derrapagem orçamental em projetos 4.0
+    """
     if hub_base is None:
         hub_base = load()
 
     proj = hub_base["projeto_hub"]
-
-    ben_base = float(proj["beneficios_anuais"]["beneficio_liquido_anual"])
     capex_base = float(proj["capex"]["base"])
-    wacc_base = float(proj["viabilidade"]["wacc"])
-    inv_base = float(proj["beneficios_pontuais"]["libertacao_inventario"])
-    g_base = float(proj["beneficios_anuais"]["crescimento_anual"])
-    quebras_base = float(proj["beneficios_anuais"]["reducao_quebras"])
-    pt2030_montante = float(proj["financiamento"]["PT2030"]["montante"])
 
     vpl_base = viabilidade_hub(hub_base, irc_taxa=irc_taxa)["vpl"]
 
+    # --- 6 variáveis críticas com ranges calibrados ao diagnóstico Grestel ----
+    # Convenção: vals = [pessimista, otimista]
+    # low e high no output referem-se ao impacto no VAL (não ao valor da variável):
+    #   vpl_low = VAL quando a variável assume o valor vals[0] (pessimista)
+    #   vpl_high = VAL quando a variável assume o valor vals[1] (otimista)
     cfg = {
-        "beneficio": {
-            "vals": [ben_base * 0.85, ben_base * 1.15],
-            "label": "Benefício líquido/ano (€)",
+        # 1. Inventário — €2,0 M base; 13 M€ imobilizados → meta conservadora de 15 %
+        "inventario": {
+            "vals": [1_000_000.0, 2_500_000.0],
+            "label": "Libertação de inventário (€)",
+            "desc_low": "€1,0 M (pess.)",
+            "desc_high": "€2,5 M (otim.)",
         },
-        "quebras": {
-            "vals": [0.0, quebras_base * 2.0],
-            "label": "Redução de quebras (€/ano)",
+        # 2. PT2030 — 20 % (aprovação parcial) vs 45 % (aprovação majorada)
+        "pt2030_taxa": {
+            "vals": [0.20, 0.45],
+            "label": "Co-financiamento PT2030 (% CAPEX)",
+            "desc_low": "20 % (€760 k)",
+            "desc_high": "45 % (€1 710 k)",
         },
+        # 3. B2C — escala do VN incremental: +40 % 2024 → abrandamento vs aceleração
+        "b2c": {
+            "vals": [0.50, 1.50],
+            "label": "Crescimento B2C/e-commerce (×base)",
+            "desc_low": "×0,5 (abrand.)",
+            "desc_high": "×1,5 (aceleração)",
+        },
+        # 4. Poupança operacional — automação sem vs com impacto pleno
+        "pessoal": {
+            "vals": [200_000.0, 500_000.0],
+            "label": "Poupança operacional (€/ano)",
+            "desc_low": "€200 k (pess.)",
+            "desc_high": "€500 k (otim.)",
+        },
+        # 5. WACC — perfil de risco elevado 2024 (rating deteriorou); intervalo 6%–10%
+        "wacc": {
+            "vals": [0.10, 0.06],
+            "label": "WACC (%)",
+            "desc_low": "10 % (risco alto)",
+            "desc_high": "6 % (risco baixo)",
+        },
+        # 6. CAPEX — derrapagem orçamental ±15 % (benchmark projetos 4.0)
         "capex": {
             "vals": [capex_base * 1.15, capex_base * 0.85],
-            "label": "CAPEX (€)",
-        },
-        "wacc": {
-            "vals": [wacc_base + 0.02, wacc_base - 0.02],
-            "label": "WACC (%)",
-        },
-        "inventario": {
-            "vals": [inv_base * 0.70, inv_base * 1.30],
-            "label": "Inventário libertado (€)",
-        },
-        "crescimento": {
-            "vals": [g_base - 0.01, g_base + 0.01],
-            "label": "Cresc. benefícios (%/ano)",
+            "label": "CAPEX ±15% (€)",
+            "desc_low": "+15 % (derrap.)",
+            "desc_high": "−15 % (poupança)",
         },
     }
 
@@ -1417,6 +1481,8 @@ def tornado_hub(
             {
                 "driver": key,
                 "label": info["label"],
+                "desc_low": info.get("desc_low", str(round(low_v, 4))),
+                "desc_high": info.get("desc_high", str(round(high_v, 4))),
                 "valor_low": low_v,
                 "valor_high": high_v,
                 "vpl_low": vpl_low,
@@ -1425,24 +1491,6 @@ def tornado_hub(
                 "impacto_total": abs(vpl_high - vpl_low),
             }
         )
-
-    # Cenário sem PT2030: montante = 0 → sem reconhecimento anual nem cash-in
-    h_sem_pt2030 = copy.deepcopy(hub_base)
-    h_sem_pt2030["projeto_hub"]["financiamento"]["PT2030"]["montante"] = 0.0
-    vpl_sem_pt2030 = viabilidade_hub(h_sem_pt2030, irc_taxa=irc_taxa)["vpl"]
-
-    rows.append(
-        {
-            "driver": "pt2030",
-            "label": "PT2030 (sem vs. com subsídio)",
-            "valor_low": 0.0,
-            "valor_high": pt2030_montante,
-            "vpl_low": vpl_sem_pt2030,
-            "vpl_base": vpl_base,
-            "vpl_high": vpl_base,
-            "impacto_total": abs(vpl_base - vpl_sem_pt2030),
-        }
-    )
 
     return (
         pd.DataFrame(rows)

@@ -263,6 +263,36 @@ def _monthly_cum_index(rates_by_month: dict) -> dict[str, float]:
     return idx
 
 
+def _eur_usd_factor(a: Assumptions, ano: int) -> float:
+    """Factor de correção cambial para vendas EXT denominadas em USD.
+
+    Aplica a fórmula M3:
+        factor = 1 - pct_usd_in_ext × (1 − eur_usd_base / eur_usd_proj)
+
+    Se EUR/USD sobe (USD deprecia), factor < 1 → VN EXT cai.
+    Só é aplicado ao mercado EXT (USA + ROW); PT e UE não têm exposição USD.
+    """
+    if ano == 2024:
+        return 1.0
+
+    cambio = a.raw.get("cambio_usd", {})
+    pct_vn_usd = float(cambio.get("pct_vn_usd", 0.21))
+    eur_usd_base = float(cambio.get("eur_usd_base", 1.08))
+
+    mercados = a.mercados or {}
+    usa_peso = float(mercados.get("USA", {}).get("peso_global", 0.35))
+    row_peso = float(mercados.get("ROW", {}).get("peso_global", 0.18))
+    ext_peso = usa_peso + row_peso
+
+    pct_usd_in_ext = pct_vn_usd / ext_peso if ext_peso > 0 else pct_vn_usd
+
+    eur_usd_proj = a.eur_usd_anual(ano)
+    if eur_usd_proj <= 0:
+        return 1.0
+
+    return 1.0 - pct_usd_in_ext * (1.0 - eur_usd_base / eur_usd_proj)
+
+
 def _market_weights_for_ext(a: Assumptions, produto: str) -> tuple[float, float]:
     """Pesos USA/ROW para o mercado EXT."""
     mix_mp = a.mix_mercado_produto or {}
@@ -475,6 +505,8 @@ def vendas_anuais(
         qty_2025 = qty24 * vf
         pvu_2025 = pvu24 * pf
 
+        fx_2025 = _eur_usd_factor(a, 2025) if merc in ("EXT", "EXTERNO") else 1.0
+
         rows.append(
             {
                 "ano": 2025,
@@ -482,7 +514,7 @@ def vendas_anuais(
                 "mercado": merc,
                 "qtd": qty_2025,
                 "pvu": pvu_2025,
-                "vn": qty_2025 * pvu_2025,
+                "vn": qty_2025 * pvu_2025 * fx_2025,
             }
         )
 
@@ -493,6 +525,8 @@ def vendas_anuais(
             prev_qty *= 1 + g_vol_yr[y]
             prev_pvu *= 1 + g_price_yr[y]
 
+            fx = _eur_usd_factor(a, y) if merc in ("EXT", "EXTERNO") else 1.0
+
             rows.append(
                 {
                     "ano": y,
@@ -500,7 +534,7 @@ def vendas_anuais(
                     "mercado": merc,
                     "qtd": prev_qty,
                     "pvu": prev_pvu,
-                    "vn": prev_qty * prev_pvu,
+                    "vn": prev_qty * prev_pvu * fx,
                 }
             )
 

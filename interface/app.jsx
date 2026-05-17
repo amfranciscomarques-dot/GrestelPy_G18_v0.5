@@ -14,6 +14,7 @@ const NAV = [
   { id: "kpis",         label: "KPIs & Rácios",     group: "Análise" },
   { id: "fse",          label: "FSE",     group: "Análise" },
   { id: "rolling",      label: "Rolling Forecast 2025",  group: "Análise" },
+  { id: "smart",        label: "Objetivos SMART",   group: "Análise" },
   { id: "hub",          label: "Hub Logístico",     group: "Projetos" },
   { id: "ecogres",      label: "Ecogres",           group: "Projetos" },
   { id: "pressupostos", label: "Pressupostos",      group: "Configuração" },
@@ -104,6 +105,7 @@ function App() {
               {view === "vendas" && <VendasView ctx={ctx} />}
               {view === "fse" && <FSEView ctx={ctx} />}
               {view === "rolling" && <RollingView ctx={ctx} />}
+              {view === "smart" && <SmartView ctx={ctx} />}
               {view === "hub" && <HubView ctx={ctx} />}
               {view === "ecogres" && <EcogresView ctx={ctx} />}
               {view === "pressupostos" && <PressupostosView ctx={ctx} />}
@@ -281,7 +283,7 @@ function Topbar({ view, scenario, setScenario, hubOn, setHubOn, loading }) {
               key={k}
               className={"seg-btn " + (scenario === k ? "is-on" : "")}
               onClick={() => setScenario(k)}
-            >{k}</button>
+            >{GRESTEL.SCENARIOS[k].label}</button>
           ))}
         </div>
         <Toggle label="Hub Logístico" on={hubOn} onChange={setHubOn} />

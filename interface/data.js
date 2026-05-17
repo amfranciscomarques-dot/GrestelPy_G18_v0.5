@@ -66,6 +66,16 @@ const GRESTEL = (() => {
     },
   };
 
+  // Hub commercial VN increment (beneficios_comerciais in m6_hub_assumptions.yaml)
+  // Applied automatically when hubOn=true — mirrors hub_dr_impact() vn_incremental
+  const HUB_VN_INC = { 2026: 400000, 2027: 700000, 2028: 800000, 2029: 700000 };
+  const HUB_VN_CMVMC_PCT = 0.55; // cmvmc_pct_incremental
+
+  // PT2030 recognition in outros_rend (mirrors pt2030_reconhecimento() in hub_logistico.py)
+  // = PT2030_montante × dep_pools_ano / capex_base = 1_710_000 × dep_y / 3_800_000
+  // dep_y: construcao_civil+vlm+amr+wms+integracao (2026-2028=387700; 2029=337700 — integracao termina)
+  const HUB_PT2030_REC = { 2026: 174468, 2027: 174468, 2028: 174468, 2029: 151965 };
+
   // Project a DR series for a scenario; optional hub/ecogres on adds blocks.
   function projectDR(scenarioKey, opts = {}) {
     const s = SCENARIOS[scenarioKey];
@@ -86,9 +96,12 @@ const GRESTEL = (() => {
 
     for (let i = 1; i < YEARS.length; i++) {
       const vendasGrowth = (1 + s.vol[i]) * (1 + s.preco[i]) - 1;
-      series.vn.push(series.vn[i - 1] * (1 + vendasGrowth));
-      series.outros_rend.push(series.outros_rend[i - 1] * 1.015);
-      series.cmvmc.push(series.cmvmc[i - 1] * (1 + s.cmvmc[i]));
+      const hubVnInc = hubOn ? (HUB_VN_INC[YEARS[i]] || 0) : 0;
+      const hubCmvmcInc = hubVnInc * HUB_VN_CMVMC_PCT;
+      series.vn.push(series.vn[i - 1] * (1 + vendasGrowth) + hubVnInc);
+      const hubPt2030 = hubOn ? (HUB_PT2030_REC[YEARS[i]] || 0) : 0;
+      series.outros_rend.push(series.outros_rend[i - 1] * 1.015 + hubPt2030);
+      series.cmvmc.push(series.cmvmc[i - 1] * (1 + s.cmvmc[i]) + hubCmvmcInc);
       let fse = series.fse[i - 1] * (1 + s.fse[i]);
       if (hubOn && YEARS[i] >= 2026) fse -= 300000 * Math.pow(1.02, YEARS[i] - 2026); // poupança operacional
       series.fse.push(fse);
@@ -375,21 +388,43 @@ const GRESTEL = (() => {
     return {
       vpl, tir, payback_simples: pay_s, payback_atualizado: pay_a,
       valor_terminal: 600000,
+      indice_rendibilidade: vpl > 0 ? 1 + vpl / 3800000 : null,
       fcf: fcf_livre, fcf_cumulativo: cumulative_arr,
       anos: YEARS.concat([2030, 2031, 2032, 2033, 2034]),
-      parametros: { wacc, capex_total: 5500000, beneficio_liquido_anual: 255000 },
+      parametros: {
+        wacc,
+        irc_taxa: irc_taxa,
+        capex_base: 3800000,
+        capex_2025: 2280000,
+        capex_2026: 1520000,
+        horizonte_anos: 10,
+        crescimento_terminal: 0.02,
+        poupanca_operacional: 380000,
+        reducao_quebras: 50000,
+        opex_incremental: 120000,
+        beneficio_liquido_anual: 310000,
+        crescimento_anual: 0.04,
+        libertacao_inventario: 2000000,
+        ano_inventario: 2026,
+        banco_montante: 2850000,
+        banco_taxa_juro: 0.0415,
+        pt2030_montante: 1710000,
+        pt2030_ano: 2027,
+        rfai_credito_total_gerado: 380000,
+      },
     };
   }
 
   function hubTornado() {
+    // 6 variáveis críticas — calibradas ao diagnóstico Grestel 2024
+    // Ordenadas por impacto decrescente (barras mais longas = topo do tornado)
     return [
-      { variavel: "Poupança operacional",    low: -2.4, high: 3.1 },
-      { variavel: "WACC",                    low: -1.9, high: 1.8 },
-      { variavel: "CAPEX base",              low: -1.6, high: 1.6 },
-      { variavel: "Crescimento benefícios",  low: -1.2, high: 1.4 },
-      { variavel: "Libertação inventário",   low: -0.9, high: 1.0 },
-      { variavel: "Subsídio PT2030",         low: -0.7, high: 0.7 },
-      { variavel: "OPEX incremental",        low: -0.5, high: 0.6 },
+      { variavel: "Poupança operacional (€/ano)",      driver: "pessoal",     desc_low: "€200 k (pess.)",    desc_high: "€500 k (otim.)",     low: -1.10, high:  0.85, impacto_total: 1.95 },
+      { variavel: "WACC (%)",                          driver: "wacc",        desc_low: "10% (risco alto)",  desc_high: "6% (risco baixo)",   low: -0.95, high:  0.78, impacto_total: 1.73 },
+      { variavel: "Crescimento B2C/e-commerce (×base)",driver: "b2c",         desc_low: "×0,5 (abrand.)",    desc_high: "×1,5 (aceleração)",  low: -0.74, high:  0.74, impacto_total: 1.48 },
+      { variavel: "Libertação de inventário (€)",      driver: "inventario",  desc_low: "€1,0 M (pess.)",    desc_high: "€2,5 M (otim.)",     low: -0.92, high:  0.46, impacto_total: 1.38 },
+      { variavel: "CAPEX ±15% (€)",                   driver: "capex",       desc_low: "+15% (derrapagem)", desc_high: "−15% (poupança)",    low: -0.57, high:  0.57, impacto_total: 1.14 },
+      { variavel: "Co-financiamento PT2030 (% CAPEX)", driver: "pt2030_taxa", desc_low: "20% (€760 k)",      desc_high: "45% (€1 710 k)",     low: -0.88, high:  0.00, impacto_total: 0.88 },
     ];
   }
 
