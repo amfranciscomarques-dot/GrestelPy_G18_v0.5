@@ -4,12 +4,12 @@ Com base nos números reais de 2024 (Vendas de 38 M€ e Resultado Líquido de 1
 
 ### 1. Volume de Negócios (Expansão e Canais)
 
-* **Objetivo**: "Atingir um Volume de Negócios de **45,6 M€ até dezembro de 2025** (crescimento de 20,3% vs 2024), suportado pela abertura da *flagship store* em Madrid e pela consolidação da estratégia de marca *umbrella* no *e-commerce*".
+* **Objetivo**: "Atingir um Volume de Negócios de **45,6 M€ até dezembro de 2027** (crescimento de 20,3% vs 2024), suportado pela abertura da *flagship store* em Madrid e pela consolidação da estratégia de marca *umbrella* no *e-commerce*".
 * **Porquê SMART?** É **Específico** (foca em Madrid e e-commerce), **Mensurável** (45,6 M€), **Atingível** (face ao crescimento de 68% no mercado nacional em 2024), **Relevante** e **Temporal** (2025).
 
 ### 2. Rentabilidade Operacional (Eficiência 4.0)
 
-* **Objetivo**: "Elevar a **Margem EBITDA para ≥19,5% em 2025**, através da redução de desperdícios em I&D (tecnologia laser para evitar segundas cozeduras) e da otimização logística entre a Grestel e a Ecogres".
+* **Objetivo**: "Elevar a **Margem EBITDA para ≥19,5% em 2027**, através da redução de desperdícios em I&D (tecnologia laser para evitar segundas cozeduras) e da otimização logística entre a Grestel e a Ecogres".
 * **Porquê SMART?** Utiliza drivers técnicos mencionados no relatório (Indústria 4.0 e redução de consumo de gás natural) para justificar o ganho de margem.
 
 ### 3. Estrutura de Capital (Covenants)
@@ -24,7 +24,7 @@ Com base nos números reais de 2024 (Vendas de 38 M€ e Resultado Líquido de 1
 
 ### 5. Sustentabilidade e ESG (Novo Objetivo)
 
-* **Objetivo**: "Reduzir em **10% o consumo de gás natural por peça produzida até 2026**, através da implementação de misturas de hidrogénio na cozedura e manutenção da certificação NP ISO 14001:2015".
+* **Objetivo**: "Reduzir em **10% o consumo de gás natural por peça produzida até 2027**, através da implementação de misturas de hidrogénio na cozedura e manutenção da certificação NP ISO 14001:2015".
 * **Porquê SMART?** Alinha-se com a "Perspetiva Futura" de melhorar o desempenho ambiental e o reconhecimento obtido com o projeto ECOGRES 4.0.
 
 ### Recomendação de Seleção:

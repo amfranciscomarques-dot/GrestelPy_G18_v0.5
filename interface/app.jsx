@@ -7,13 +7,13 @@ const { useState, useMemo, useEffect, useCallback } = React;
 // -----------------------------------------------------------------------------
 const NAV = [
   { id: "overview",     label: "Visão Geral",       group: "Síntese" },
-  { id: "dr",           label: "Demonstração de Resultados", group: "Demonstrações" },
-  { id: "balanco",      label: "Balanço",           group: "Demonstrações" },
-  { id: "dfc",          label: "Fluxos de Caixa",   group: "Demonstrações" },
+  { id: "dr",           label: "DR", group: "Demonstrações Financeiras" },
+  { id: "balanco",      label: "Balanço",           group: "Demonstrações Financeiras" },
+  { id: "dfc",          label: "DFC",   group: "Demonstrações Financeiras" },
   { id: "vendas",       label: "Análise de Vendas", group: "Análise" },
   { id: "kpis",         label: "KPIs & Rácios",     group: "Análise" },
-  { id: "fse",          label: "FSE — detalhe",     group: "Análise" },
-  { id: "rolling",      label: "Rolling Forecast",  group: "Análise" },
+  { id: "fse",          label: "FSE",     group: "Análise" },
+  { id: "rolling",      label: "Rolling Forecast 2025",  group: "Análise" },
   { id: "hub",          label: "Hub Logístico",     group: "Projetos" },
   { id: "ecogres",      label: "Ecogres",           group: "Projetos" },
   { id: "pressupostos", label: "Pressupostos",      group: "Configuração" },
@@ -241,7 +241,7 @@ function Sidebar({ view, setView, apiStatus }) {
           <span><span className={dotClass} /> <span className="mono">{statusLabel}</span></span>
         </div>
         <div className="foot-row"><span>Engine</span><span className="mono">{apiStatus.engineVersion || "—"}</span></div>
-        <div className="foot-row"><span>Última corrida</span><span className="mono">{lastRun}</span></div>
+        <div className="foot-row"><span>Atualizado em</span><span className="mono">{lastRun}</span></div>
       </div>
     </aside>
   );
