@@ -520,7 +520,7 @@ function HubView({ ctx }) {
     <>
       {/* ── KPIs principais ─────────────────────────────────────────────── */}
       <div className="grid-4">
-        <KPI label={"VAL @ " + fmt.pct(wacc, 0)} value={fmt.eurC(viab.vpl)} tone={viab.vpl >= 0 ? "pos" : "neg"} sub={"horizonte 10 anos + valor terminal " + fmt.eurC(viab.valor_terminal || 0)} />
+        <KPI label={"VAL @ " + fmt.pct(wacc, 0)} value={fmt.eurC(viab.vpl)} tone={viab.vpl >= 0 ? "pos" : "neg"} sub={"horizonte 10 anos · VR ativos " + fmt.eurC(viab.valor_residual_ativos || 0) + " + NFM " + fmt.eurC(viab.nfm_recovery_terminal || 0)} />
         <KPI label="TIR" value={viab.tir != null ? fmt.pct(viab.tir, 1) : "—"} tone={viab.tir != null && viab.tir >= wacc ? "pos" : "neg"} sub={"vs WACC " + fmt.pct(wacc, 0)} />
         <KPI label="Payback simples" value={fmtPayback(viab.payback_simples)} sub="anos a partir de 2024" />
         <KPI label="Payback actualizado" value={fmtPayback(viab.payback_atualizado)} sub={"descontado a " + fmt.pct(wacc, 0)} />

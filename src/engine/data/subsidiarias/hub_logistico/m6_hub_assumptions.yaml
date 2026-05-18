@@ -250,6 +250,10 @@ projeto_hub:
     carry_forward_anos: 10
 
   viabilidade:
+    # Coerência inflação/WACC (Fisher): fluxos a preços correntes (nominais).
+    #   crescimento_anual de 4 % ≈ inflação esperada (~2 %) + crescimento real (~2 %).
+    #   WACC de 8 % é nominal — consistente com fluxos nominais (Fisher: i_M ≈ i_R + π).
+    #   Se os fluxos fossem reais (preços constantes), usaria WACC real ≈ 8 % − 2 % = 6 %.
     wacc: 0.08
     # Taxa combinada para FCF unlevered (taxa marginal do projecto):
     #   IRC geral (art. 87.º n.º 1 CIRC OE2024):    20,0 %
@@ -259,5 +263,9 @@ projeto_hub:
     # O crédito RFAI é modelado separadamente em hub_rfai() — reduz o IRC
     # pago sem alterar a taxa base; ver secção rfai acima.
     irc_taxa: 0.245
-    taxa_crescimento_terminal: 0.02
+    # taxa_crescimento_terminal: 0.02  — não utilizado (ver nota abaixo)
+    # Metodologia de Valor Residual (M6 — vida económica):
+    #   O valor de saída é calculado como VLQ contabilístico dos ativos
+    #   (NCRF 7) + recuperação da NFM acumulada, não como perpetuidade
+    #   de Gordon. O projeto «cessa» financeiramente no final do horizonte.
     horizonte_anos: 10

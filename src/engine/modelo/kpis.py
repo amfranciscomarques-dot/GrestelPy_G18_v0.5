@@ -259,6 +259,7 @@ def build_kpis(
                 "margem_ebitda": margem_ebitda,
                 "margem_ebit": margem_ebit,
                 "margem_rl": margem_rl,
+                "margem_liquida": margem_rl,
                 "cresc_vn": cresc_vn,
                 "liquidez_geral": liquidez_geral,
                 "liquidez_reduzida": liquidez_reduzida,

@@ -94,6 +94,18 @@ import pandas as pd
 from ..inputs import Assumptions, Base2024
 
 
+def iva_efetivo_vendas(a: Assumptions) -> float:
+    """Taxa efectiva de IVA sobre vendas, ponderada pelo mix de mercados.
+
+    Apenas o Mercado Interno PT aplica IVA à taxa normal (23%).
+    Exportações para UE são isentas (RITI art. 14.º — transmissões intracom.).
+    Exportações para fora da UE são isentas (CIVA art. 14.º n.º 1 al. a)).
+    """
+    iva = float(a.impostos.get("IVA_Vendas", 0.23))
+    pct_pt = float(a.mercados.get("PT", {}).get("peso_global", 0.0))
+    return pct_pt * iva
+
+
 def clientes_anual(
     a: Assumptions,
     base: Base2024,
@@ -102,13 +114,17 @@ def clientes_anual(
     """Calcula o saldo anual de clientes via PMR.
 
     Fórmula:
-        Saldo de clientes = VN com IVA × PMR / 365
-        VN com IVA = VN × (1 + IVA_Vendas)
+        Saldo de clientes = VN com IVA efectivo × PMR / 365
+        VN com IVA efectivo = VN × (1 + iva_efetivo_vendas)
+
+    Onde iva_efetivo pondera pelo mix de mercados:
+      • PT (mercado interno): IVA à taxa normal
+      • UE / USA / ROW (exportações): IVA 0 %
 
     2024 usa o valor auditado do balanço de abertura.
     """
     pmr = float(a.prazos["PMR_dias"])
-    iva = float(a.impostos["IVA_Vendas"])
+    iva = iva_efetivo_vendas(a)
 
     rows = []
 

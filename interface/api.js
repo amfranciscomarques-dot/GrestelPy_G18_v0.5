@@ -332,6 +332,11 @@ const API = (() => {
       payback_atualizado: d.payback_atualizado != null ? d.payback_atualizado.toFixed(1) + " anos" : "—",
       indice_rendibilidade: d.indice_rendibilidade,
       valor_terminal: d.valor_terminal,
+      valor_residual_ativos: d.valor_residual_ativos,
+      nfm_recovery_terminal: d.nfm_recovery_terminal,
+      capital_vivo_t10: d.capital_vivo_t10,
+      mais_valia: d.mais_valia,
+      imposto_mais_valia: d.imposto_mais_valia,
       fcf, fcf_cumulativo, anos,
       parametros: d.parametros || {},
     };
@@ -348,6 +353,17 @@ const API = (() => {
     if (!r.ok) throw new Error("Erro /hub/tornado: " + r.status);
     const d = await r.json();
     return d.rows || [];
+  }
+
+  // ─── hubBreakEven ──────────────────────────────────────────────────────────
+  async function hubBreakEven({ irc_taxa, drivers } = {}) {
+    const params = new URLSearchParams();
+    if (irc_taxa != null) params.set("irc_taxa", irc_taxa);
+    if (drivers) params.set("drivers", drivers);
+    const r = await fetch(BACKEND_URL + "/api/hub/break-even?" + params);
+    if (!r.ok) throw new Error("Erro /hub/break-even: " + r.status);
+    const d = await r.json();
+    return d.break_even || [];
   }
 
   // ─── hubComparativo ────────────────────────────────────────────────────────
@@ -383,5 +399,5 @@ const API = (() => {
     return await r.json();
   }
 
-  return { useMock, health, projecao, vendasAnalise, smartTracker, hubViability, hubTornado, hubComparativo, hubConsolidado };
+  return { useMock, health, projecao, vendasAnalise, smartTracker, hubViability, hubTornado, hubBreakEven, hubComparativo, hubConsolidado };
 })();

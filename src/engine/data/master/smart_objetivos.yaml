@@ -2,11 +2,11 @@ objetivos:
   - id: vn_2025
     nome: Volume de Negócios
     categoria: economica
-    descricao: "Atingir VN de 45,6 M€ até dezembro de 2027 (crescimento 20,3% vs 2024)"
+    descricao: "Atingir VN de 46 M€ até dezembro de 2027 (crescimento 20,3% vs 2024)"
     kpi_field: vn
     fonte: kpis
     anos_alvo: [2027]
-    alvo: 45600000
+    alvo: 46000000
     operador: gte
     unidade: EUR
 

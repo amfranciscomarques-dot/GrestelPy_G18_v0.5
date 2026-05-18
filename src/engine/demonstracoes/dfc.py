@@ -68,6 +68,7 @@ from __future__ import annotations
 import pandas as pd
 
 from ..inputs import Assumptions, Base2024, Schedules, ALL_YEARS
+from ..operacional.clientes import iva_efetivo_vendas
 
 
 def _load_hub_dr(a: Assumptions) -> dict[int, dict] | None:
@@ -114,6 +115,10 @@ def build_dfc(
     hub_dfc = _load_hub_dfc(a)
     hub_dr = _load_hub_dr(a)
 
+    # IVA efectivo sobre vendas: só mercado interno PT; exportações isentas
+    iva_vendas = iva_efetivo_vendas(a)
+    iva_compras = float(a.impostos.get("IVA_FSE", 0.23))
+
     for y in ALL_YEARS:
         rl = float(df_dr[df_dr.ano == y]["rl"].iloc[0])
         dep = -float(df_dr[df_dr.ano == y]["depreciacoes"].iloc[0])
@@ -146,10 +151,13 @@ def build_dfc(
                     "op_pre_nfm": op_pre_nfm,
                     "var_nfm": var_nfm,
                     "irc_pago": -irc,
+                    "recebimentos_clientes": d24.get("recebimentos_clientes", 0.0),
+                    "pagamentos_fornecedores": d24.get("pagamentos_fornecedores", 0.0),
+                    "pagamentos_pessoal": d24.get("pagamentos_pessoal", 0.0),
                     "fluxo_operacional": fluxo_op,
-                    "pag_aft": d24["capex_aft"],
+                    "capex_aft": d24["capex_aft"],
                     "pag_intang": 0.0,
-                    "div_recebidos": d24["dividendos_recebidos"],
+                    "dividendos_recebidos": d24["dividendos_recebidos"],
                     "hub_capex": 0.0,
                     "hub_pt2030": 0.0,
                     "fluxo_investimento": fluxo_inv,
@@ -295,6 +303,19 @@ def build_dfc(
         var_caixa = fluxo_op + fluxo_inv + fluxo_fin
 
         caixa_ini = float(row_p["caixa"])
+
+        # Método direto — componentes estimadas a partir do DR e variações do Balanço
+        dr_row_y = df_dr[df_dr.ano == y].iloc[0]
+        vn_y = float(dr_row_y["vn"])
+        cmvmc_y = float(dr_row_y["cmvmc"])          # negativo (custo)
+        fse_y = float(dr_row_y.get("fse", 0.0))     # negativo (custo)
+        pessoal_y = float(dr_row_y["gastos_pessoal"])  # negativo (custo)
+
+        # IVA sobre vendas ponderado por mercado (PT 23%, UE/USA/ROW 0%)
+        rec_clientes = vn_y * (1 + iva_vendas) + d_cli
+        # IVA sobre compras (fornecedores domésticos/UE — taxa plena)
+        pag_forn = (cmvmc_y + fse_y) * (1 + iva_compras) + d_forn
+
         rows.append(
             {
                 "ano": y,
@@ -306,12 +327,15 @@ def build_dfc(
                 "rend_equiv_patrimonial": -rend_equiv_y,
                 "op_pre_nfm": op_pre_nfm,
                 "var_nfm": var_nfm,
-                "hub_nfm": -hub_nfm_y,           # ΔNFM hub incluída em var_nfm
-                "irc_pago": -irc,                # informativo; IRC capturado via EOEP em var_nfm
+                "hub_nfm": -hub_nfm_y,
+                "irc_pago": -irc,
+                "recebimentos_clientes": rec_clientes,
+                "pagamentos_fornecedores": pag_forn,
+                "pagamentos_pessoal": pessoal_y,
                 "fluxo_operacional": fluxo_op,
-                "pag_aft": -inv_aft,
+                "capex_aft": -inv_aft,
                 "pag_intang": -inv_int,
-                "div_recebidos": div_recebidos,
+                "dividendos_recebidos": div_recebidos,
                 "hub_capex": hub_capex_y,
                 "hub_pt2030": hub_pt2030_y,
                 "var_aplic_fin_cp": d_aplic_cp,
@@ -320,7 +344,7 @@ def build_dfc(
                 "pag_emprestimos": -amort_total,
                 "juros_pagos_fin": -juros,
                 "hub_amortizacao": hub_amort_y,
-                "hub_juros_capitalizados": -hub_juros_cap_y,  # saída caixa NCRF 10
+                "hub_juros_capitalizados": -hub_juros_cap_y,
                 "var_linha_cp": d_linha_cp,
                 "pag_dividendos": pag_div,
                 "fluxo_financiamento": fluxo_fin,

@@ -14,7 +14,8 @@ Funções exportadas:
   hub_fcf(hub)                — FCF livre unlevered (FCFF) para análise VAL/TIR
   mapa_servico_divida(hub)    — debt service schedule anual com DSCR do hub
   mapa_tesouraria_mensal(hub) — desdobramento mensal 2025-2026 (base M6/M3)
-  viabilidade_hub(hub)        — VAL, TIR, Payback simples e atualizado, Índice de Rendibilidade
+  viabilidade_hub(hub)        — VAL, TIR, Payback, Índice de Rendibilidade, Valor Residual
+  ponto_critico_hub(driver)   — ponto crítico (break-even NPV=0) por driver
   tornado_hub(hub)            — análise de sensibilidade tornado do VAL
 
 Notas metodológicas:
@@ -1087,13 +1088,166 @@ def _discounted_payback(
     return _payback(disc)
 
 
+def _vlq_ativos(hub: dict, ano_fim: int) -> float:
+    """
+    Valor Líquido Contabilístico (VLQ) de todos os pools + juros capitalizados
+    no final do horizonte de análise — componente base do Valor Residual (NCRF 7).
+
+    VLQ_pool = montante × max(ano_dep_fim − ano_fim, 0) / vida_util
+    onde ano_dep_fim = max(ano_pool, ano_inicio_op) + vida_util − 1.
+    """
+    proj = hub["projeto_hub"]
+    pools = proj["capex"]["pools"]
+    ano_inicio_op = int(proj["ano_inicio_beneficios"])
+
+    vlq = 0.0
+    for pool in pools.values():
+        montante = float(pool["montante"])
+        vida_util = int(pool["vida_util_anos"])
+        ano_pool = int(pool["ano_inicio"])
+        ano_dep_inicio = max(ano_pool, ano_inicio_op)
+        ano_dep_fim = ano_dep_inicio + vida_util - 1
+        anos_restantes = max(ano_dep_fim - ano_fim, 0)
+        vlq += montante * anos_restantes / vida_util
+
+    # Pool virtual dos juros capitalizados (NCRF 10) — mesma vida útil da construção civil
+    jc_map = _juros_capitalizados_map(hub)
+    jc_total = sum(jc_map.values())
+    if jc_total > 0:
+        vida_jc = int(pools["construcao_civil"]["vida_util_anos"])
+        ano_dep_jc_fim = ano_inicio_op + vida_jc - 1
+        anos_restantes_jc = max(ano_dep_jc_fim - ano_fim, 0)
+        vlq += jc_total * anos_restantes_jc / vida_jc
+
+    return vlq
+
+
+def _capital_vivo(hub: dict, ano_fim: int) -> float:
+    """Saldo da dívida bancária no final do horizonte (capital por amortizar)."""
+    proj = hub["projeto_hub"]
+    banco = proj["financiamento"]["Banco_Hub"]
+    capital = float(banco["montante"])
+    amort_anual = float(banco["amortizacao_anual"])
+    inicio_amort = int(banco["inicio_amortizacao"])
+    desembolso_ano = int(banco["desembolso"])
+
+    if ano_fim < desembolso_ano:
+        return 0.0
+
+    anos_amort = max(0, ano_fim - inicio_amort + 1)
+    amortizado = min(amort_anual * anos_amort, capital)
+    return max(capital - amortizado, 0.0)
+
+
+def ponto_critico_hub(
+    driver: str,
+    hub_base: dict | None = None,
+    irc_taxa: float | None = None,
+    tol: float = 1.0,
+    max_iter: int = 100,
+) -> dict:
+    """
+    Ponto crítico do VAL: valor do driver que faz VPL = 0.
+
+    Usa bissecção sobre sensibilidade_hub(). A margem de segurança indica
+    o desvio percentual máximo admissível face ao valor base do driver antes
+    de o projeto se tornar não viável (VPL < 0).
+
+    Retorna: {driver, valor_base, ponto_critico, vpl_base, margem_seguranca_pct, status}
+    """
+    if hub_base is None:
+        hub_base = load()
+
+    proj = hub_base["projeto_hub"]
+
+    _cfg: dict[str, dict] = {
+        "pessoal":     {"base": float(proj["beneficios_anuais"]["poupanca_operacional"]),
+                        "low": 0.0, "high": float(proj["beneficios_anuais"]["poupanca_operacional"]) * 4},
+        "inventario":  {"base": float(proj["beneficios_pontuais"]["libertacao_inventario"]),
+                        "low": 0.0, "high": float(proj["beneficios_pontuais"]["libertacao_inventario"]) * 4},
+        "capex":       {"base": float(proj["capex"]["base"]),
+                        "low": float(proj["capex"]["base"]) * 0.3,
+                        "high": float(proj["capex"]["base"]) * 3.0},
+        "wacc":        {"base": float(proj["viabilidade"]["wacc"]),
+                        "low": 0.001, "high": 0.80},
+        "b2c":         {"base": 1.0, "low": 0.0, "high": 3.0},
+        "crescimento": {"base": float(proj["beneficios_anuais"]["crescimento_anual"]),
+                        "low": 0.0, "high": 0.50},
+        "pt2030_taxa": {"base": float(proj["financiamento"]["PT2030"]["montante"])
+                               / float(proj["capex"]["base"]),
+                        "low": 0.0, "high": 0.75},
+        "quebras":     {"base": float(proj["beneficios_anuais"]["reducao_quebras"]),
+                        "low": 0.0, "high": float(proj["beneficios_anuais"]["reducao_quebras"]) * 10},
+    }
+
+    if driver not in _cfg:
+        raise ValueError(f"Driver não suportado para ponto crítico: {driver!r}")
+
+    cfg = _cfg[driver]
+    base = cfg["base"]
+    low, high = cfg["low"], cfg["high"]
+
+    def _vpl(v: float) -> float:
+        df = sensibilidade_hub(driver, [v], hub_base, irc_taxa)
+        return float(df["vpl"].iloc[0])
+
+    vpl_base = _vpl(base)
+    vpl_low = _vpl(low)
+    vpl_high = _vpl(high)
+
+    if vpl_low * vpl_high > 0:
+        return {
+            "driver": driver,
+            "valor_base": base,
+            "ponto_critico": None,
+            "vpl_base": vpl_base,
+            "margem_seguranca_pct": None,
+            "status": "sem_cruzamento_no_intervalo",
+        }
+
+    for _ in range(max_iter):
+        mid = (low + high) / 2.0
+        vpl_mid = _vpl(mid)
+        if abs(vpl_mid) < tol:
+            break
+        if vpl_low * vpl_mid < 0:
+            high = mid
+            vpl_high = vpl_mid
+        else:
+            low = mid
+            vpl_low = vpl_mid
+
+    pc = (low + high) / 2.0
+    margem = abs(base - pc) / abs(base) if base != 0 else None
+
+    return {
+        "driver": driver,
+        "valor_base": base,
+        "ponto_critico": pc,
+        "vpl_base": vpl_base,
+        "margem_seguranca_pct": margem,
+        "status": "ok",
+    }
+
+
 def viabilidade_hub(
     hub: dict | None = None,
     irc_taxa: float | None = None,
     wacc: float | None = None,
     incluir_inventario: bool = True,
+    incluir_liquidacao_divida: bool = False,
+    taxa_realizacao_ativos: float = 1.0,
 ) -> dict:
-    """Análise de viabilidade completa do Hub Logístico 4.0."""
+    """Análise de viabilidade completa do Hub Logístico 4.0.
+
+    Parâmetros adicionais:
+      incluir_liquidacao_divida — se True, subtrai o capital bancário vivo
+        no ano horizonte do FCF terminal (perspetiva acionista / FCFE).
+        Por defeito False: abordagem FCFF pura (dívida no WACC).
+      taxa_realizacao_ativos — rácio valor de mercado / VLQ no final do
+        horizonte. 1,0 = VLQ = valor de saída (mais-valia zero, sem imposto).
+        >1,0 gera mais-valia: imposto = (realizacao − VLQ) × irc_taxa.
+    """
     if hub is None:
         hub = load()
 
@@ -1106,7 +1260,6 @@ def viabilidade_hub(
     if wacc is None:
         wacc = float(via["wacc"])
 
-    g_terminal = float(via["taxa_crescimento_terminal"])
     horizonte = int(via["horizonte_anos"])
 
     df_fcf = hub_fcf(
@@ -1193,13 +1346,25 @@ def viabilidade_hub(
             ignore_index=True,
         )
 
-    fcf_t = float(df_fcf["fcf_livre"].iloc[-1])
+    # ── Valor Residual ──────────────────────────────────────────────────────
+    # O projeto cessa financeiramente no ano horizonte; não se usa perpetuidade.
+    ano_horizonte = int(df_fcf["ano"].iloc[-1])
+    vr_ativos = _vlq_ativos(hub, ano_horizonte)
 
-    vt = (
-        fcf_t * (1 + g_terminal) / (wacc - g_terminal)
-        if wacc > g_terminal
-        else 0.0
-    )
+    # Mais-valias: se valor de realização > VLQ (taxa_realizacao_ativos > 1)
+    valor_realizacao = vr_ativos * taxa_realizacao_ativos
+    mais_valia = max(valor_realizacao - vr_ativos, 0.0)
+    imposto_mais_valia = mais_valia * irc_taxa
+
+    # NFM acumulada — capital circulante que reverte quando o projeto termina
+    nfm_map = hub_nfm(hub)
+    nfm_recovery_terminal = sum(nfm_map.values())
+
+    # Dívida viva no final do horizonte (sempre calculada para informação)
+    capital_vivo_t10 = _capital_vivo(hub, ano_horizonte)
+    deducao_divida = capital_vivo_t10 if incluir_liquidacao_divida else 0.0
+
+    vt = (valor_realizacao - imposto_mais_valia) + nfm_recovery_terminal - deducao_divida
 
     cfs = list(df_fcf["fcf_livre"])
     cfs[-1] += vt
@@ -1213,7 +1378,6 @@ def viabilidade_hub(
     indice_rendibilidade = (1 + vpl / capex_base) if capex_base else None
 
     # NFM total acumulado ao longo do horizonte (soma das ΔNFM > 0)
-    nfm_map = hub_nfm(hub)
     nfm_total_saida = sum(v for v in nfm_map.values() if v > 0)
 
     # Juros capitalizados totais (informação para reconciliação)
@@ -1232,6 +1396,12 @@ def viabilidade_hub(
     return {
         "fcf_df": df_fcf,
         "valor_terminal": vt,
+        "valor_residual_ativos": vr_ativos,
+        "mais_valia": mais_valia,
+        "imposto_mais_valia": imposto_mais_valia,
+        "nfm_recovery_terminal": nfm_recovery_terminal,
+        "capital_vivo_t10": capital_vivo_t10,
+        "deducao_divida_terminal": deducao_divida,
         "cashflows_vpl": cfs,
         "vpl": vpl,
         "tir": tir,
@@ -1241,7 +1411,14 @@ def viabilidade_hub(
         "parametros": {
             "wacc": wacc,
             "irc_taxa": irc_taxa,
-            "crescimento_terminal": g_terminal,
+            "metodologia_vt": "valor_residual_ativos_nfm",
+            "valor_residual_ativos": vr_ativos,
+            "nfm_recovery_terminal": nfm_recovery_terminal,
+            "capital_vivo_t10": capital_vivo_t10,
+            "incluir_liquidacao_divida": incluir_liquidacao_divida,
+            "taxa_realizacao_ativos": taxa_realizacao_ativos,
+            "mais_valia": mais_valia,
+            "imposto_mais_valia": imposto_mais_valia,
             "horizonte_anos": horizonte,
             "incluir_inventario": incluir_inventario,
             "capex_base": capex_base,
