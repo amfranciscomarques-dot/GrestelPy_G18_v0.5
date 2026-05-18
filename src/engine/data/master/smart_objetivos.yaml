@@ -1,36 +1,45 @@
 objetivos:
-  - id: vn_2025
-    nome: Volume de Negócios
-    categoria: economica
-    descricao: "Atingir VN de 46 M€ até dezembro de 2027 (crescimento 20,3% vs 2024)"
-    kpi_field: vn
-    fonte: kpis
-    anos_alvo: [2027]
-    alvo: 46000000
-    operador: gte
-    unidade: EUR
 
-  - id: ebitda_margin_2025
+  # --- CRESCIMENTO ---
+
+  - id: cresc_vn
+    nome: Crescimento do Volume de Negócios
+    categoria: economica
+    descricao: "Crescer VN ≥6% ao ano entre 2025-2027 (trajetória para 46M€ — crescimento 20,3% vs 2024)"
+    kpi_field: cresc_vn
+    fonte: kpis
+    anos_alvo: [2025, 2026, 2027]
+    alvo: 0.06
+    operador: gte
+    unidade: pct
+
+  # --- RENDIBILIDADE ---
+
+  - id: ebitda_margin
     nome: Margem EBITDA
     categoria: economica
-    descricao: "Elevar margem EBITDA para ≥16% em 2027 via eficiência 4.0 e logística Ecogres"
+    descricao: "Manter margem EBITDA ≥15% em todos os anos do plano (eficiência 4.0 e logística Ecogres)"
     kpi_field: margem_ebitda
     fonte: kpis
-    anos_alvo: [2029]
-    alvo: 0.16
+    anos_alvo: [2025, 2026, 2027, 2028, 2029]
+    alvo: 0.15
     operador: gte
     unidade: pct
 
-  - id: ebitda_margin_2027
-    nome: Margem EBITDA (Hub)
+  # --- EFICIÊNCIA INDUSTRIAL ---
+
+  - id: eficiencia_industrial
+    nome: Rácio de Eficiência Industrial (CMVMC/VN)
     categoria: economica
-    descricao: "Atingir margem EBITDA ≥12% em 2027 com poupanças operacionais do Hub 4.0 (≥€380k/ano)"
-    kpi_field: margem_ebitda
+    descricao: "Manter CMVMC/VN ≤41% ao longo do plano (cada 1pp de desvio = -456k€ no EBITDA)"
+    kpi_field: cmvmc_vn
     fonte: kpis
-    anos_alvo: [2027]
-    alvo: 0.12
-    operador: gte
+    anos_alvo: [2025, 2026, 2027, 2028, 2029]
+    alvo: 0.41
+    operador: lte
     unidade: pct
+
+  # --- COVENANTS FINANCEIROS ---
 
   - id: autonomia_financeira
     nome: Autonomia Financeira Ajustada
@@ -44,16 +53,31 @@ objetivos:
     unidade: pct
     covenant_limite: 0.30
 
+  - id: nd_ebitda_covenant
+    nome: Dívida Líquida / EBITDA
+    categoria: financeira
+    descricao: "Manter Dívida Líquida/EBITDA ≤3,5x em todos os anos do plano (covenant BPI)"
+    kpi_field: nd_ebitda
+    fonte: kpis
+    anos_alvo: [2025, 2026, 2027, 2028, 2029]
+    alvo: 3.5
+    operador: lte
+    unidade: ratio
+
+  # --- EFICIÊNCIA OPERACIONAL ---
+
   - id: ccc_2027
     nome: Ciclo de Conversão de Caixa
     categoria: operacional
     descricao: "Reduzir CCC para ≤260 dias até 2027 via libertação de €1,5M de inventário (Hub) e plataforma B2B"
     kpi_field: ciclo_caixa
     fonte: kpis
-    anos_alvo: [2026]
+    anos_alvo: [2026, 2027]
     alvo: 260
     operador: lte
     unidade: dias
+
+  # --- ESG ---
 
   - id: gas_peca_2026
     nome: Consumo Gás Natural por Peça

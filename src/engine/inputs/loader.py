@@ -138,6 +138,18 @@ _SCENARIO_OVERRIDES: dict[str, dict] = {
             2028: 0.042,
             2029: 0.043,
         },
+        # Hub Logístico — haircuts para ambiente adverso
+        # poupança −15%: inflação energia eleva OPEX robótica/WMS;
+        # escassez de técnicos qualificados pressiona custos de manutenção
+        "hub_logistico": {
+            "projeto_hub": {
+                "beneficios_anuais": {
+                    "poupanca_operacional": 323000,    # 380 000 × 0.85
+                    "opex_incremental":     132000,    # 120 000 × 1.10 (+10 % manutenção/SLA)
+                    "beneficio_liquido_anual": 241000, # 323k + 50k − 132k
+                },
+            },
+        },
     },
     "Hub_Ativo": {
         # DR consolidada com todos os impactos do hub (poupança pessoal/FSE/CMVMC + PT2030)
@@ -177,6 +189,28 @@ _SCENARIO_OVERRIDES: dict[str, dict] = {
             2027: 0.022,
             2028: 0.023,
             2029: 0.033,
+        },
+        # Hub Logístico — haircuts severos + atraso de ramp-up
+        # poupança −30%: choque energético nos fornos eleva OPEX automação;
+        #   qualidade de pasta instável limita ganhos de IA/visão picking;
+        #   upskilling mais lento em ambiente de crise (Academia Grestel)
+        # ramp_up_por_ano: apenas 60 % dos benefícios capturados no ano 1 (2026),
+        #   atingindo plena maturação no ano 3 (2028)
+        "hub_logistico": {
+            "projeto_hub": {
+                "beneficios_anuais": {
+                    "poupanca_operacional":    266000,  # 380 000 × 0.70 (−30 %)
+                    "reducao_quebras":          10000,  # 50 000 × 0.20 — pasta instável
+                    "opex_incremental":        150000,  # 120 000 × 1.25 (+25 % SLA/energia)
+                    "beneficio_liquido_anual": 126000,  # 266k + 10k − 150k
+                    "ramp_up_por_ano": {
+                        2026: 0.60,   # 1.º ano operacional: 60 % capturado
+                        2027: 0.80,   # 2.º ano: curva aprendizagem ~80 %
+                        2028: 1.00,   # plena maturação
+                        2029: 1.00,
+                    },
+                },
+            },
         },
     },
 }

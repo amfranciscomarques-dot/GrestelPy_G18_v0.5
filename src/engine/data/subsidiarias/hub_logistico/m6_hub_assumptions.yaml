@@ -78,7 +78,40 @@ projeto_hub:
     # opex_incremental cresce à mesma taxa anual que os benefícios (crescimento_anual)
 
     beneficio_liquido_anual: 310000  # poupanca_operacional + reducao_quebras - opex_incremental
-    crescimento_anual: 0.04          # crescimento composto dos benefícios a partir do ano 3
+
+    # ---------------------------------------------------------------------------
+    # JUSTIFICAÇÃO DO CRESCIMENTO REAL DE 2 % a.a. (componente real do nominal 4 %)
+    # ---------------------------------------------------------------------------
+    # O crescimento_anual de 4 % é nominal: 2 % inflação esperada + 2 % crescimento real.
+    # O crescimento real de 2 % é conservador e justifica-se por quatro vetores:
+    #
+    # 1. COERÊNCIA INSTITUCIONAL
+    #    A Grestel usa 2 % de crescimento na perpetuidade nos seus testes de imparidade
+    #    de goodwill e avaliações de ativos de longo prazo. Adotar o mesmo valor garante
+    #    consistência interna com os pressupostos corporativos do grupo.
+    #
+    # 2. ALAVANCAGEM OPERACIONAL DOS SISTEMAS DE IA (Hub 4.0)
+    #    • VLMs + AMRs permitem gerir +150 % de SKUs sem aumento de headcount (FTEs) →
+    #      cada euro de crescimento incremental tem margem de contribuição crescente.
+    #    • Visão IA no picking reduz taxa de erro para < 0,5 % → menos devoluções e
+    #      custos de logística inversa, sustentando os benefícios líquidos projetados.
+    #
+    # 3. VANTAGEM COMPETITIVA NO FULFILLMENT
+    #    Redução do prazo de entrega de 3-5 dias para 24-48 h habilita os canais B2C e
+    #    hotelaria premium (Horeca). O mercado global de «Premium Ceramic Ware» cresce a
+    #    CAGR 6,8 % — os 2 % reais são, portanto, uma meta de captura conservadora.
+    #
+    # 4. EFEITO DE LIBERTAÇÃO E REINVESTIMENTO DE CAPITAL
+    #    O WMS centralizado reduz o Período Médio de Inventário (atualmente 312 dias),
+    #    libertando €1,2M–€2,0M de capital imobilizado (ver beneficios_pontuais abaixo).
+    #    Este capital pode ser canalizado para marketing e inovação, alimentando o
+    #    crescimento incremental ao longo do horizonte de 10 anos.
+    #
+    # DECOMPOSIÇÃO DO CRESCIMENTO REAL DE 2 %:
+    #   • ~1 % — poder de pricing (ajuste à inflação em canais premium/B2C)
+    #   • ~1 % — ganho de quota de mercado via superioridade logística e digital
+    # ---------------------------------------------------------------------------
+    crescimento_anual: 0.04          # crescimento nominal composto a partir do ano 3 (2 % inflação + 2 % real)
 
   beneficios_pontuais:
     libertacao_inventario: 2000000  # WMS centralizado; 13 M€ em stock → meta conservadora de 15 %

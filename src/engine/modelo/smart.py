@@ -56,13 +56,21 @@ def build_smart_tracker(
         df_fonte = fontes[obj["fonte"]]
         alvo = float(obj["alvo"])
 
+        operador = obj["operador"]
+        unidade = obj.get("unidade", "")
+        _precision = 0 if unidade == "dias" else 2 if unidade in ("ratio", "EUR") else 4
+
         for ano in obj["anos_alvo"]:
             mask = df_fonte["ano"] == ano
             if not mask.any():
                 continue
 
-            valor = float(df_fonte.loc[mask, obj["kpi_field"]].iloc[0])
-            desvio = (valor - alvo) / abs(alvo) if alvo else 0.0
+            valor = round(float(df_fonte.loc[mask, obj["kpi_field"]].iloc[0]), _precision)
+            # sinal unificado: positivo = favorável, negativo = desfavorável
+            if operador == "lte":
+                desvio = (alvo - valor) / abs(alvo) if alvo else 0.0
+            else:
+                desvio = (valor - alvo) / abs(alvo) if alvo else 0.0
 
             rows.append(
                 {
@@ -74,9 +82,9 @@ def build_smart_tracker(
                     "kpi_field": obj["kpi_field"],
                     "valor": valor,
                     "alvo": alvo,
-                    "operador": obj["operador"],
-                    "unidade": obj["unidade"],
-                    "status": _status(valor, alvo, obj["operador"]),
+                    "operador": operador,
+                    "unidade": unidade,
+                    "status": _status(valor, alvo, operador),
                     "desvio_pct": desvio,
                 }
             )

@@ -535,6 +535,10 @@ def hub_dr_impact(
     # Mantido por compatibilidade com o modelo atual.
     _ = abs(float(ben["opex_incremental"]))
 
+    # Fator de ramp-up por ano (cenários adversos): reduz poupanças operacionais
+    # nos primeiros anos de operação. Ausente no Base → 1.0 (100% dos benefícios).
+    ramp_up = ben.get("ramp_up_por_ano", {})
+
     pessoal_pct = 0.68
     fse_pct = 0.32
 
@@ -587,11 +591,12 @@ def hub_dr_impact(
 
         n = y - inicio
         fator = (1 + crescimento_anual) ** n
+        ramp = float(ramp_up.get(y, 1.0))
 
-        pessoal_red = poupanca_pessoal_base * fator
-        fse_red = poupanca_fse_base * fator
-        cmvmc_red = reducao_quebras * fator
-        fse_opex = fse_opex_base * fator
+        pessoal_red = poupanca_pessoal_base * fator * ramp
+        fse_red = poupanca_fse_base * fator * ramp
+        cmvmc_red = reducao_quebras * fator * ramp
+        fse_opex = fse_opex_base * fator  # OPEX existe desde o arranque, sem ramp-up
         subsidio_y = subsidio.get(y, 0.0)
 
         dep_hub = (

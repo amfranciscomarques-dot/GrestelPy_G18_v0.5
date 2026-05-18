@@ -243,6 +243,9 @@ def build_kpis(
         servico_divida = juros_pagos_fin + amort_capital
         dscr = ebitda / servico_divida if servico_divida else 0.0
 
+        cmvmc = float(dr["cmvmc"])
+        cmvmc_vn = abs(cmvmc) / vn if vn else 0.0
+
         rows.append(
             {
                 "ano": y,
@@ -250,7 +253,8 @@ def build_kpis(
                 "ebitda": ebitda,
                 "ebit": ebit,
                 "rl": rl,
-                "cmvmc": float(dr["cmvmc"]),
+                "cmvmc": cmvmc,
+                "cmvmc_vn": cmvmc_vn,
                 "fse": float(dr["fse"]),
                 "gastos_pessoal": float(dr["gastos_pessoal"]),
                 "ebitda_margin": margem_ebitda,
