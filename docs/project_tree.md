@@ -1,10 +1,13 @@
 ﻿# GrestelPy — Project Tree
 
-> Estado actual: Engine v0.7 · actualizado 2026-05-17
+> Estado actual: Engine v0.7 · actualizado 2026-05-18
 
 ```
 GrestelPy_G18/
 ├── server.py                              ← FastAPI entry point (porta 8000)
+├── SETUP.bat                              ← Instala Python portátil + dependências (Windows, 1ª vez)
+├── start.bat                              ← Lança o servidor (Windows, duplo-clique)
+├── start.sh                               ← Lança o servidor (Linux/Mac)
 ├── pyproject.toml                         ← Configuração pacote (Python ≥ 3.10)
 ├── requirements.txt                       ← Dependências runtime
 ├── .gitignore
@@ -62,7 +65,7 @@ GrestelPy_G18/
 │       │   │   │   ├── macro.yaml        ← Inflação mensal 2025, EUR/USD mensal 2025
 │       │   │   │   ├── vendas.yaml       ← Crescimento volume/PVU por produto 2025
 │       │   │   │   ├── custos.yaml       ← FSE, pessoal, CMVMC 2025
-│       │   │   │   └── mix.yaml          ← Sazonalidade e mix planeamento 2025
+│       │   │   │   └── mix.yaml          ← Mix USA/ROW dentro EXT e mix por canal/produto × mercado (rolling forecast; sazonalidade está em globais.yaml)
 │       │   │   └── 2026_2029/
 │       │   │       ├── macro.yaml        ← Inflação anual 2026-29, EUR/USD anual
 │       │   │       ├── vendas.yaml       ← Crescimento volume/PVU plurianual
@@ -102,8 +105,7 @@ GrestelPy_G18/
 │       │
 │       ├── investimento/
 │       │   ├── __init__.py
-│       │   ├── investimento.py           ← CAPEX e calendário de investimento
-│       │   └── viabilidade.py            ← VAN, TIR, Payback, ROIC
+│       │   └── investimento.py           ← CAPEX e calendário de investimento
 │       │
 │       ├── financiamento/
 │       │   ├── __init__.py
@@ -154,7 +156,8 @@ GrestelPy_G18/
     ├── test_fse_mensal.py
     ├── test_fse_reconciliations.py
     ├── test_keys.py
-    └── test_kpis_contract.py
+    ├── test_kpis_contract.py
+    └── test_mensais_reconciliacao.py     ← 41 testes: estrutura, reconciliação mensal↔anual, EOEP fiscal
 ```
 
 ---

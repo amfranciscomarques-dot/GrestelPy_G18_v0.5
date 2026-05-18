@@ -16,7 +16,7 @@ const NAV = [
   { id: "rolling",      label: "Rolling Forecast 2025",  group: "Análise" },
   { id: "smart",        label: "Objetivos SMART",   group: "Análise" },
   { id: "hub",          label: "Hub Logístico",     group: "Projetos" },
-  { id: "ecogres",      label: "Ecogres",           group: "Projetos" },
+  { id: "ecogres",      label: "Ecogres",           group: "Análise" },
   { id: "pressupostos", label: "Pressupostos",      group: "Configuração" },
 ];
 

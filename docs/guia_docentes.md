@@ -47,11 +47,13 @@ O **GrestelPy** é uma ferramenta de planeamento financeiro desenvolvida em Pyth
 
 ## 2. Iniciar o servidor
 
-**Pré-requisitos:** Python ≥ 3.10, dependências instaladas.
+**Windows (sem Python instalado):** executar `SETUP.bat` uma vez, depois `start.bat`.
+
+**Com Python instalado:**
 
 ```bash
 pip install -r requirements.txt
-uvicorn server:app --reload --port 8000
+python server.py
 ```
 
 | Endereço | Descrição |
@@ -86,8 +88,6 @@ GET /api/scenarios/all?hub_on=false&ecogres_on=false
 ```
 
 Retorna DR, Balanço, DFC, KPIs, FSE detalhe anual e mensal, Pessoal e Produção para os quatro cenários.
-
-> **Nota:** Os novos outputs mensais (`eoep_mensal_2025`, `vendas_mensal_2025`, `dr_mensal_2025`, `tesouraria_mensal_2025`) já estão calculados internamente mas ainda não incluídos neste endpoint. A expor em próxima iteração.
 
 ---
 
@@ -266,11 +266,11 @@ dataframe_to_records() ──► API (JSON)
 
 | Ficheiro/Directório | Conteúdo | Editável |
 |---|---|---|
-| `pressupostos/globais.yaml` | Fiscal (IVA, IRC, SS, TSU), prazos (PMR/PMP), caixa mín/máx, ESG | ✓ |
+| `pressupostos/globais.yaml` | Fiscal (IVA, IRC, SS, TSU), prazos (PMR/PMP), caixa mín/máx, ESG, **sazonalidade mensal por mercado** | ✓ |
 | `pressupostos/2025/macro.yaml` | Inflação mensal 2025, EUR/USD mensal 2025 | ✓ |
 | `pressupostos/2025/vendas.yaml` | Crescimento volume e PVU por produto 2025 | ✓ |
 | `pressupostos/2025/custos.yaml` | FSE, pessoal, CMVMC 2025 | ✓ |
-| `pressupostos/2025/mix.yaml` | Sazonalidade e mix produto/mercado 2025 | ✓ |
+| `pressupostos/2025/mix.yaml` | Mix USA/ROW dentro do segmento EXT e mix por canal por produto × mercado — ficheiro de trabalho do rolling forecast (atualizar com vendas reais mensais). **Não** inclui sazonalidade (está em `globais.yaml`) nem o mix de produto/VN (derivado de `historico/2024/produtos.yaml`) | ✓ |
 | `pressupostos/2026_2029/` | Pressupostos plurianuais (macro, vendas, custos) | ✓ |
 | `historico/2024/base.yaml` | Balanço, DR e DFC reais 2024 | ✗ (histórico) |
 | `historico/2024/mix.yaml` | Mix real 2024 por mercado/canal | ✗ |
@@ -305,7 +305,7 @@ dataframe_to_records() ──► API (JSON)
 | Análise de sensibilidade | `GET /api/hub/tornado` + `sensitivity.py` | ✅ |
 | VAN, TIR, Payback Hub M6 | `GET /api/hub/viability` | ✅ |
 | Subsidiária Ecogres | `GET /api/ecogres` | ✅ |
-| Outputs mensais expostos na API | `GET /api/scenarios/all` (parcial) | ⚠️ pendente |
+| Outputs mensais expostos na API | `GET /api/scenarios/all` | ✅ |
 | Gastos pessoal mensal independente | `pessoal_mensal_2025` em `run_model` | ✅ |
 | CMVMC mensal independente | `cmvmc_mensal_2025` em `run_model` | ✅ |
 | Base BAU M6 solidificada | `schedules.yaml` — CAPEX 900k, amort. 5,53M | ✅ |
@@ -387,4 +387,4 @@ pytest tests/
 
 ---
 
-*GrestelPy · Engine v0.6+ · PEF 2025-26 · Grupo G18 · ISCA-UA · actualizado 2026-05-14 · SMART tracker adicionado*
+*GrestelPy · Engine v0.7 · PEF 2025-26 · Grupo G18 · ISCA-UA · actualizado 2026-05-18*

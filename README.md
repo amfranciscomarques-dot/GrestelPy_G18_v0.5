@@ -8,9 +8,16 @@ Cobre os Momentos **M3** (Planeamento Financeiro) e **M6** (Plano de Negócios),
 
 ## Arranque rápido
 
+### Windows (sem Python instalado)
+
+1. Execute **`SETUP.bat`** — instala tudo automaticamente (precisa de internet, ~5 min na primeira vez)
+2. Execute **`start.bat`** — abre o browser em `http://localhost:8000` automaticamente
+
+### Linha de comandos (Python já instalado)
+
 ```bash
 pip install -r requirements.txt
-uvicorn server:app --reload --port 8000
+python server.py
 ```
 
 | URL | Descrição |
