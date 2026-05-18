@@ -196,7 +196,22 @@ def build_dfc(
             else 0.0
         )
 
-        op_pre_nfm = rl + dep + imp + juros - rend_fin
+        # Rendimentos de equivalência patrimonial: rendimento não monetário
+        # (método da equivalência patrimonial em investimento.py) — eliminar do FCO
+        # e reclassificar para FCI, onde os dividendos efectivamente recebidos
+        # já figuram como entradas de caixa.
+        rend_equiv_y = float(
+            sched.investimento.get("rend_equiv_patrimonial", {}).get(y, 0.0)
+        )
+
+        # op_pre_nfm:
+        #   - sem +imp: Clientes no Balanço é bruto (baseado em PMR sem provisões);
+        #     imparidades afectam CP via DR e absorvem-se no plug da caixa, não em
+        #     d_cli → tratadas implicitamente como monetárias neste modelo.
+        #   - sem +juros/-juros: juros são reclassificados para FCF (ver fluxo_fin).
+        #   - sem -irc: o timing do IRC já está capturado em d_eoep_c (EOEP credor
+        #     inclui IRC pendente); adicioná-lo separadamente causaria dupla dedução.
+        op_pre_nfm = rl + dep + juros - rend_fin - rend_equiv_y
 
         var_nfm = (
             d_inv
@@ -210,7 +225,7 @@ def build_dfc(
             - hub_nfm_y   # ΔNFM hub: positivo = saída, subtrai de var_nfm
         )
 
-        fluxo_op = op_pre_nfm + var_nfm - irc
+        fluxo_op = op_pre_nfm + var_nfm
 
         inv_aft = sched.investimento["investimento_aft_dfc"][y]
         inv_int = sched.investimento["investimento_intang_dfc"][y]
@@ -223,6 +238,12 @@ def build_dfc(
             hub_capex_y = hub_dfc[y]["capex_hub"]
             hub_pt2030_y = hub_dfc[y]["pt2030_recebimento"]
 
+        # Variação em aplicações financeiras de curto prazo:
+        # aumento → saída de caixa (investimento); redução → entrada de caixa.
+        # Necessário para que var_caixa reconcilie com Δcaixa do Balanço.
+        # Fórmula: d_aplic_cp = aplic_anterior − aplic_atual (sinal positivo = inflow)
+        d_aplic_cp = row_p["aplicacoes_fin_cp"] - row_y["aplicacoes_fin_cp"]
+
         fluxo_inv = (
             -inv_aft
             - inv_int
@@ -230,6 +251,7 @@ def build_dfc(
             + rend_fin
             + hub_capex_y
             + hub_pt2030_y
+            + d_aplic_cp   # variação em aplicações fin. CP (↑investimento = saída)
         )
 
         amort_base = sched.financiamento["amortizacoes_capital"][y]
@@ -272,6 +294,7 @@ def build_dfc(
         fluxo_fin = rec_emp - amort_total - juros + d_linha_cp + pag_div - hub_juros_cap_y
         var_caixa = fluxo_op + fluxo_inv + fluxo_fin
 
+        caixa_ini = float(row_p["caixa"])
         rows.append(
             {
                 "ano": y,
@@ -280,16 +303,18 @@ def build_dfc(
                 "imparidades": imp,
                 "juros_pagos": juros,
                 "rend_fin": -rend_fin,
+                "rend_equiv_patrimonial": -rend_equiv_y,
                 "op_pre_nfm": op_pre_nfm,
                 "var_nfm": var_nfm,
                 "hub_nfm": -hub_nfm_y,           # ΔNFM hub incluída em var_nfm
-                "irc_pago": -irc,
+                "irc_pago": -irc,                # informativo; IRC capturado via EOEP em var_nfm
                 "fluxo_operacional": fluxo_op,
                 "pag_aft": -inv_aft,
                 "pag_intang": -inv_int,
                 "div_recebidos": div_recebidos,
                 "hub_capex": hub_capex_y,
                 "hub_pt2030": hub_pt2030_y,
+                "var_aplic_fin_cp": d_aplic_cp,
                 "fluxo_investimento": fluxo_inv,
                 "rec_emprestimos": rec_emp,
                 "pag_emprestimos": -amort_total,
@@ -300,6 +325,10 @@ def build_dfc(
                 "pag_dividendos": pag_div,
                 "fluxo_financiamento": fluxo_fin,
                 "variacao_caixa": var_caixa,
+                "caixa_ini": caixa_ini,
+                "caixa_fim": caixa_ini + var_caixa,
+                "caixa_fim_balanco": float(row_y["caixa"]),
+                "reconciliacao_ok": abs((caixa_ini + var_caixa) - float(row_y["caixa"])) < 1.0,
             }
         )
 

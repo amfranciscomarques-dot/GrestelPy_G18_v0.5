@@ -145,7 +145,8 @@ outros_rendimentos_2024:
   Equivalencia_patrimonial: 843297.6  # R&C 2024 auditado — Costa Nova USA, Inc. (não Ecogres)
   Subs_Investimento: 215289
   Subs_Exploracao: 182450
-  Rendimentos_Financeiros: 60000
+  Rendimentos_Financeiros: 60000      # base de projeção 2025-2029 (R&C 2024: 64 677,79€)
+  Cambio_Outros_base: 275221.26       # ganhos de câmbio + outros rendimentos n.d. — base de projeção 2025
 
 
 materias_primas_2024:

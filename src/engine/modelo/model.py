@@ -1,17 +1,9 @@
-"""
-engine/model.py — Lógica comum para CLI e API do modelo financeiro.
-
-Funções:
-- run_model() — executa o modelo (DR, Balanço, DFC, KPIs)
-- dataframe_to_records() — converte DataFrames para dict JSON
-- export_outputs() — exporta para CSV
-"""
+"""engine/model.py — Lógica comum para CLI e API do modelo financeiro."""
 
 from __future__ import annotations
 
 from pathlib import Path
 from typing import Any
-import json
 import pandas as pd
 import numpy as np
 
@@ -30,17 +22,6 @@ try:
     HAS_KPIS = True
 except ImportError:
     HAS_KPIS = False
-
-
-class ModelOutput:
-    """Contentor simples para resultados dos cenários principais."""
-
-    def __init__(self, cenario: str, dr, balanco, dfc, kpis):
-        self.cenario = cenario
-        self.dr = dr
-        self.balanco = balanco
-        self.dfc = dfc
-        self.kpis = kpis
 
 
 def run_model(
@@ -77,6 +58,15 @@ def run_model(
     a.raw.setdefault("ecogres", {})
     a.raw["ecogres"]["incluir_ecogres"] = bool(ecogres_on)
 
+    # Vendas anuais — calculadas uma vez e partilhadas com DR, Balanço e outputs
+    df_prod = vendas_mod.vendas_anuais(a, base, sched)
+    df_merc = vendas_mod.vendas_mercadorias_anuais(a, base)
+    df_total = vendas_mod.resumo_anual(df_prod, df_merc)
+
+    vn_2024 = float(df_total[df_total.ano == 2024]["vn_total"].iloc[0])
+    vn_2025 = float(df_total[df_total.ano == 2025]["vn_total"].iloc[0])
+    factor_vn = vn_2025 / vn_2024 if vn_2024 > 0 else 1.0
+
     # ── Mensais 2025 ────────────────────────────────────────────────────────────
     # Calculados antes das demonstrações anuais para que o resultado anual de 2025
     # seja derivado dos mensais (bottom-up para EOEP; consistência para os restantes).
@@ -86,8 +76,12 @@ def run_model(
     except Exception:
         df_eoep_mensal_2025 = None
 
-    # Demonstrações anuais — EOEP 2025 derivado do calendário mensal quando disponível
-    dfs = statements.build_statements(a, base, sched, df_eoep_mensal=df_eoep_mensal_2025)
+    # Demonstrações anuais — vendas partilhadas, EOEP 2025 derivado do calendário mensal
+    dfs = statements.build_statements(
+        a, base, sched,
+        df_eoep_mensal=df_eoep_mensal_2025,
+        df_prod=df_prod, df_merc=df_merc, df_total=df_total,
+    )
 
     if df_eoep_mensal_2025 is not None:
         dfs["eoep_mensal_2025"] = df_eoep_mensal_2025
@@ -99,17 +93,8 @@ def run_model(
             dfs["dfc"],
         )
 
-    # Calcular Factor de vendas 2025
-    df_prod = vendas_mod.vendas_anuais(a, base, sched)
-    df_merc = vendas_mod.vendas_mercadorias_anuais(a, base)
-    df_total = vendas_mod.resumo_anual(df_prod, df_merc)
-
     dfs["vendas_produto_anual"] = df_prod
     dfs["vendas_mercadoria_anual"] = df_merc
-
-    vn_2024 = float(df_total[df_total.ano == 2024]["vn_total"].iloc[0])
-    vn_2025 = float(df_total[df_total.ano == 2025]["vn_total"].iloc[0])
-    factor_vn = vn_2025 / vn_2024 if vn_2024 > 0 else 1.0
 
     # FSE detalhe anual (todas as rubricas, 2024-2029)
     try:
@@ -236,40 +221,3 @@ def dataframe_to_records(dfs: dict[str, pd.DataFrame]) -> dict[str, list[dict[st
     return result
 
 
-def export_outputs(dfs: dict[str, pd.DataFrame], output_dir: Path = None):
-    """
-    Exporta DataFrames para CSV.
-
-    Args:
-        dfs: dict com DataFrames
-        output_dir: diretório de saída (default: "outputs")
-    """
-    if output_dir is None:
-        output_dir = Path("outputs")
-
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    for name, df in dfs.items():
-        df.to_csv(output_dir / f"{name}.csv", index=False, encoding="utf-8-sig")
-        print(f"Exportado: {output_dir / f'{name}.csv'}")
-
-
-def run(cenario: str = "Base") -> ModelOutput:
-    """Executa o modelo e devolve o formato histórico de cenários."""
-    dfs = run_model(cenario=cenario)
-
-    return ModelOutput(
-        cenario=cenario,
-        dr=dfs["dr"],
-        balanco=dfs["balanco"],
-        dfc=dfs["dfc"],
-        kpis=dfs["kpis"],
-    )
-
-
-def run_all_scenarios() -> dict[str, ModelOutput]:
-    """Executa todos os cenários principais."""
-    return {
-        sc: run(sc)
-        for sc in ("Base", "Upside", "Downside", "Stress")
-    }

@@ -40,40 +40,12 @@ import pandas as pd
 
 from ..inputs import Assumptions, Base2024, Schedules, MESES
 from ..financiamento import tesouraria as teso_mod
+from ..modelo.eoep import _get_eoep_credor_2024
 
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Auxiliares internos
 # ──────────────────────────────────────────────────────────────────────────────
-
-def _get_eoep_credor_2024(base: Base2024) -> float:
-    """Obtém EOEP credor 2024 a partir dos dados base, com fallback seguro."""
-    candidates = [
-        ("saldos", "EOEP_credor"),
-        ("saldos", "eoep_credor"),
-        ("saldos", "EOEP_Credor"),
-    ]
-
-    for attr, key in candidates:
-        try:
-            value = getattr(base, attr)[key]
-            return float(value)
-        except (AttributeError, KeyError, TypeError, ValueError):
-            pass
-
-    try:
-        return float(base.raw["saldos"]["EOEP_credor"])
-    except (AttributeError, KeyError, TypeError, ValueError):
-        pass
-
-    try:
-        return float(base.raw["saldos"]["eoep_credor"])
-    except (AttributeError, KeyError, TypeError, ValueError):
-        pass
-
-    # Fallback antigo, mantido para não quebrar caso o YAML não tenha a chave.
-    return 460_472.58
-
 
 def _financiamento_mensal(sched: Schedules) -> dict[str, dict]:
     """Distribui serviço da dívida bancária 2025 por mês, uniforme ÷12.

@@ -101,52 +101,27 @@ def _hub_inv_liberation(a: Assumptions) -> dict[int, float]:
         return {}
 
 
-def _get_eoep_credor_2024(base: Base2024) -> float:
-    """Obtém EOEP credor 2024 a partir dos dados base, com fallback seguro.
-
-    Evita usar o valor hardcoded 460472.58.
-    """
-    candidates = [
-        ("saldos", "EOEP_credor"),
-        ("saldos", "eoep_credor"),
-        ("saldos", "EOEP_Credor"),
-    ]
-
-    for attr, key in candidates:
-        try:
-            return float(getattr(base, attr)[key])
-        except (AttributeError, KeyError, TypeError, ValueError):
-            pass
-
-    try:
-        return float(base.raw["saldos"]["EOEP_credor"])
-    except (AttributeError, KeyError, TypeError, ValueError):
-        pass
-
-    try:
-        return float(base.raw["saldos"]["eoep_credor"])
-    except (AttributeError, KeyError, TypeError, ValueError):
-        pass
-
-    # Fallback antigo para não quebrar caso a chave ainda não exista no YAML.
-    return 460_472.58
-
-
 def build_balanco(
     a: Assumptions,
     base: Base2024,
     sched: Schedules,
     df_dr: pd.DataFrame,
     df_eoep_mensal: "pd.DataFrame | None" = None,
+    df_prod: "pd.DataFrame | None" = None,
+    df_merc: "pd.DataFrame | None" = None,
+    df_total: "pd.DataFrame | None" = None,
 ) -> pd.DataFrame:
     """Constrói o Balanço 2024-2029 com treasury plug.
 
     Se df_eoep_mensal for fornecido, os saldos EOEP de 2025 são derivados
     do calendário mensal em vez do schedules.yaml.
     """
-    df_prod = vendas.vendas_anuais(a, base, sched)
-    df_merc = vendas.vendas_mercadorias_anuais(a, base)
-    df_total = vendas.resumo_anual(df_prod, df_merc)
+    if df_prod is None:
+        df_prod = vendas.vendas_anuais(a, base, sched)
+    if df_merc is None:
+        df_merc = vendas.vendas_mercadorias_anuais(a, base)
+    if df_total is None:
+        df_total = vendas.resumo_anual(df_prod, df_merc)
 
     vn_2024_b = float(df_total[df_total.ano == 2024]["vn_total"].iloc[0])
     vn_2025_b = float(df_total[df_total.ano == 2025]["vn_total"].iloc[0])
@@ -198,7 +173,7 @@ def build_balanco(
     eoep_dev_24 = base.saldos["EOEP_devedor"]
     outros_ac_2024 = base_outros_ac - eoep_dev_24
 
-    eoep_cred_24 = _get_eoep_credor_2024(base)
+    eoep_cred_24 = eoep._get_eoep_credor_2024(base)
     base_outros_pc_total = base.balanco["passivo"]["Outros_PC"]
 
     # Outros_PC operacional, excluindo EOEP credor porque EOEP é apresentado

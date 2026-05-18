@@ -167,13 +167,10 @@ def _outros_rendimentos(
         - ced_pessoal_2024
     )
 
-    # Mantém a lógica existente, mas evita hardcoding do total de outros rendimentos.
-    # Nota: o valor 275221.26 parece ser uma componente específica não discriminada
-    # em base.outros_rendimentos; fica preservado por compatibilidade.
     subs_cambio_base = (
         base.outros_rendimentos["Subs_Investimento"]
         + base.outros_rendimentos["Subs_Exploracao"]
-        + 275221.26
+        + float(base.outros_rendimentos.get("Cambio_Outros_base", 0.0))
     )
 
     hub_subsidio_2025 = (
@@ -436,6 +433,9 @@ def build_dr(
     a: Assumptions,
     base: Base2024,
     sched: Schedules,
+    df_prod: "pd.DataFrame | None" = None,
+    df_merc: "pd.DataFrame | None" = None,
+    df_total: "pd.DataFrame | None" = None,
 ) -> pd.DataFrame:
     """
     Constrói a Demonstração de Resultados Completa (2024-2029).
@@ -468,12 +468,12 @@ def build_dr(
       - Materialidade: omissão de rubricas imateriais (rounding a 0,01€)
     """
     # ===== ETAPA 1: CÁLCULO DE VENDAS ANUAIS =====
-    # Vendas de produtos: calculadas por produto com crescimento de volume e preço
-    df_prod = vendas.vendas_anuais(a, base, sched)
-    # Vendas de mercadorias: COGS vendidas a margens definidas em YAML
-    df_merc = vendas.vendas_mercadorias_anuais(a, base)
-    # Resumo consolidado: produto + mercadorias
-    df_total = vendas.resumo_anual(df_prod, df_merc)
+    if df_prod is None:
+        df_prod = vendas.vendas_anuais(a, base, sched)
+    if df_merc is None:
+        df_merc = vendas.vendas_mercadorias_anuais(a, base)
+    if df_total is None:
+        df_total = vendas.resumo_anual(df_prod, df_merc)
 
     # FATOR DE ESCALA 2025: O ano 2025 tem apenas 9 meses (jan-set)
     # Logo, o crescimento de vendas de 2024 para 2025 é reduzido proporcionalmente
@@ -654,10 +654,7 @@ def build_dr(
         out_gast = outros_gastos[y]
         imp = imparidades.get(y, 0.0)
 
-        # Mantido como no modelo original.
-        # Se existir no YAML uma rubrica própria de rendimentos financeiros,
-        # este valor deve ser migrado para base/assumptions.
-        rend_fin = 60_000
+        rend_fin = float(base.outros_rendimentos.get("Rendimentos_Financeiros", 60_000))
 
         ecogres_subc = subc_map.get(y, 0.0)
 

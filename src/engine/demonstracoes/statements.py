@@ -38,6 +38,7 @@ from __future__ import annotations
 import pandas as pd
 
 from ..inputs import Assumptions, Base2024, Schedules
+from ..operacional import vendas as _vendas_mod
 from .dr import build_dr
 from .balanco import build_balanco
 from .dfc import build_dfc
@@ -48,6 +49,9 @@ def build_statements(
     base: Base2024,
     sched: Schedules,
     df_eoep_mensal: "pd.DataFrame | None" = None,
+    df_prod: "pd.DataFrame | None" = None,
+    df_merc: "pd.DataFrame | None" = None,
+    df_total: "pd.DataFrame | None" = None,
 ) -> dict[str, pd.DataFrame]:
     """
     Constrói as três demonstrações financeiras consolidadas.
@@ -58,6 +62,8 @@ def build_statements(
       sched (Schedules): Tabelas plurianuais pré-calculadas (juros, depr., etc.)
       df_eoep_mensal: Calendário EOEP mensal de 2025 (opcional). Quando fornecido,
           os saldos EOEP de 2025 no Balanço são derivados do calendário mensal.
+      df_prod, df_merc, df_total: Vendas pré-calculadas (opcional). Quando fornecidos,
+          evita recomputation em build_dr e build_balanco.
 
     RETORNA:
       dict[str, DataFrame]: Dicionário com três DataFrames:
@@ -65,15 +71,21 @@ def build_statements(
         - "balanco": Balanço (ativos, passivos, patrimônio por ano)
         - "dfc": Demonstração de Fluxos de Caixa (entrada/saída por ano)
 
-    FLUXO:
-      1. build_dr(a, base, sched): Calcula receitas, custos, lucro
-      2. build_balanco(...): Usa DR para calcular contas de ativo/passivo
-      3. build_dfc(...): Usa DR e Balanço para derivar fluxos de caixa reais
-
     ORDEM CRÍTICA: DR → Balanço → DFC (dependências acíclicas)
     """
-    df_dr = build_dr(a, base, sched)
-    df_balanco = build_balanco(a, base, sched, df_dr, df_eoep_mensal=df_eoep_mensal)
+    if df_prod is None:
+        df_prod = _vendas_mod.vendas_anuais(a, base, sched)
+    if df_merc is None:
+        df_merc = _vendas_mod.vendas_mercadorias_anuais(a, base)
+    if df_total is None:
+        df_total = _vendas_mod.resumo_anual(df_prod, df_merc)
+
+    df_dr = build_dr(a, base, sched, df_prod=df_prod, df_merc=df_merc, df_total=df_total)
+    df_balanco = build_balanco(
+        a, base, sched, df_dr,
+        df_eoep_mensal=df_eoep_mensal,
+        df_prod=df_prod, df_merc=df_merc, df_total=df_total,
+    )
     df_dfc = build_dfc(a, df_dr, df_balanco, sched, base)
 
     return {
@@ -83,24 +95,9 @@ def build_statements(
     }
 
 
-def build_all(
-    a: Assumptions,
-    base: Base2024,
-    sched: Schedules,
-    df_eoep_mensal: "pd.DataFrame | None" = None,
-) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """Constrói as três demonstrações e devolve-as como tuplo."""
-    df_dr = build_dr(a, base, sched)
-    df_balanco = build_balanco(a, base, sched, df_dr, df_eoep_mensal=df_eoep_mensal)
-    df_dfc = build_dfc(a, df_dr, df_balanco, sched, base)
-
-    return df_dr, df_balanco, df_dfc
-
-
 __all__ = [
     "build_dr",
     "build_balanco",
     "build_dfc",
     "build_statements",
-    "build_all",
 ]
