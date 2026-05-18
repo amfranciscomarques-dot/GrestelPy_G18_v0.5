@@ -41,6 +41,7 @@ import pandas as pd
 from ..inputs import Assumptions, Base2024, Schedules, MESES
 from ..financiamento import tesouraria as teso_mod
 from ..modelo.eoep import _get_eoep_credor_2024
+from ..operacional.clientes import iva_efetivo_vendas
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -194,8 +195,8 @@ def _build_integrated_monthly(
     """
     caixa_min = a.caixa["minima"]
     caixa_max = a.caixa["maxima"]
-    iva_venda = a.impostos["IVA_Vendas"]
-    iva_fse = a.impostos.get("IVA_FSE", 0.23)
+    iva_venda = iva_efetivo_vendas(a)
+    iva_fse = a.impostos.get("IVA_FSE", 0.15)
 
     fin_m = _financiamento_mensal(sched)
     cap_m = _capex_mensal(sched)

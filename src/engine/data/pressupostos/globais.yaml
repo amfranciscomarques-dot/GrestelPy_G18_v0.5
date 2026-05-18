@@ -6,7 +6,7 @@ impostos:
   IRC_taxa_reduzida: 0.20        # Grestel tem 734 trab. → grande empresa; taxa reduzida PME não se aplica (art. 87.º n.º 2 CIRC)
   # Para alterar a taxa num ano específico, adicionar entrada aqui (sobrepõe IRC_taxa_geral nesse ano):
   #   IRC_taxa_geral_ano:
-  #     2026: 0.19
+  #     2026: 0.20
   IRC_taxa_geral_ano: {}
   IRC_taxa_reduzida_ano: {}
   Derrama_Municipal: 0.015       # máximo legal (Lei Finanças Locais art. 18.º); Vagos usa taxa máxima
@@ -14,7 +14,7 @@ impostos:
   Derrama_Estadual_limiar: 1500000
   Deducoes_Fiscais: 0.0
   IVA_Vendas: 0.23
-  IVA_FSE: 0.23
+  IVA_FSE: 0.15         # média ponderada FSE: energia/gás/transportes/rendas/honorários
   IVA_Inventarios: 0.23
   IVA_AFT: 0.23
   IVA_Diff_Dias: 0

@@ -26,6 +26,7 @@ import pandas as pd
 
 from ..inputs import Assumptions, Base2024, Schedules, MESES
 from ..operacional import vendas as vendas_mod
+from ..operacional.clientes import iva_efetivo_vendas
 from ..operacional import cmvmc as cmvmc_mod
 from ..operacional import fse as fse_mod
 from ..operacional import pessoal as pessoal_mod
@@ -231,8 +232,8 @@ def build_tesouraria_mensal(
     """
     pmr = a.prazos["PMR_dias"]
     pmp = a.prazos["PMP_Inventarios_dias"]
-    iva_venda = a.impostos["IVA_Vendas"]
-    iva_fse = a.impostos.get("IVA_FSE", 0.23)
+    iva_venda = iva_efetivo_vendas(a)
+    iva_fse = a.impostos.get("IVA_FSE", 0.15)
     tsu_emp = a.impostos["TSU_Empresa"]
 
     vn_m, fse_m, cmvmc_m, pessoal_m, irc_2024 = _build_mensais_2025(a, base, sched)

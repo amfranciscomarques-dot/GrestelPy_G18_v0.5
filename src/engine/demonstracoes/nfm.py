@@ -27,6 +27,7 @@ from __future__ import annotations
 import pandas as pd
 
 from ..inputs import Assumptions, Base2024, ALL_YEARS
+from ..operacional.clientes import iva_efetivo_vendas
 
 
 def ciclo_caixa_dias(
@@ -76,8 +77,8 @@ def nfm_anual(
         passivo_ciclico, nfm, variacao_nfm,
         pmr_dias, dmi_dias, pmp_dias, ciclo_caixa_dias.
     """
-    iva_venda = a.impostos["IVA_Vendas"]
-    iva_compra = a.impostos.get("IVA_FSE", 0.23)
+    iva_venda = iva_efetivo_vendas(a)
+    iva_compra = a.impostos.get("IVA_FSE", 0.15)
 
     rows = []
     nfm_anterior = None

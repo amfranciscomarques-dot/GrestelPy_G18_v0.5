@@ -21,6 +21,7 @@ from .rolling import router as rolling_router
 from .scenarios import get_scenarios_all, post_run
 from .scenarios import router as scenarios_router
 from .smart import router as smart_router
+from .yaml_editor import router as yaml_editor_router
 
 router = APIRouter()
 router.include_router(pressupostos_router)
@@ -31,3 +32,4 @@ router.include_router(ecogres_router)
 router.include_router(custom_router)
 router.include_router(rolling_router)
 router.include_router(smart_router)
+router.include_router(yaml_editor_router)

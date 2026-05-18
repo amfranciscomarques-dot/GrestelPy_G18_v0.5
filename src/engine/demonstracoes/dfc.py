@@ -117,7 +117,7 @@ def build_dfc(
 
     # IVA efectivo sobre vendas: só mercado interno PT; exportações isentas
     iva_vendas = iva_efetivo_vendas(a)
-    iva_compras = float(a.impostos.get("IVA_FSE", 0.23))
+    iva_compras = float(a.impostos.get("IVA_FSE", 0.15))
 
     for y in ALL_YEARS:
         rl = float(df_dr[df_dr.ano == y]["rl"].iloc[0])

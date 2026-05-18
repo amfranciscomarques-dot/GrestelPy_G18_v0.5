@@ -18,6 +18,7 @@ const NAV = [
   { id: "hub",          label: "Hub Logístico",     group: "Projetos" },
   { id: "ecogres",      label: "Ecogres",           group: "Análise" },
   { id: "pressupostos", label: "Pressupostos",      group: "Configuração" },
+  { id: "yaml_editor", label: "Editor YAML",       group: "Configuração" },
 ];
 
 // -----------------------------------------------------------------------------
@@ -92,23 +93,29 @@ function App() {
           loading={loading}
         />
         <div className="content">
-          {error && <ErrorBanner message={error} onRetry={() => setScenario(s => s)} />}
-          {!ctx && loading && <LoadingShell view={view} />}
-          {loading && ctx && <LoadingOverlay hubOn={hubOn} scenario={scenario} />}
-          {ctx && (
+          {view === "yaml_editor" ? (
+            <YamlEditorView />
+          ) : (
             <>
-              {view === "overview" && <OverviewView ctx={ctx} />}
-              {view === "dr" && <DRView ctx={ctx} />}
-              {view === "balanco" && <BalancoView ctx={ctx} />}
-              {view === "dfc" && <DFCView ctx={ctx} />}
-              {view === "kpis" && <KPIView ctx={ctx} />}
-              {view === "vendas" && <VendasView ctx={ctx} />}
-              {view === "fse" && <FSEView ctx={ctx} />}
-              {view === "rolling" && <RollingView ctx={ctx} />}
-              {view === "smart" && <SmartView ctx={ctx} />}
-              {view === "hub" && <HubView ctx={ctx} />}
-              {view === "ecogres" && <EcogresView ctx={ctx} />}
-              {view === "pressupostos" && <PressupostosView ctx={ctx} />}
+              {error && <ErrorBanner message={error} onRetry={() => setScenario(s => s)} />}
+              {!ctx && loading && <LoadingShell view={view} />}
+              {loading && ctx && <LoadingOverlay hubOn={hubOn} scenario={scenario} />}
+              {ctx && (
+                <>
+                  {view === "overview" && <OverviewView ctx={ctx} />}
+                  {view === "dr" && <DRView ctx={ctx} />}
+                  {view === "balanco" && <BalancoView ctx={ctx} />}
+                  {view === "dfc" && <DFCView ctx={ctx} />}
+                  {view === "kpis" && <KPIView ctx={ctx} />}
+                  {view === "vendas" && <VendasView ctx={ctx} />}
+                  {view === "fse" && <FSEView ctx={ctx} />}
+                  {view === "rolling" && <RollingView ctx={ctx} />}
+                  {view === "smart" && <SmartView ctx={ctx} />}
+                  {view === "hub" && <HubView ctx={ctx} />}
+                  {view === "ecogres" && <EcogresView ctx={ctx} />}
+                  {view === "pressupostos" && <PressupostosView ctx={ctx} />}
+                </>
+              )}
             </>
           )}
         </div>

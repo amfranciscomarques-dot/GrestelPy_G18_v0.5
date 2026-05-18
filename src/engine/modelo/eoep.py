@@ -5,6 +5,7 @@ from __future__ import annotations
 import pandas as pd
 
 from ..inputs import Assumptions, Base2024, Schedules, ALL_YEARS, YEARS, MESES
+from ..operacional.clientes import iva_efetivo_vendas
 
 
 MESES_NUM = {m: i + 1 for i, m in enumerate(MESES)}
@@ -152,8 +153,8 @@ def eoep_calendario_mensal(
     if cmvmc_mensal is None:
         cmvmc_mensal = {}
 
-    iva_venda = a.impostos["IVA_Vendas"]
-    iva_fse = a.impostos.get("IVA_FSE", 0.23)
+    iva_venda = iva_efetivo_vendas(a)
+    iva_fse = a.impostos.get("IVA_FSE", 0.15)
     tsu = a.impostos["TSU_Empresa"]
 
     iva_liq = {

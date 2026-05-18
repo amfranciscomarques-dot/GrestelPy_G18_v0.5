@@ -42,12 +42,12 @@ def fornecedores_anual(
 
     if a is not None:
         pmp = float(a.prazos["PMP_Inventarios_dias"])
-        iva = float(a.impostos.get("IVA_FSE", 0.23))
+        iva = float(a.impostos.get("IVA_FSE", 0.15))
         dmi_mp = float(a.prazos["DMI_MP_dias"])
         dmi_merc = float(a.prazos["DMI_Mercadorias_dias"])
     else:
         pmp = 63.0
-        iva = 0.23
+        iva = 0.15
         dmi_mp = 62.0
         dmi_merc = 164.0
 

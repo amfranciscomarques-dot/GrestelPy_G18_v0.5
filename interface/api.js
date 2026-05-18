@@ -399,5 +399,42 @@ const API = (() => {
     return await r.json();
   }
 
-  return { useMock, health, projecao, vendasAnalise, smartTracker, hubViability, hubTornado, hubBreakEven, hubComparativo, hubConsolidado };
+  // ─── yamlEditor ────────────────────────────────────────────────────────────
+  async function listYamlFiles() {
+    const r = await fetch(BACKEND_URL + "/api/admin/yaml-files");
+    if (!r.ok) throw new Error("Erro /admin/yaml-files: " + r.status);
+    return await r.json();
+  }
+
+  async function getYamlContent(key) {
+    const r = await fetch(BACKEND_URL + "/api/admin/yaml/" + encodeURIComponent(key));
+    if (!r.ok) throw new Error("Erro /admin/yaml/" + key + ": " + r.status);
+    return await r.json();
+  }
+
+  async function putYamlContent(key, content) {
+    const r = await fetch(BACKEND_URL + "/api/admin/yaml/" + encodeURIComponent(key), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content }),
+    });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({ detail: r.statusText }));
+      throw new Error(err.detail || "Erro ao guardar.");
+    }
+    return await r.json();
+  }
+
+  async function restoreYamlContent(key) {
+    const r = await fetch(BACKEND_URL + "/api/admin/yaml/" + encodeURIComponent(key) + "/restore", {
+      method: "POST",
+    });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({ detail: r.statusText }));
+      throw new Error(err.detail || "Erro ao repor.");
+    }
+    return await r.json();
+  }
+
+  return { useMock, health, projecao, vendasAnalise, smartTracker, hubViability, hubTornado, hubBreakEven, hubComparativo, hubConsolidado, listYamlFiles, getYamlContent, putYamlContent, restoreYamlContent };
 })();

@@ -1515,6 +1515,194 @@ function SmartView({ ctx }) {
   );
 }
 
+// ── YamlEditorView ────────────────────────────────────────────────────────────
+function YamlEditorView() {
+  const [files, setFiles] = React.useState([]);
+  const [selectedKey, setSelectedKey] = React.useState(null);
+  const [content, setContent] = React.useState("");
+  const [original, setOriginal] = React.useState("");
+  const [saving, setSaving] = React.useState(false);
+  const [feedback, setFeedback] = React.useState(null); // {type:"ok"|"err", msg}
+
+  React.useEffect(() => {
+    API.listYamlFiles()
+      .then(d => setFiles(d.files || []))
+      .catch(e => setFeedback({ type: "err", msg: e.message }));
+  }, []);
+
+  function loadFile(key) {
+    setFeedback(null);
+    setSelectedKey(key);
+    setContent("");
+    setOriginal("");
+    API.getYamlContent(key)
+      .then(d => { setContent(d.content); setOriginal(d.content); })
+      .catch(e => setFeedback({ type: "err", msg: e.message }));
+  }
+
+  function handleSave() {
+    if (!selectedKey) return;
+    setSaving(true);
+    setFeedback(null);
+    API.putYamlContent(selectedKey, content)
+      .then(() => { setOriginal(content); setFeedback({ type: "ok", msg: "Guardado com sucesso." }); })
+      .catch(e => setFeedback({ type: "err", msg: e.message }))
+      .finally(() => setSaving(false));
+  }
+
+  function handleReset() {
+    setContent(original);
+    setFeedback(null);
+  }
+
+  function handleRestore() {
+    if (!selectedKey) return;
+    if (!window.confirm("Repor o ficheiro ao estado original do git?\nTodas as alterações guardadas serão perdidas.")) return;
+    setSaving(true);
+    setFeedback(null);
+    API.restoreYamlContent(selectedKey)
+      .then(d => { setContent(d.content); setOriginal(d.content); setFeedback({ type: "ok", msg: "Ficheiro reposto ao estado original." }); })
+      .catch(e => setFeedback({ type: "err", msg: e.message }))
+      .finally(() => setSaving(false));
+  }
+
+  const dirty = content !== original;
+
+  return (
+    <>
+      <h2 style={{ margin: "0 0 1rem" }}>Editor de Pressupostos</h2>
+      {feedback && (
+        <div style={{
+          padding: "0.6rem 1rem",
+          marginBottom: "1rem",
+          borderRadius: "6px",
+          background: feedback.type === "ok" ? "#d1fae5" : "#fee2e2",
+          color: feedback.type === "ok" ? "#065f46" : "#991b1b",
+          fontFamily: "monospace",
+          fontSize: "0.85rem",
+          whiteSpace: "pre-wrap",
+        }}>
+          {feedback.type === "ok" ? "✓ " : "✗ "}{feedback.msg}
+        </div>
+      )}
+      <div style={{ display: "flex", gap: "1rem", alignItems: "flex-start" }}>
+        <div style={{
+          width: "220px",
+          flexShrink: 0,
+          background: "var(--clr-surface, #f8f7f4)",
+          border: "1px solid var(--clr-border, #e2ddd6)",
+          borderRadius: "8px",
+          padding: "0.5rem",
+        }}>
+          <div style={{ fontSize: "0.7rem", fontWeight: 600, color: "var(--clr-muted, #888)", textTransform: "uppercase", padding: "0.25rem 0.5rem 0.5rem" }}>
+            Ficheiros editáveis
+          </div>
+          {files.map(f => (
+            <button
+              key={f.key}
+              onClick={() => loadFile(f.key)}
+              style={{
+                display: "block",
+                width: "100%",
+                textAlign: "left",
+                padding: "0.45rem 0.75rem",
+                borderRadius: "5px",
+                border: "none",
+                cursor: "pointer",
+                fontSize: "0.8rem",
+                background: selectedKey === f.key ? "var(--clr-accent-muted, #ede8df)" : "transparent",
+                fontWeight: selectedKey === f.key ? 600 : 400,
+                color: f.exists ? "inherit" : "#999",
+              }}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+          {selectedKey && (
+            <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+              <span style={{ fontSize: "0.8rem", color: "var(--clr-muted, #888)", fontFamily: "monospace" }}>
+                {files.find(f => f.key === selectedKey)?.path}
+              </span>
+              {dirty && <span style={{ fontSize: "0.75rem", color: "#b45309" }}>● não guardado</span>}
+              <span style={{ flex: 1 }} />
+              <button
+                onClick={handleRestore}
+                disabled={saving}
+                title="Repor ao estado original do git (apaga alterações guardadas)"
+                style={{
+                  padding: "0.35rem 0.9rem",
+                  borderRadius: "5px",
+                  border: "1px solid #f87171",
+                  background: "transparent",
+                  color: "#b91c1c",
+                  cursor: "pointer",
+                  fontSize: "0.82rem",
+                }}
+              >
+                Repor original
+              </button>
+              <button
+                onClick={handleReset}
+                disabled={!dirty || saving}
+                style={{
+                  padding: "0.35rem 0.9rem",
+                  borderRadius: "5px",
+                  border: "1px solid var(--clr-border, #e2ddd6)",
+                  background: "transparent",
+                  cursor: dirty ? "pointer" : "default",
+                  fontSize: "0.82rem",
+                  opacity: dirty ? 1 : 0.4,
+                }}
+              >
+                Repor
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving || !dirty}
+                style={{
+                  padding: "0.35rem 1rem",
+                  borderRadius: "5px",
+                  border: "none",
+                  background: dirty ? "var(--clr-accent, #7c6e57)" : "#ccc",
+                  color: "#fff",
+                  cursor: dirty ? "pointer" : "default",
+                  fontSize: "0.82rem",
+                  fontWeight: 600,
+                }}
+              >
+                {saving ? "A guardar…" : "Guardar"}
+              </button>
+            </div>
+          )}
+          <textarea
+            value={content}
+            onChange={e => { setContent(e.target.value); setFeedback(null); }}
+            placeholder={selectedKey ? "A carregar…" : "Seleccione um ficheiro à esquerda."}
+            spellCheck={false}
+            style={{
+              width: "100%",
+              height: "72vh",
+              fontFamily: "JetBrains Mono, monospace",
+              fontSize: "0.82rem",
+              lineHeight: 1.55,
+              padding: "0.75rem",
+              border: "1px solid var(--clr-border, #e2ddd6)",
+              borderRadius: "8px",
+              background: "var(--clr-surface, #f8f7f4)",
+              resize: "vertical",
+              outline: "none",
+              boxSizing: "border-box",
+            }}
+          />
+        </div>
+      </div>
+    </>
+  );
+}
+
 Object.assign(window, {
-  DRView, BalancoView, DFCView, KPIView, FSEView, RollingView, HubView, EcogresView, PressupostosView, VendasView, SmartView, SmartBadge, KV,
+  DRView, BalancoView, DFCView, KPIView, FSEView, RollingView, HubView, EcogresView, PressupostosView, VendasView, SmartView, SmartBadge, KV, YamlEditorView,
 });
