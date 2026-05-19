@@ -31,6 +31,10 @@ function App() {
   // Ecogres é subsidiária — sempre consolidada
   const ecogresOn = true;
 
+  // Hub Logístico está sempre ativo quando a sua vista está selecionada
+  const hubLocked = view === "hub";
+  const effectiveHubOn = hubLocked || hubOn;
+
   // Estado assíncrono
   const [ctx, setCtx] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -59,7 +63,7 @@ function App() {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    API.projecao({ cenario: scenario, hub_on: hubOn, ecogres_on: ecogresOn })
+    API.projecao({ cenario: scenario, hub_on: effectiveHubOn, ecogres_on: ecogresOn })
       .then(data => {
         if (cancelled) return;
         setCtx({
@@ -68,7 +72,7 @@ function App() {
           dfc: data.dfc,
           kpis: data.kpis,
           fse: data.fse,
-          scenario, hubOn, ecogresOn,
+          scenario, hubOn: effectiveHubOn, ecogresOn,
         });
         setLoading(false);
       })
@@ -78,7 +82,7 @@ function App() {
         setLoading(false);
       });
     return () => { cancelled = true; };
-  }, [scenario, hubOn, ecogresOn]);
+  }, [scenario, effectiveHubOn, ecogresOn]);
 
   return (
     <div className="app">
@@ -88,8 +92,9 @@ function App() {
           view={view}
           scenario={scenario}
           setScenario={setScenario}
-          hubOn={hubOn}
+          hubOn={effectiveHubOn}
           setHubOn={setHubOn}
+          hubLocked={hubLocked}
           loading={loading}
         />
         <div className="content">
@@ -99,7 +104,7 @@ function App() {
             <>
               {error && <ErrorBanner message={error} onRetry={() => setScenario(s => s)} />}
               {!ctx && loading && <LoadingShell view={view} />}
-              {loading && ctx && <LoadingOverlay hubOn={hubOn} scenario={scenario} />}
+              {loading && ctx && <LoadingOverlay hubOn={effectiveHubOn} scenario={scenario} />}
               {ctx && (
                 <>
                   {view === "overview" && <OverviewView ctx={ctx} />}
@@ -269,7 +274,7 @@ function fmtIsoDate(iso) {
   } catch { return "—"; }
 }
 
-function Topbar({ view, scenario, setScenario, hubOn, setHubOn, loading }) {
+function Topbar({ view, scenario, setScenario, hubOn, setHubOn, hubLocked, loading }) {
   const title = NAV.find(n => n.id === view)?.label || "";
   const desc = GRESTEL.SCENARIOS[scenario].desc;
   return (
@@ -293,7 +298,7 @@ function Topbar({ view, scenario, setScenario, hubOn, setHubOn, loading }) {
             >{GRESTEL.SCENARIOS[k].label}</button>
           ))}
         </div>
-        <Toggle label="Hub Logístico" on={hubOn} onChange={setHubOn} />
+        <Toggle label="Hub Logístico" on={hubOn} onChange={setHubOn} locked={hubLocked} />
         <div className="chip-static" title="Subsidiária — sempre consolidada">
           <span className="dot dot--ok" /> Ecogres consolidada
         </div>
@@ -303,9 +308,14 @@ function Topbar({ view, scenario, setScenario, hubOn, setHubOn, loading }) {
   );
 }
 
-function Toggle({ label, on, onChange }) {
+function Toggle({ label, on, onChange, locked }) {
   return (
-    <button className={"toggle " + (on ? "is-on" : "")} onClick={() => onChange(!on)}>
+    <button
+      className={"toggle " + (on ? "is-on" : "") + (locked ? " is-locked" : "")}
+      onClick={locked ? undefined : () => onChange(!on)}
+      style={locked ? { cursor: "default", opacity: 0.9 } : undefined}
+      title={locked ? "Hub Logístico ativo nesta vista" : undefined}
+    >
       <span className="toggle-track"><span className="toggle-thumb" /></span>
       <span className="toggle-label">{label}</span>
     </button>

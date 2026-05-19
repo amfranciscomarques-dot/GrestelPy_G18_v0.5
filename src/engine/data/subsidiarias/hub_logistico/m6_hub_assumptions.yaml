@@ -139,6 +139,7 @@ projeto_hub:
       2028: 800000    # + receita fase 2 serviços logísticos terceiros (~€200k)
       2029: 700000    # estabilização (efeito base maior, crescimento incremental cede)
     cmvmc_pct_incremental: 0.55  # custo direto ~55% VN → margem bruta incremental ~45%
+    usd_fraction: 0.15            # 15 % do VN incremental denominado em USD (B2C internacional / EUA)
 
   # ---------------------------------------------------------------------------
   # NECESSIDADES DE FUNDO DE MANEIO (NFM) — Ciclo de Exploração do Hub
@@ -250,6 +251,9 @@ projeto_hub:
 
   opex_detalhe:
     total: 120000  # alinhado com opex_incremental acima
+    energia:
+      consumo_liquido_kwh: 90000   # bruto ~130k kWh − offset geração PV ~40k kWh (100 kWp)
+      preco_kwh_base: 0.12          # OMIE médio 2024 (€/kWh, líquido de tarifas)
 
   rfai:
     # Regime Fiscal de Apoio ao Investimento — CFI art. 22.º-23.º
@@ -296,6 +300,7 @@ projeto_hub:
     # O crédito RFAI é modelado separadamente em hub_rfai() — reduz o IRC
     # pago sem alterar a taxa base; ver secção rfai acima.
     irc_taxa: 0.245
+    eur_usd_base: 1.08              # taxa EUR/USD de referência para o Monte Carlo
     # taxa_crescimento_terminal: 0.02  — não utilizado (ver nota abaixo)
     # Metodologia de Valor Residual (M6 — vida económica):
     #   O valor de saída é calculado como VLQ contabilístico dos ativos

@@ -24,7 +24,7 @@
 
 crescimento_volume_vendas:
   # Volume é grandeza física — não ligado à inflação, valor directo
-  base_2025: 0.03
+  base_2025: 0.02
   # acrescimos_mensais:
   #   Mai: 0.01
 

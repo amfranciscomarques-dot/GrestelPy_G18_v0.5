@@ -466,7 +466,47 @@ function RollingView({ ctx }) {
 }
 
 // ---- Hub Logístico ---------------------------------------------------------
+// Wrapper com 3 subtabs: Viabilidade · Monte Carlo · Plano de Financiamento OE4
+// Cada subtab faz lazy-load das suas APIs e fica montada após a primeira visita.
 function HubView({ ctx }) {
+  const [subtab, setSubtab] = React.useState("viabilidade");
+  const [seen, setSeen] = React.useState({ viabilidade: true });
+  React.useEffect(() => { setSeen(s => ({ ...s, [subtab]: true })); }, [subtab]);
+
+  const tabs = [
+    { id: "viabilidade",  label: "Viabilidade" },
+    { id: "monte_carlo",  label: "Monte Carlo" },
+    { id: "oe4",          label: "Plano de Financiamento OE4" },
+  ];
+
+  return (
+    <>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div className="seg">
+          {tabs.map(t => (
+            <button
+              key={t.id}
+              className={"seg-btn " + (subtab === t.id ? "is-on" : "")}
+              onClick={() => setSubtab(t.id)}
+            >{t.label}</button>
+          ))}
+        </div>
+      </div>
+      <div style={{ display: subtab === "viabilidade" ? "contents" : "none" }}>
+        {seen.viabilidade && <HubViabilidadeView ctx={ctx} />}
+      </div>
+      <div style={{ display: subtab === "monte_carlo" ? "contents" : "none" }}>
+        {seen.monte_carlo && <HubMonteCarloView ctx={ctx} />}
+      </div>
+      <div style={{ display: subtab === "oe4" ? "contents" : "none" }}>
+        {seen.oe4 && <HubOE4View ctx={ctx} />}
+      </div>
+    </>
+  );
+}
+
+// Subtab Viabilidade — KPIs, FCF, Tornado, Parâmetros, DR/KPIs comparativo, Consolidado.
+function HubViabilidadeView({ ctx }) {
   const [viab, setViab] = React.useState(null);
   const [torn, setTorn] = React.useState(null);
   const [comp, setComp] = React.useState(null);
@@ -844,6 +884,488 @@ function KV({ k, v }) {
     <div className="kv-row">
       <dt>{k}</dt>
       <dd className="mono">{v}</dd>
+    </div>
+  );
+}
+
+// ---- Hub · Monte Carlo ------------------------------------------------------
+// Simulação estocástica do VAL e TIR. Lazy-load via API.hubMonteCarlo().
+function HubMonteCarloView({ ctx }) {
+  const [mc, setMc] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState(null);
+  const [n, setN] = React.useState(1000);
+  const [seed, setSeed] = React.useState(42);
+  const [params, setParams] = React.useState({ n: 1000, seed: 42 });
+
+  React.useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    API.hubMonteCarlo({ n: params.n, seed: params.seed })
+      .then(d => { if (!cancelled) { setMc(d); setLoading(false); } })
+      .catch(err => { if (!cancelled) { setError(err.message || String(err)); setLoading(false); } });
+    return () => { cancelled = true; };
+  }, [params]);
+
+  if (loading && !mc) return <LoadingShell />;
+  if (error && !mc) return <ErrorBanner message={error} onRetry={() => setParams(p => ({ ...p }))} />;
+  if (!mc) return null;
+
+  const v = mc.val, t = mc.tir, base = mc.parametros_base;
+  const corr = Object.entries(mc.correlacoes_val).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]));
+
+  const driverLabels = {
+    b2c:                   "Crescimento B2C / e-commerce",
+    pessoal:               "Custo de pessoal",
+    inventario:            "Libertação de inventário",
+    capex:                 "CAPEX total",
+    wacc:                  "WACC",
+    pt2030_taxa:           "Co-financiamento PT2030",
+    preco_eletricidade:    "Preço da eletricidade",
+    eur_usd:               "Taxa de câmbio EUR/USD",
+    crescimento_logistico: "Taxa de crescimento logístico",
+  };
+
+  return (
+    <>
+      <Panel
+        title="Parâmetros da simulação"
+        sub={`última corrida: ${mc.n_simulations} simulações · IRC ${fmt.pct(mc.irc_taxa, 1)} · ${t.n_validas} TIR válidas / ${t.n_invalidas} inválidas`}
+        right={
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <label style={{ fontSize: 12, color: "var(--muted)", display: "inline-flex", gap: 6, alignItems: "center" }}>
+              n
+              <input type="number" min="100" max="5000" step="100" value={n} onChange={e => setN(+e.target.value)}
+                     style={{ width: 70, padding: "3px 6px", border: "1px solid var(--rule-strong)", background: "var(--surface)", fontFamily: "var(--mono)", fontSize: 12 }} />
+            </label>
+            <label style={{ fontSize: 12, color: "var(--muted)", display: "inline-flex", gap: 6, alignItems: "center" }}>
+              seed
+              <input type="number" value={seed} onChange={e => setSeed(+e.target.value)}
+                     style={{ width: 70, padding: "3px 6px", border: "1px solid var(--rule-strong)", background: "var(--surface)", fontFamily: "var(--mono)", fontSize: 12 }} />
+            </label>
+            <button className="btn-ghost" onClick={() => setParams({ n, seed })} disabled={loading}
+                    style={{ background: "var(--ink)", color: "var(--surface)", borderColor: "var(--ink)" }}>
+              {loading ? "A simular…" : "Re-executar"}
+            </button>
+          </div>
+        }
+      >
+        <div className="legend" style={{ fontSize: 12 }}>
+          <div className="legend-row"><span className="swatch" style={{ background: "var(--accent)" }} /><span>Distribuição estocástica · histograma sobre {mc.n_simulations} saídas</span></div>
+          <div className="legend-row"><span className="swatch" style={{ background: "var(--neg)" }} /><span>VAL determinístico (hubViability) — linha tracejada</span></div>
+        </div>
+      </Panel>
+
+      <div className="grid-4">
+        <KPI label="VAL médio"      value={fmt.eurC(v.mean)}                       sub={"σ " + fmt.eurC(v.std) + " · base " + fmt.eurC(base.val_base)} />
+        <KPI label="P(VAL > 0)"     value={fmt.pct(v.prob_positivo, 1)}            tone="pos" sub="probabilidade de criação de valor" />
+        <KPI label="TIR média"      value={fmt.pct(t.mean, 1)}                     sub={"σ " + fmt.pct(t.std, 1) + " · base " + fmt.pct(base.tir_base, 1)} />
+        <KPI label="P(TIR > WACC)"  value={fmt.pct(t.prob_supera_wacc_base, 1)}   tone="pos" sub={"WACC base " + fmt.pct(base.wacc_base, 0)} />
+      </div>
+
+      <div className="grid-2-3">
+        <Panel
+          title="Distribuição estocástica do VAL"
+          sub={`${mc.n_simulations} simulações · linha tracejada vermelha = VAL determinístico (${fmt.eurC(base.val_base)})`}
+        >
+          <HistogramChart
+            bins={v.histogram.bins}
+            counts={v.histogram.counts}
+            edges={v.histogram.edges}
+            baselineMark={base.val_base}
+            baselineLabel={"VAL base · " + fmt.eurC(base.val_base)}
+            percentiles={[
+              { p: "P5",  value: v.p5  },
+              { p: "P50", value: v.p50 },
+              { p: "P95", value: v.p95 },
+            ]}
+            height={300}
+          />
+        </Panel>
+        <Panel title="Percentis" sub="VAL e TIR · 7 pontos">
+          <table className="ftable ftable--dense">
+            <thead>
+              <tr><th>Percentil</th><th className="mono num">VAL</th><th className="mono num">TIR</th></tr>
+            </thead>
+            <tbody>
+              {["p5", "p10", "p25", "p50", "p75", "p90", "p95"].map(k => (
+                <tr key={k} className={k === "p50" ? "is-subtotal" : ""}>
+                  <td>{k.toUpperCase()}</td>
+                  <td className="mono num">{fmt.eurC(v[k])}</td>
+                  <td className="mono num">{fmt.pct(t[k], 1)}</td>
+                </tr>
+              ))}
+              <tr>
+                <td className="muted">mín / máx</td>
+                <td className="mono num muted" colSpan={2}>{fmt.eurC(v.min)} — {fmt.eurC(v.max)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </Panel>
+      </div>
+
+      <Panel
+        title="Correlação driver → VAL"
+        sub="Pearson r · magnitude indica importância do risco, sinal indica direção"
+        right={
+          <Legend items={[
+            { label: "correlação positiva", color: "var(--pos)" },
+            { label: "correlação negativa", color: "var(--neg)" },
+          ]} />
+        }
+      >
+        <HBarChart items={corr.map(([k, val]) => ({ label: driverLabels[k] || k, value: val }))} />
+      </Panel>
+
+      <Panel title="Distribuições amostradas" sub="parâmetros usados pelo Monte Carlo para cada driver">
+        <table className="ftable ftable--dense">
+          <thead>
+            <tr>
+              <th>Driver</th>
+              <th>Tipo</th>
+              <th className="mono num">Mín</th>
+              <th className="mono num">Modo / Média</th>
+              <th className="mono num">Máx</th>
+              <th>Unidade</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Object.entries(mc.distribuicoes_usadas).map(([k, d]) => {
+              const isPct  = (k === "wacc" || k === "pt2030_taxa" || k === "crescimento_logistico");
+              const isMult = (k === "b2c");
+              const isKwh  = (k === "preco_eletricidade");
+              const isFx   = (k === "eur_usd");
+              const f = isPct  ? (val => fmt.pct(val, 1))
+                      : isMult ? (val => val.toFixed(2) + "×")
+                      : isKwh  ? (val => val.toFixed(3) + " €/kWh")
+                      : isFx   ? (val => val.toFixed(3))
+                               : fmt.eurC;
+              const unidade = isPct ? "taxa" : isMult ? "× base" : isKwh ? "€/kWh" : isFx ? "EUR/USD" : "EUR";
+              return (
+                <tr key={k}>
+                  <td>{driverLabels[k] || k}</td>
+                  <td><span className="chip-static" style={{ padding: "2px 8px", fontSize: 10.5 }}>{d.type}</span></td>
+                  <td className="mono num">{d.type === "truncnorm" ? f(d.low)  : f(d.min)}</td>
+                  <td className="mono num">{d.type === "truncnorm" ? f(d.mean) : f(d.mode)}</td>
+                  <td className="mono num">{d.type === "truncnorm" ? f(d.high) : f(d.max)}</td>
+                  <td className="muted">{unidade}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </Panel>
+    </>
+  );
+}
+
+// ---- Hub · Plano de Financiamento OE4 ---------------------------------------
+// Consome API.hubDebtService() + API.hubInvestmentMap() em paralelo.
+function HubOE4View({ ctx }) {
+  const [ds, setDs] = React.useState(null);
+  const [im, setIm] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState(null);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    Promise.all([API.hubDebtService(), API.hubInvestmentMap()])
+      .then(([d, m]) => { if (!cancelled) { setDs(d); setIm(m); setLoading(false); } })
+      .catch(err => { if (!cancelled) { setError(err.message || String(err)); setLoading(false); } });
+    return () => { cancelled = true; };
+  }, []);
+
+  if (loading && !ds) return <LoadingShell />;
+  if (error && !ds) return <ErrorBanner message={error} onRetry={() => setError(null)} />;
+  if (!ds || !im) return null;
+
+  const totalCapex  = im.capex_base;
+  const emprestimo  = im.financiamento?.Banco_Hub?.montante  || 2_850_000;
+  const pt2030      = im.pt2030_montante;
+  const capProprio  = 240_000;
+  const fundingTotal = emprestimo + pt2030 + capProprio;
+  const nfmTotal    = im.nfm.reduce((a, r) => a + r.delta_nfm, 0);
+  const dscrMin     = 1.20;
+
+  const poolColors = [
+    "oklch(0.34 0.075 40)", "oklch(0.44 0.105 45)", "oklch(0.54 0.115 45)",
+    "oklch(0.66 0.105 55)", "oklch(0.78 0.060 75)",
+  ];
+
+  const capexByYear = im.capex_anual.map(({ ano, capex }) => {
+    const poolsAno = im.pools.filter(p => p.ano_inicio === ano);
+    return { ano, capex, parts: poolsAno.map(p => {
+      const i = im.pools.findIndex(x => x.pool === p.pool);
+      return { label: p.pool.replace(/_/g, " "), value: p.montante, amount: p.montante, color: poolColors[i % poolColors.length], textColor: i < 2 ? "var(--surface)" : "var(--ink)" };
+    }) };
+  });
+
+  function dscrChip(r) {
+    if (r.periodo_carencia) {
+      return <span className="chip-static" style={{ background: "oklch(0.95 0.05 80)", borderColor: "transparent", color: "oklch(0.45 0.10 70)", padding: "2px 8px", fontSize: 10.5 }}>Carência</span>;
+    }
+    if (r.dscr_hub >= dscrMin) {
+      return <span className="chip-static" style={{ background: "var(--pos-soft)", borderColor: "transparent", color: "var(--pos)", padding: "2px 8px", fontSize: 10.5 }}>OK</span>;
+    }
+    if (r.dscr_hub > 0) {
+      return <span className="chip-static" style={{ background: "var(--neg-soft)", borderColor: "transparent", color: "var(--neg)", padding: "2px 8px", fontSize: 10.5 }}>Stress</span>;
+    }
+    return <span className="muted">—</span>;
+  }
+
+  const dscrPostCar = ds.rows.filter(r => !r.periodo_carencia).map(r => r.dscr_hub);
+  const dscrMinObs  = dscrPostCar.length ? Math.min(...dscrPostCar) : null;
+
+  return (
+    <>
+      <div className="grid-4">
+        <KPI label="CAPEX total"         value={fmt.eurC(totalCapex)} sub={"2025 " + fmt.eurC(2_280_000) + " · 2026 " + fmt.eurC(1_520_000)} />
+        <KPI label="Empréstimo bancário" value={fmt.eurC(emprestimo)} sub="CGD/BPI · 4,15 % · carência 2025–27" />
+        <KPI label="Subsídio PT2030"     value={fmt.eurC(pt2030)} tone="pos" sub={"fundo perdido · 45 % CAPEX · " + im.pt2030_ano} />
+        <KPI label="Capital próprio"     value={fmt.eurC(capProprio)} sub={"+ NFM acumulada " + fmt.eurC(nfmTotal)} />
+      </div>
+
+      <Panel
+        title="Mapa de Investimento"
+        sub="5 pools de CAPEX · vidas úteis e taxas de depreciação distintas"
+        right={<span className="chip-static mono">Σ {fmt.eurC(totalCapex)}</span>}
+      >
+        <table className="ftable ftable--dense">
+          <thead>
+            <tr>
+              <th>Pool</th>
+              <th>Descrição</th>
+              <th className="mono num">Montante</th>
+              <th className="mono num">% CAPEX</th>
+              <th className="mono num">Início</th>
+              <th className="mono num">Vida útil</th>
+              <th className="mono num">Taxa dep.</th>
+            </tr>
+          </thead>
+          <tbody>
+            {im.pools.map((p, i) => (
+              <tr key={p.pool}>
+                <td>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                    <span className="swatch" style={{ background: poolColors[i % poolColors.length] }} />
+                    <b style={{ fontWeight: 500 }}>{p.pool.replace(/_/g, " ")}</b>
+                  </span>
+                </td>
+                <td style={{ color: "var(--ink-2)", fontSize: 11.5 }}>{p.descricao}</td>
+                <td className="mono num">{fmt.eur(p.montante)}</td>
+                <td className="mono num muted">{fmt.pct(p.montante / totalCapex, 1)}</td>
+                <td className="mono num">{p.ano_inicio}</td>
+                <td className="mono num">{p.vida_util_anos} anos</td>
+                <td className="mono num">{fmt.pct(p.taxa_depreciacao, 1)}</td>
+              </tr>
+            ))}
+            <tr className="is-total">
+              <td>Total</td><td></td>
+              <td className="mono num">{fmt.eur(totalCapex)}</td>
+              <td className="mono num">100,0 %</td>
+              <td colSpan={3}></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div className="sub-section">
+          <div className="sub-label">CAPEX por ano e pool</div>
+          {capexByYear.map(y => (
+            <div key={y.ano} style={{ display: "grid", gridTemplateColumns: "56px 1fr 110px", alignItems: "center", gap: 12, marginBottom: 8 }}>
+              <div className="mono" style={{ fontWeight: 500 }}>{y.ano}</div>
+              <StackedBar items={y.parts} height={28} showLabels={false} />
+              <div className="mono num" style={{ textAlign: "right" }}>{fmt.eurC(y.parts.reduce((a, p) => a + p.value, 0))}</div>
+            </div>
+          ))}
+        </div>
+      </Panel>
+
+      <Panel title="Estrutura de Financiamento" sub="empréstimo + subsídio + capital próprio · cobertura do CAPEX">
+        <StackedBar
+          items={[
+            { label: "Empréstimo bancário", value: emprestimo / fundingTotal, amount: emprestimo, color: "oklch(0.34 0.075 40)", textColor: "var(--surface)" },
+            { label: "Subsídio PT2030",     value: pt2030    / fundingTotal, amount: pt2030,     color: "oklch(0.54 0.115 45)", textColor: "var(--surface)" },
+            { label: "Capital próprio",     value: capProprio/ fundingTotal, amount: capProprio, color: "oklch(0.78 0.060 75)", textColor: "var(--ink)" },
+          ]}
+          height={40}
+        />
+        <div className="grid-3" style={{ marginTop: 14 }}>
+          <FundingCard
+            label="Empréstimo bancário (CGD/BPI)"
+            value={fmt.eur(emprestimo)}
+            pct={emprestimo / fundingTotal}
+            color="oklch(0.34 0.075 40)"
+            meta={[
+              ["Desembolso", "2025"],
+              ["Taxa", "4,15 % a.a."],
+              ["Carência", "2025–2027 (só juros)"],
+              ["Amortização", fmt.eur(285_000) + " / ano (2028+)"],
+              ["Juros 2025 capitalizados", fmt.eur(118_275) + " (NCRF 10)"],
+            ]}
+          />
+          <FundingCard
+            label="Subsídio PT2030"
+            value={fmt.eur(pt2030)}
+            pct={pt2030 / fundingTotal}
+            color="oklch(0.54 0.115 45)"
+            meta={[
+              ["Natureza", "Fundo perdido"],
+              ["Cobertura", "45 % do CAPEX"],
+              ["Recebimento", im.pt2030_ano + " (após investimento)"],
+              ["Reconhecimento", "Linear · alinhado com pools"],
+            ]}
+          />
+          <FundingCard
+            label="Capital próprio (Grestel)"
+            value={fmt.eur(capProprio)}
+            pct={capProprio / fundingTotal}
+            color="oklch(0.78 0.060 75)"
+            meta={[
+              ["Origem", "Cash-flow operacional Grestel"],
+              ["Aplicação", "Margem de contingência"],
+              ["NFM acumulada (2026–29)", fmt.eur(nfmTotal)],
+              ["RFAI gerado", fmt.eur(380_000) + " (CFI art. 22-23)"],
+            ]}
+          />
+        </div>
+      </Panel>
+
+      <Panel
+        title="Mapa de Serviço da Dívida"
+        sub={"calendário de juros, amortização e DSCR · covenant alvo DSCR ≥ " + dscrMin.toFixed(2).replace(".", ",") + "×"}
+        right={
+          <div className="legend" style={{ fontSize: 11 }}>
+            <span className="chip-static" style={{ background: "oklch(0.95 0.05 80)", borderColor: "transparent", color: "oklch(0.45 0.10 70)", padding: "2px 8px", fontSize: 10.5 }}>Carência</span>
+            <span className="chip-static" style={{ background: "var(--pos-soft)", borderColor: "transparent", color: "var(--pos)", padding: "2px 8px", fontSize: 10.5 }}>DSCR ≥ 1,20×</span>
+            <span className="chip-static" style={{ background: "var(--neg-soft)", borderColor: "transparent", color: "var(--neg)", padding: "2px 8px", fontSize: 10.5 }}>DSCR &lt; 1,20×</span>
+          </div>
+        }
+      >
+        <table className="ftable ftable--dense">
+          <thead>
+            <tr>
+              <th>Ano</th>
+              <th className="mono num">Saldo início</th>
+              <th className="mono num">Juros pagos</th>
+              <th className="mono num">Capitalizados</th>
+              <th className="mono num">Em DR</th>
+              <th className="mono num">Amortização</th>
+              <th className="mono num">Serviço total</th>
+              <th className="mono num">EBITDA Hub</th>
+              <th className="mono num">DSCR</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ds.rows.map(r => {
+              const isCar   = r.periodo_carencia;
+              const dscrBad = !isCar && r.dscr_hub > 0 && r.dscr_hub < dscrMin;
+              return (
+                <tr key={r.ano}>
+                  <td className="mono"><b style={{ fontWeight: 500 }}>{r.ano}</b></td>
+                  <td className="mono num">{fmt.eur(r.saldo_em_divida)}</td>
+                  <td className="mono num">{fmt.eur(r.juros_pagos_total)}</td>
+                  <td className="mono num muted">{r.juros_capitalizados > 0 ? fmt.eur(r.juros_capitalizados) : "—"}</td>
+                  <td className="mono num">{r.juros_expensed_dr > 0 ? fmt.eur(r.juros_expensed_dr) : "—"}</td>
+                  <td className="mono num">{r.amortizacao_capital > 0 ? fmt.eur(r.amortizacao_capital) : "—"}</td>
+                  <td className="mono num" style={{ fontWeight: 500 }}>{fmt.eur(r.servico_total_divida)}</td>
+                  <td className="mono num">{r.ebitda_hub_incremental > 0 ? fmt.eur(r.ebitda_hub_incremental) : "—"}</td>
+                  <td className={"mono num " + (dscrBad ? "neg" : (!isCar && r.dscr_hub >= dscrMin ? "pos" : ""))} style={{ fontWeight: 600 }}>
+                    {r.dscr_hub > 0 ? r.dscr_hub.toFixed(2).replace(".", ",") + "×" : <span className="muted">n/a</span>}
+                  </td>
+                  <td>{dscrChip(r)}</td>
+                </tr>
+              );
+            })}
+            <tr className="is-total">
+              <td>Acumulado</td><td></td>
+              <td className="mono num">{fmt.eur(ds.rows.reduce((a, r) => a + r.juros_pagos_total, 0))}</td>
+              <td className="mono num">{fmt.eur(ds.rows.reduce((a, r) => a + r.juros_capitalizados, 0))}</td>
+              <td className="mono num">{fmt.eur(ds.rows.reduce((a, r) => a + r.juros_expensed_dr, 0))}</td>
+              <td className="mono num">{fmt.eur(ds.rows.reduce((a, r) => a + r.amortizacao_capital, 0))}</td>
+              <td className="mono num">{fmt.eur(ds.rows.reduce((a, r) => a + r.servico_total_divida, 0))}</td>
+              <td colSpan={3}></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div className="sub-section">
+          <div className="sub-label">Saldo em dívida e amortização anual</div>
+          <BarChart
+            groups={ds.rows.map(r => ({
+              label: String(r.ano),
+              bars: [
+                { key: "Saldo (fim)",        value: r.saldo_fim,           color: "oklch(0.34 0.075 40)" },
+                { key: "Amortização anual",  value: r.amortizacao_capital, color: "oklch(0.66 0.105 55)" },
+              ],
+            }))}
+            height={220}
+          />
+          <div className="legend" style={{ marginTop: 8 }}>
+            <div className="legend-row"><span className="swatch" style={{ background: "oklch(0.34 0.075 40)" }} /><span>Saldo em dívida (fim do ano)</span></div>
+            <div className="legend-row"><span className="swatch" style={{ background: "oklch(0.66 0.105 55)" }} /><span>Amortização anual</span></div>
+          </div>
+        </div>
+      </Panel>
+
+      <div className="grid-2">
+        <Panel title="NFM · Necessidades de Fundo de Maneio" sub={"acumulado · " + fmt.eur(nfmTotal)}>
+          <table className="ftable ftable--dense">
+            <thead><tr><th>Ano</th><th className="mono num">Δ NFM</th><th>Comentário</th></tr></thead>
+            <tbody>
+              {im.nfm.map(r => (
+                <tr key={r.ano}>
+                  <td className="mono"><b style={{ fontWeight: 500 }}>{r.ano}</b></td>
+                  <td className="mono num">{r.delta_nfm > 0 ? fmt.eur(r.delta_nfm) : <span className="muted">—</span>}</td>
+                  <td className="muted">{
+                    r.ano === 2025 ? "Pré-operação" :
+                    r.ano === 2026 ? "Arranque operacional" :
+                    r.ano === 2027 ? "Estabilização" :
+                                     "Serviços logísticos externos"
+                  }</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Panel>
+
+        <Panel title="Compatibilidade com covenants" sub="stress-test do DSCR vs covenant bancário típico">
+          <dl className="kv">
+            <KV k="DSCR mínimo alvo (covenant)" v={dscrMin.toFixed(2).replace(".", ",") + "×"} />
+            <KV k="DSCR mínimo observado (pós-carência)" v={dscrMinObs != null ? dscrMinObs.toFixed(2).replace(".", ",") + "×" : "—"} />
+            <KV k="Margem sobre covenant" v={dscrMinObs != null ? "+" + ((dscrMinObs / dscrMin - 1) * 100).toFixed(0) + " %" : "—"} />
+            <KV k="EBITDA Hub 2029" v={fmt.eur(ds.rows[ds.rows.length - 1].ebitda_hub_incremental)} />
+            <KV k="Serviço dívida 2029" v={fmt.eur(ds.rows[ds.rows.length - 1].servico_total_divida)} />
+            <KV k="Headroom EBITDA · 2029" v={fmt.eur(ds.rows[ds.rows.length - 1].ebitda_hub_incremental - ds.rows[ds.rows.length - 1].servico_total_divida * dscrMin)} />
+          </dl>
+          <div style={{ marginTop: 10, fontSize: 11.5, color: "var(--ink-2)", lineHeight: 1.55 }}>
+            No primeiro ano sem carência ({ds.rows.find(r => !r.periodo_carencia && r.dscr_hub > 0)?.ano}), o EBITDA incremental do Hub cobre o serviço da dívida com margem confortável acima do covenant tipicamente exigido por CGD/BPI em project finance (DSCR ≥ 1,20×).
+          </div>
+        </Panel>
+      </div>
+    </>
+  );
+}
+
+function FundingCard({ label, value, pct, color, meta }) {
+  return (
+    <div className="panel" style={{ background: "var(--surface)" }}>
+      <div style={{ padding: "12px 14px", borderBottom: "1px solid var(--rule)" }}>
+        <div style={{ fontSize: 11, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em", display: "flex", alignItems: "center", gap: 6, fontWeight: 500 }}>
+          <span className="swatch" style={{ background: color }} />
+          {label}
+        </div>
+        <div className="mono" style={{ fontSize: 22, fontWeight: 500, marginTop: 6, letterSpacing: "-0.01em" }}>{value}</div>
+        <div className="muted mono" style={{ fontSize: 11, marginTop: 2 }}>{fmt.pct(pct, 1)} do funding</div>
+      </div>
+      <div style={{ padding: "8px 14px 12px" }}>
+        <dl className="kv">
+          {meta.map(([k, v]) => <KV key={k} k={k} v={v} />)}
+        </dl>
+      </div>
     </div>
   );
 }
@@ -1704,5 +2226,8 @@ function YamlEditorView() {
 }
 
 Object.assign(window, {
-  DRView, BalancoView, DFCView, KPIView, FSEView, RollingView, HubView, EcogresView, PressupostosView, VendasView, SmartView, SmartBadge, KV, YamlEditorView,
+  DRView, BalancoView, DFCView, KPIView, FSEView, RollingView,
+  HubView, HubViabilidadeView, HubMonteCarloView, HubOE4View, FundingCard,
+  HubComparativoDR, HubComparativoKPIs, HubConsolidadoView,
+  EcogresView, PressupostosView, VendasView, SmartView, SmartBadge, KV, YamlEditorView,
 });

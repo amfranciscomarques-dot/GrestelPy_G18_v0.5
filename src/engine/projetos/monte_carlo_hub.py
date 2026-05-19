@@ -79,9 +79,37 @@ DEFAULT_DISTRIBUTIONS: dict[str, dict] = {
         "mode": None,
         "max": None,
     },
+    # Preço da eletricidade (€/kWh) — oscilação OMIE 2023-2024 em Portugal
+    "preco_eletricidade": {
+        "type": "triangular",
+        "min": 0.08,
+        "mode": 0.12,
+        "max": 0.20,
+    },
+    # Taxa de câmbio EUR/USD (USD por 1 EUR) — oscilação histórica 2020-2024.
+    # EUR/USD ↑ (EUR aprecia) → cada USD recebido vale MENOS em EUR → impacto negativo no VAL.
+    # EUR/USD ↓ (EUR desvaloriza) → cada USD recebido vale MAIS em EUR → impacto positivo no VAL.
+    # Afeta apenas a fracção usd_fraction do vn_incremental (B2C internacional / exportações EUA).
+    # Correlação de Pearson esperada com o VAL: negativa.
+    "eur_usd": {
+        "type": "triangular",
+        "min": 0.90,   # EUR fraco (abr-2022: 0,97 mínimo pós-paridade)
+        "mode": 1.08,  # referência 2024
+        "max": 1.25,   # EUR forte (fev-2018: 1,25 máximo recente)
+    },
+    # Taxa de crescimento nominal dos benefícios (substitui crescimento_anual fixo do YAML)
+    "crescimento_logistico": {
+        "type": "triangular",
+        "min": 0.02,
+        "mode": 0.04,
+        "max": 0.07,
+    },
 }
 
-DRIVERS = ["inventario", "pt2030_taxa", "b2c", "pessoal", "wacc", "capex"]
+DRIVERS = [
+    "inventario", "pt2030_taxa", "b2c", "pessoal", "wacc", "capex",
+    "preco_eletricidade", "eur_usd", "crescimento_logistico",
+]
 
 
 # ---------------------------------------------------------------------------
@@ -199,6 +227,39 @@ def _apply_sample(hub_base: dict, s: dict[str, float]) -> tuple[dict, float]:
     vn_map = proj.get("beneficios_comerciais", {}).get("vn_incremental", {})
     for yr in list(vn_map.keys()):
         vn_map[yr] = float(vn_map[yr]) * s["b2c"]
+
+    # 6. Preço da eletricidade — delta sobre beneficio_liquido_anual
+    #    O opex_incremental do YAML já embute um custo energético base (energia líq. de PV);
+    #    este step modela a volatilidade desse componente face ao preço OMIE amostrado.
+    energia_cfg = proj.get("opex_detalhe", {}).get("energia", {})
+    consumo_kwh = float(energia_cfg.get("consumo_liquido_kwh", 90_000))
+    preco_kwh_base = float(energia_cfg.get("preco_kwh_base", 0.12))
+    energia_delta = (s["preco_eletricidade"] - preco_kwh_base) * consumo_kwh
+    ben["beneficio_liquido_anual"] = ben["beneficio_liquido_anual"] - energia_delta
+
+    # 7. EUR/USD — ajuste da fracção USD do VN incremental (aplica-se depois do step b2c)
+    #
+    #    Lógica: a empresa recebe dólares (vendas B2C internacionais) e converte a EUR.
+    #      USD recebidos → EUR = USD / EUR_USD_rate
+    #    Logo EUR/USD ↑ (EUR aprecia) → conversão produz menos EUR → VAL desce.
+    #         EUR/USD ↓ (EUR desvaloriza) → conversão produz mais EUR → VAL sobe.
+    #
+    #    fx_factor = eur_usd_base / eur_usd_amostrado
+    #      • = 1,0 exatamente no caso base (sem efeito)
+    #      • > 1,0 quando EUR desvaloriza (eur_usd amostrado < base) → amplifica receita
+    #      • < 1,0 quando EUR aprecia   (eur_usd amostrado > base) → reduz receita
+    #
+    #    Apenas usd_fraction do vn_incremental é USD-denominado; a parte EUR mantém-se inalterada.
+    #    Fórmula: vn_ajustado = vn × [1 − usd_frac × (1 − fx_factor)]
+    #      equivalente a: vn_eur_puro + vn_usd_puro × fx_factor
+    usd_frac = float(proj.get("beneficios_comerciais", {}).get("usd_fraction", 0.15))
+    eur_usd_base = float(proj.get("viabilidade", {}).get("eur_usd_base", 1.08))
+    fx_factor = eur_usd_base / s["eur_usd"]
+    for yr in list(vn_map.keys()):
+        vn_map[yr] = vn_map[yr] * (1.0 - usd_frac * (1.0 - fx_factor))
+
+    # 8. Taxa de crescimento nominal dos benefícios (substitui o valor fixo do YAML)
+    proj["beneficios_anuais"]["crescimento_anual"] = s["crescimento_logistico"]
 
     # wacc devolvido separadamente (não mutado no dict)
     return h, float(s["wacc"])

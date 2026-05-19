@@ -399,6 +399,29 @@ const API = (() => {
     return await r.json();
   }
 
+  // ─── hubMonteCarlo ─────────────────────────────────────────────────────────
+  async function hubMonteCarlo({ n = 1000, irc_taxa = 0.245, seed } = {}) {
+    const params = new URLSearchParams({ n: String(n), irc_taxa: String(irc_taxa) });
+    if (seed != null) params.set("seed", String(seed));
+    const r = await fetch(BACKEND_URL + "/api/hub/monte-carlo?" + params);
+    if (!r.ok) throw new Error("Erro /hub/monte-carlo: " + r.status);
+    return await r.json();
+  }
+
+  // ─── hubDebtService ────────────────────────────────────────────────────────
+  async function hubDebtService() {
+    const r = await fetch(BACKEND_URL + "/api/hub/debt-service");
+    if (!r.ok) throw new Error("Erro /hub/debt-service: " + r.status);
+    return await r.json();
+  }
+
+  // ─── hubInvestmentMap ──────────────────────────────────────────────────────
+  async function hubInvestmentMap() {
+    const r = await fetch(BACKEND_URL + "/api/hub/investment-map");
+    if (!r.ok) throw new Error("Erro /hub/investment-map: " + r.status);
+    return await r.json();
+  }
+
   // ─── yamlEditor ────────────────────────────────────────────────────────────
   async function listYamlFiles() {
     const r = await fetch(BACKEND_URL + "/api/admin/yaml-files");
@@ -436,5 +459,5 @@ const API = (() => {
     return await r.json();
   }
 
-  return { useMock, health, projecao, vendasAnalise, smartTracker, hubViability, hubTornado, hubBreakEven, hubComparativo, hubConsolidado, listYamlFiles, getYamlContent, putYamlContent, restoreYamlContent };
+  return { useMock, health, projecao, vendasAnalise, smartTracker, hubViability, hubTornado, hubBreakEven, hubComparativo, hubConsolidado, hubMonteCarlo, hubDebtService, hubInvestmentMap, listYamlFiles, getYamlContent, putYamlContent, restoreYamlContent };
 })();

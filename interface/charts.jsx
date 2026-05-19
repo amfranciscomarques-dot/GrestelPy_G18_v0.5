@@ -621,4 +621,133 @@ function StackedBar({ items, height = 36, valueFormat = (v) => (v * 100).toFixed
   );
 }
 
-Object.assign(window, { LineChart, BarChart, WaterfallChart, TornadoChart, Sparkline, Donut, StackedBar, fmt, COL, useTooltip, ChartTooltip });
+// ---------------------------------------------------------------------------
+// HistogramChart — distribuição estocástica (Monte Carlo).
+// Props: bins (centers), counts (frequência por bin), edges (len = bins+1),
+//        baselineMark (valor x para linha tracejada vermelha), baselineLabel,
+//        percentiles (opcional, [{p, value}]).
+// ---------------------------------------------------------------------------
+function HistogramChart({ bins, counts, edges, baselineMark, baselineLabel, percentiles, height = 240, padding = { top: 20, right: 16, bottom: 32, left: 56 }, xFormat = fmt.eurC }) {
+  const [w, setW] = React.useState(640);
+  const { containerRef, tip, onMove, onLeave } = useTooltip();
+  React.useLayoutEffect(() => {
+    if (!containerRef.current) return;
+    const ro = new ResizeObserver(es => { for (const e of es) setW(e.contentRect.width); });
+    ro.observe(containerRef.current);
+    return () => ro.disconnect();
+  }, []);
+
+  const xMin = edges[0], xMax = edges[edges.length - 1];
+  const yMax = Math.max(...counts) * 1.10 || 1;
+  const total = counts.reduce((a, b) => a + b, 0);
+  const innerW = w - padding.left - padding.right;
+  const innerH = height - padding.top - padding.bottom;
+  const x = (v) => padding.left + ((v - xMin) / (xMax - xMin || 1)) * innerW;
+  const y = (v) => padding.top + innerH * (1 - v / yMax);
+
+  const xTicks = 6;
+  const xTickVals = Array.from({ length: xTicks + 1 }, (_, i) => xMin + (xMax - xMin) * i / xTicks);
+  const yTicks = 4;
+  const yTickVals = Array.from({ length: yTicks + 1 }, (_, i) => yMax * i / yTicks);
+
+  return (
+    <div ref={containerRef} style={{ width: "100%", position: "relative" }}>
+      <svg width={w} height={height} style={{ display: "block" }} onMouseLeave={onLeave}>
+        {yTickVals.map((t, i) => (
+          <g key={"yg" + i}>
+            <line x1={padding.left} x2={w - padding.right} y1={y(t)} y2={y(t)} stroke="var(--rule)" strokeWidth="1" />
+            <text x={padding.left - 8} y={y(t) + 4} textAnchor="end" fontSize="11" fill="var(--muted)" fontFamily="var(--mono)">{Math.round(t)}</text>
+          </g>
+        ))}
+        {counts.map((c, i) => {
+          const x0 = x(edges[i]);
+          const x1 = x(edges[i + 1]);
+          const yT = y(c);
+          const handle = (e) => onMove(e, {
+            title: xFormat(edges[i]) + " — " + xFormat(edges[i + 1]),
+            rows: [
+              { label: "Frequência", value: c + " / " + total, color: "var(--accent)" },
+              { label: "% das simulações", value: fmt.pct(c / total, 1), color: "var(--muted)" },
+            ],
+          });
+          return (
+            <rect key={i} x={x0 + 0.5} y={yT} width={Math.max(1, x1 - x0 - 1)} height={padding.top + innerH - yT}
+              fill="var(--accent)" opacity="0.85" onMouseMove={handle} onMouseEnter={handle} style={{ cursor: "default" }} />
+          );
+        })}
+        {percentiles && percentiles.map((p, i) => (
+          <line key={"p" + i} x1={x(p.value)} x2={x(p.value)}
+            y1={padding.top + innerH - 10} y2={padding.top + innerH}
+            stroke="var(--ink)" strokeWidth="1" opacity="0.45" />
+        ))}
+        {baselineMark != null && (
+          <g pointerEvents="none">
+            <line x1={x(baselineMark)} x2={x(baselineMark)} y1={padding.top - 4} y2={padding.top + innerH + 4}
+              stroke="var(--neg)" strokeWidth="1.5" strokeDasharray="3 3" />
+            <text x={x(baselineMark)} y={padding.top - 8} textAnchor="middle" fontSize="10.5" fontWeight="600"
+              fill="var(--neg)" fontFamily="var(--mono)">{baselineLabel || ("base " + xFormat(baselineMark))}</text>
+          </g>
+        )}
+        <line x1={padding.left} x2={w - padding.right} y1={padding.top + innerH} y2={padding.top + innerH} stroke="var(--rule-strong)" strokeWidth="1" />
+        {xTickVals.map((t, i) => (
+          <text key={"xt" + i} x={x(t)} y={height - 12} textAnchor="middle" fontSize="11" fill="var(--muted)" fontFamily="var(--mono)">{xFormat(t)}</text>
+        ))}
+      </svg>
+      <ChartTooltip tip={tip} containerWidth={w} />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// HBarChart — barras horizontais (suporta negativos, eixo zero ao centro).
+// Usado nas correlações driver→VAL do Monte Carlo.
+// ---------------------------------------------------------------------------
+function HBarChart({ items, height, padding = { top: 8, right: 64, bottom: 8, left: 180 }, valueFormat = (v) => (v >= 0 ? "+" : "") + v.toFixed(3), barColor }) {
+  const [w, setW] = React.useState(640);
+  const { containerRef, tip, onMove, onLeave } = useTooltip();
+  React.useLayoutEffect(() => {
+    if (!containerRef.current) return;
+    const ro = new ResizeObserver(es => { for (const e of es) setW(e.contentRect.width); });
+    ro.observe(containerRef.current);
+    return () => ro.disconnect();
+  }, []);
+
+  const rowH = 26;
+  const h = height || (items.length * rowH + padding.top + padding.bottom);
+  const innerW = w - padding.left - padding.right;
+  const maxAbs = Math.max(...items.map(it => Math.abs(it.value)), 0.1);
+  const xZero = padding.left + innerW / 2;
+  const sc = (v) => (v / maxAbs) * (innerW / 2);
+
+  return (
+    <div ref={containerRef} style={{ width: "100%", position: "relative" }}>
+      <svg width={w} height={h} style={{ display: "block" }} onMouseLeave={onLeave}>
+        <line x1={xZero} x2={xZero} y1={padding.top - 2} y2={h - padding.bottom + 2} stroke="var(--ink)" strokeWidth="1" />
+        {items.map((it, i) => {
+          const cy = padding.top + i * rowH + rowH / 2;
+          const v = it.value;
+          const bw = Math.abs(sc(v));
+          const x0 = v >= 0 ? xZero : xZero - bw;
+          const col = barColor ? barColor(v) : (v >= 0 ? "var(--pos)" : "var(--neg)");
+          const handle = (e) => onMove(e, {
+            title: it.label,
+            rows: [{ label: "Pearson r", value: valueFormat(v), color: col, bold: true }],
+          });
+          return (
+            <g key={i}>
+              <text x={padding.left - 12} y={cy + 4} textAnchor="end" fontSize="12" fill="var(--ink)" fontFamily="var(--ui)">{it.label}</text>
+              <rect x={x0} y={cy - 9} width={bw} height="18" fill={col} opacity="0.85"
+                onMouseMove={handle} onMouseEnter={handle} style={{ cursor: "default" }} />
+              <text x={v >= 0 ? xZero + bw + 6 : xZero - bw - 6} y={cy + 4}
+                textAnchor={v >= 0 ? "start" : "end"} fontSize="11" fill="var(--ink)"
+                fontFamily="var(--mono)" pointerEvents="none">{valueFormat(v)}</text>
+            </g>
+          );
+        })}
+      </svg>
+      <ChartTooltip tip={tip} containerWidth={w} />
+    </div>
+  );
+}
+
+Object.assign(window, { LineChart, BarChart, WaterfallChart, TornadoChart, Sparkline, Donut, StackedBar, HistogramChart, HBarChart, fmt, COL, useTooltip, ChartTooltip });
