@@ -36,10 +36,12 @@ ESTRUTURA DA DR (Fluxo de Cálculo):
      - RAI = EBIT + (Juros) + (Outros Rendimentos) + (Outros Gastos) + (Imparidades)
 
   6. IMPOSTO SOBRE RENDIMENTO (IRC):
-     - Taxa progressiva: 14,5% até 50.000€, 21% acima
+     - ICE (art. 41.º-A EBF): dedução à matéria coletável (~342k€ em 2024, cresce 3%/ano)
+     - Taxa geral: 21% (2024) / 20% (2025+) — Grestel é grande empresa
      - Derrama Municipal: 1,5%
-     - Derrama Estadual: 3% se RAI > 1.5M€
-     - Deduções fiscais: 495€ (standard)
+     - Derrama Estadual: 3% se lucro tributável > 1,5M€
+     - SIFIDE II (CFI): crédito 380k€ em 2025 (ANI) + ~130k€/ano a partir de 2026
+     - Tributação Autónoma (art. 88.º CIRC): ~22k€ em 2024, indexado 3%/ano
 
   7. RESULTADO LÍQUIDO:
      - = RAI - IRC
@@ -368,63 +370,84 @@ def _irc(
     base: Base2024,
 ) -> dict:
     """
-    Calcula o IRC (Imposto sobre o Rendimento das Pessoas Coletivas) com progressividade.
+    Calcula o IRC (Imposto sobre o Rendimento das Pessoas Coletivas).
 
-    LÓGICA FISCAL PORTUGUESA (Atual):
-      1. TAXA PROGRESSIVA:
-         - Primeira tranche: até €50.000 → taxa reduzida (14,5%)
-         - Segunda tranche: acima €50.000 → taxa geral (21%)
-         Este sistema incentiva PMEs (menor tributação nas primeiras tranches)
+    SEQUÊNCIA DE CÁLCULO (por ano de projeção):
+      1. ICE — Incentivo à Capitalização das Empresas (art. 41.º-A EBF):
+         Dedução à matéria coletável = ICE_valor_base × (1 + g)^(ano-2024).
+         Reduz o lucro tributável antes de aplicar qualquer taxa.
 
-      2. DERRAMAS (Adicional de Imposto):
-         - Derrama Municipal: 1,5% aplicada ao RAI completo
-         - Derrama Estadual: 3% aplicada apenas se RAI > €1.500.000
-           (Recurso do Estado para entes locais, apenas acima limiar)
+      2. COLETA BASE (sobre lucro tributável = RAI − ICE):
+         - Taxa geral (Grestel = grande empresa → aplica-se desde o 1.º euro)
+         - Derrama Municipal: 1,5% sobre lucro tributável
+         - Derrama Estadual: 3% sobre a parcela acima de €1,5M
+         - Deduções fiscais (standard)
 
-      3. DEDUÇÕES FISCAIS:
-         - Abatimento padrão: €495/ano (dedução standard para pequenas empresas)
-         - Resultados negativos: IRC = max(0, valor_calculado) — não há crédito de imposto
+      3. SIFIDE II — crédito de imposto (art. 35.º do CFI):
+         Deduzido à coleta calculada em (2).
+         Inclui crédito pontual (pendente ANI) e crédito recorrente (I&D anual).
+         Nunca reduz a coleta abaixo de zero.
 
-    EXEMPLO CÁLCULO:
-      RAI = €100.000
-      - Primeira tranche: min(100k, 50k) × 14,5% = 50k × 0,145 = €7.250
-      - Segunda tranche: max(0, 100k - 50k) × 21% = 50k × 0,21 = €10.500
-      - Derrama Municipal: 100k × 1,5% = €1.500
-      - Derrama Estadual: 0 (abaixo limiar €1.5M)
-      - Deduções: -€495
-      - IRC TOTAL = 7.250 + 10.500 + 1.500 - 495 = €18.755 (18,8% taxa efetiva)
+      4. TRIBUTAÇÃO AUTÓNOMA (art. 88.º CIRC):
+         Acrescida ao IRC final. Incide sobre despesas não dedutíveis
+         (viaturas, representação). Valor base 2024 indexado à inflação.
+
+    Nota: 2024 é lido do histórico auditado (taxa efetiva real = 8%).
     """
     irc_2024 = _get_dr_2024_value(base, "irc", 0.0)
+    res = {2024: irc_2024}
 
-    res = {
-        2024: irc_2024,
-    }
+    imp = a.impostos
+    taxa_geral_ano  = imp.get("IRC_taxa_geral_ano", {})
+    taxa_red_ano    = imp.get("IRC_taxa_reduzida_ano", {})
+    der_est         = imp.get("Derrama_Estadual", 0.03)
+    der_est_limiar  = imp.get("Derrama_Estadual_limiar", 1_500_000)
 
-    # Carrega taxas variáveis por ano (se aplicável)
-    taxa_geral_ano = a.impostos.get("IRC_taxa_geral_ano", {})
-    taxa_red_ano = a.impostos.get("IRC_taxa_reduzida_ano", {})
-    der_est = a.impostos.get("Derrama_Estadual", 0.03)
-    der_est_limiar = a.impostos.get("Derrama_Estadual_limiar", 1_500_000)
+    # ICE
+    ice_base = float(imp.get("ICE_valor_base", 0.0))
+    ice_g    = float(imp.get("ICE_taxa_crescimento", 0.03))
+
+    # SIFIDE II
+    sifide_credito_ano = {int(k): float(v) for k, v in imp.get("SIFIDE_credito_coleta_ano", {}).items()}
+    sifide_despesas    = float(imp.get("SIFIDE_despesas_anuais", 0.0))
+    sifide_taxa        = float(imp.get("SIFIDE_taxa_credito", 0.325))
+    sifide_recorrente  = int(imp.get("SIFIDE_ano_inicio_recorrente", 9999))
+
+    # Tributação Autónoma
+    ta_base = float(imp.get("Tributacao_Autonoma_valor_2024", 0.0))
+    ta_g    = float(imp.get("Tributacao_Autonoma_crescimento", 0.03))
 
     for y, r in rai.items():
         if y == 2024 or r is None:
             continue
 
-        # Aplicação de taxas: progressiva até 50k, depois taxa geral
-        taxa_geral = taxa_geral_ano.get(y, a.impostos["IRC_taxa_geral"])
-        taxa_red = taxa_red_ano.get(y, a.impostos["IRC_taxa_reduzida"])
+        taxa_geral = taxa_geral_ano.get(y, imp["IRC_taxa_geral"])
+        taxa_red   = taxa_red_ano.get(y, imp["IRC_taxa_reduzida"])
 
-        # Cálculo estruturado: tranche 1 + tranche 2 + derramas - deduções
-        irc = max(
-            0,  # Nunca pagar imposto negativo (ir < 0)
-            min(r, 50_000) * taxa_red              # Primeira tranche: até 50k à taxa reduzida
-            + max(0, r - 50_000) * taxa_geral      # Segunda tranche: acima 50k à taxa geral
-            + r * a.impostos["Derrama_Municipal"]  # Derrama municipal (linear)
-            + max(0, r - der_est_limiar) * der_est # Derrama estadual (só acima limiar)
-            - a.impostos["Deducoes_Fiscais"],      # Deduções (standard €495)
+        # 1. ICE: dedução à matéria coletável
+        ice_ded = ice_base * (1.0 + ice_g) ** (y - 2024) if ice_base > 0 else 0.0
+        r_tributavel = max(0.0, r - ice_ded)
+
+        # 2. Coleta base sobre lucro tributável
+        coleta = max(
+            0.0,
+            min(r_tributavel, 50_000) * taxa_red
+            + max(0.0, r_tributavel - 50_000) * taxa_geral
+            + r_tributavel * imp["Derrama_Municipal"]
+            + max(0.0, r_tributavel - der_est_limiar) * der_est
+            - imp["Deducoes_Fiscais"],
         )
 
-        res[y] = irc
+        # 3. SIFIDE II: crédito pontual + crédito recorrente
+        sifide_c = float(sifide_credito_ano.get(y, 0.0))
+        if sifide_despesas > 0 and y >= sifide_recorrente:
+            sifide_c += sifide_despesas * sifide_taxa
+        coleta = max(0.0, coleta - sifide_c)
+
+        # 4. Tributação autónoma (acrescenta ao IRC final)
+        ta = ta_base * (1.0 + ta_g) ** (y - 2024) if ta_base > 0 else 0.0
+
+        res[y] = coleta + ta
 
     return res
 
