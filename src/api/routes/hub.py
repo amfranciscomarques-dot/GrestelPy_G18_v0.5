@@ -11,6 +11,7 @@ from src.engine.projetos.hub_logistico import (
     hub_capex,
     hub_nfm,
 )
+from src.engine.projetos.monte_carlo_hub import monte_carlo_hub
 from src.engine.projetos.ecogres import ecogres_dr, load as eco_load
 from src.engine.modelo.model import dataframe_to_records, run_model
 from src.api.serializers import _wrap_rows
@@ -151,6 +152,26 @@ def get_hub_comparativo(
             "kpis":   _wrap_rows(rec_com.get("kpis")),
         },
     }
+
+
+@router.get("/hub/monte-carlo")
+def get_hub_monte_carlo(
+    n: int = Query(1000, ge=100, le=5000, description="Número de simulações (100–5 000)"),
+    irc_taxa: float = Query(0.245, description="Taxa combinada de IRC (Derrama incluída)"),
+    seed: int = Query(None, description="Seed para reprodutibilidade (omitir = aleatório)"),
+):
+    """Monte Carlo da viabilidade do Hub Logístico 4.0.
+
+    Corre N simulações amostrando 6 drivers de risco de distribuições contínuas
+    (triangulares e normal truncada) e retorna:
+    - Distribuição do VAL e TIR (percentis P5–P95)
+    - P(VAL > 0): probabilidade de viabilidade do projeto
+    - P(TIR > WACC_base): probabilidade de excesso de retorno
+    - Correlações de Pearson driver → VAL (ranking de importância dos riscos)
+    - Histograma do VAL (40 bins) para visualização
+    """
+    hub = hub_load()
+    return monte_carlo_hub(hub=hub, n_simulations=n, irc_taxa=irc_taxa, seed=seed)
 
 
 @router.get("/hub/consolidado")
