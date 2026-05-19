@@ -459,5 +459,129 @@ const API = (() => {
     return await r.json();
   }
 
-  return { useMock, health, projecao, vendasAnalise, smartTracker, hubViability, hubTornado, hubBreakEven, hubComparativo, hubConsolidado, hubMonteCarlo, hubDebtService, hubInvestmentMap, listYamlFiles, getYamlContent, putYamlContent, restoreYamlContent };
+  // ─── sensibilidade ─────────────────────────────────────────────────────────
+  // Testa cada variável individualmente (one-at-a-time): ±3 pp em 7 pontos.
+  async function sensibilidade({ cenario = "Base", hub_on = false, ecogres_on = false } = {}) {
+    const VARS = [
+      { key: "vol",     label: "Volume de Vendas",  overrideKey: "crescimento_volume_vendas" },
+      { key: "preco",   label: "Preço de Venda",    overrideKey: "crescimento_pvu_vendas"    },
+      { key: "fse",     label: "FSE",               overrideKey: "crescimento_fse"           },
+      { key: "pessoal", label: "Gastos c/ Pessoal", overrideKey: "crescimento_pessoal"       },
+      { key: "cmvmc",   label: "CMVMC",             overrideKey: "crescimento_cmvmc"         },
+    ];
+    const STEPS = [-0.03, -0.02, -0.01, 0, 0.01, 0.02, 0.03];
+
+    if (useMock) {
+      const s = GRESTEL.SCENARIOS[cenario] || GRESTEL.SCENARIOS.Base;
+      const d24 = GRESTEL.DR_2024;
+      const alpha = hub_on ? 0.15 : 0.40;
+      const baseRates = {
+        vol:     s.vol[1]     || 0.030,
+        preco:   s.preco[1]   || 0.030,
+        fse:     s.fse[1]     || 0.030,
+        pessoal: s.pessoal[1] || 0.035,
+        cmvmc:   s.cmvmc[1]   || 0.030,
+      };
+
+      function calc2025(vol, preco, fse_g, pes_g, cmv_g) {
+        const vendasGrowth = (1 + vol) * (1 + preco) - 1;
+        const vn          = d24.vn * (1 + vendasGrowth);
+        const outros_rend = d24.outros_rend * 1.015;
+        const cmvmc       = d24.cmvmc * (1 + cmv_g);
+        const fse         = d24.fse * (1 + fse_g);
+        const pessoal     = d24.gastos_pessoal * (1 + pes_g) * (1 + vol * alpha);
+        const outros_gastos = (d24.outros_gastos + d24.imparidades) * 1.02;
+        const ebitda      = vn + outros_rend - cmvmc - fse - pessoal - outros_gastos;
+        const dep         = d24.depreciacoes * 1.01;
+        const ebit        = ebitda - dep;
+        const juros       = (d24.juros - d24.rend_financeiros) * 0.96;
+        const rai         = ebit - juros;
+        const irc         = Math.max(rai, 0) * 0.215;
+        const rl          = rai - irc;
+        return { vn, ebitda, margem_ebitda: vn > 0 ? ebitda / vn : 0, rl };
+      }
+
+      const base = calc2025(baseRates.vol, baseRates.preco, baseRates.fse, baseRates.pessoal, baseRates.cmvmc);
+      const variables = {};
+      for (const v of VARS) {
+        variables[v.key] = {
+          label: v.label,
+          base_rate: baseRates[v.key],
+          steps: STEPS.map(delta => {
+            const r = { ...baseRates, [v.key]: baseRates[v.key] + delta };
+            return { delta, rate: r[v.key], ...calc2025(r.vol, r.preco, r.fse, r.pessoal, r.cmvmc) };
+          }),
+        };
+      }
+      return { base, variables };
+    }
+
+    // Live: run all variable×step combinations in parallel
+    const knownBase = { vol: 0.030, preco: 0.030, fse: 0.030, pessoal: 0.035, cmvmc: 0.030 };
+    const baseRunR = await fetch(BACKEND_URL + "/api/run", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cenario, hub_on, ecogres_on }),
+    });
+    if (!baseRunR.ok) throw new Error("Erro na API");
+    const baseData = await baseRunR.json();
+    const baseDR = normalizeDR(baseData.outputs.dr || []);
+    const r25b = baseDR.find(d => d.year === 2025) || baseDR[1] || {};
+    const base = { vn: r25b.vn, ebitda: r25b.ebitda, margem_ebitda: (r25b.vn > 0 ? r25b.ebitda / r25b.vn : 0), rl: r25b.rl };
+
+    const allPromises = VARS.flatMap(v =>
+      STEPS.map(delta => {
+        const testRate = knownBase[v.key] + delta;
+        return fetch(BACKEND_URL + "/api/run", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cenario, hub_on, ecogres_on, assumptions: { [v.overrideKey]: { base_2025: testRate } } }),
+        })
+        .then(r => r.ok ? r.json() : Promise.reject(new Error("API error")))
+        .then(data => {
+          const dr = normalizeDR(data.outputs.dr || []);
+          const r25 = dr.find(d => d.year === 2025) || dr[1] || {};
+          return { key: v.key, delta, rate: testRate, vn: r25.vn, ebitda: r25.ebitda, margem_ebitda: r25.vn > 0 ? r25.ebitda / r25.vn : 0, rl: r25.rl };
+        });
+      })
+    );
+    const allResults = await Promise.all(allPromises);
+    const variables = {};
+    for (const v of VARS) {
+      variables[v.key] = {
+        label: v.label,
+        base_rate: knownBase[v.key],
+        steps: allResults.filter(r => r.key === v.key).map(({ key: _k, ...rest }) => rest),
+      };
+    }
+    return { base, variables };
+  }
+
+  // ─── cenariosAll ───────────────────────────────────────────────────────────
+  async function cenariosAll({ hub_on = false, ecogres_on = false } = {}) {
+    if (useMock) {
+      const result = {};
+      for (const sc of Object.keys(GRESTEL.SCENARIOS)) {
+        const dr   = GRESTEL.projectDR(sc, { hubOn: hub_on, ecogresOn: ecogres_on });
+        const bal  = GRESTEL.projectBalanco(dr, { hubOn: hub_on });
+        const kpis = GRESTEL.projectKPIs(dr, bal);
+        result[sc] = { dr, kpis };
+      }
+      return result;
+    }
+    const params = new URLSearchParams({ hub_on: String(hub_on), ecogres_on: String(ecogres_on) });
+    const r = await fetch(BACKEND_URL + "/api/scenarios/all?" + params);
+    if (!r.ok) throw new Error("Erro /api/scenarios/all: " + r.status);
+    const data = await r.json();
+    const result = {};
+    for (const [sc, d] of Object.entries(data)) {
+      result[sc] = {
+        dr:   normalizeDR(d.dr?.rows || []),
+        kpis: normalizeKPIs(d.kpis?.rows || []),
+      };
+    }
+    return result;
+  }
+
+  return { useMock, health, projecao, vendasAnalise, smartTracker, hubViability, hubTornado, hubBreakEven, hubComparativo, hubConsolidado, hubMonteCarlo, hubDebtService, hubInvestmentMap, listYamlFiles, getYamlContent, putYamlContent, restoreYamlContent, sensibilidade, cenariosAll };
 })();

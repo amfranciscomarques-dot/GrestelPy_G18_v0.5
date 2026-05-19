@@ -2225,9 +2225,341 @@ function YamlEditorView() {
   );
 }
 
+// ---- Análise de Sensibilidade -----------------------------------------------
+// Testa variáveis individualmente (one-at-a-time): ±3 pp em 7 pontos.
+function SensibilidadeView({ ctx }) {
+  const VARS_CONFIG = [
+    { key: "vol",     label: "Volume" },
+    { key: "preco",   label: "Preço" },
+    { key: "fse",     label: "FSE" },
+    { key: "pessoal", label: "Pessoal" },
+    { key: "cmvmc",   label: "CMVMC" },
+  ];
+
+  const [selVar, setSelVar] = useState("vol");
+  const [data, setData]     = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    API.sensibilidade({ cenario: ctx.scenario, hub_on: ctx.hubOn, ecogres_on: ctx.ecogresOn })
+      .then(d => { if (!cancelled) { setData(d); setLoading(false); } })
+      .catch(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [ctx.scenario, ctx.hubOn, ctx.ecogresOn]);
+
+  if (loading || !data) {
+    return (
+      <div className="panel" style={{ padding: 40, textAlign: "center", color: "var(--muted)" }}>
+        A calcular sensibilidades…
+      </div>
+    );
+  }
+
+  // Tornado: impacto no EBITDA 2025 em M€ (low = pior, high = melhor)
+  const tornadoRows = VARS_CONFIG.map(v => {
+    const steps      = data.variables[v.key].steps;
+    const baseEbitda = data.base.ebitda;
+    const low        = (Math.min(...steps.map(s => s.ebitda)) - baseEbitda) / 1e6;
+    const high       = (Math.max(...steps.map(s => s.ebitda)) - baseEbitda) / 1e6;
+    return {
+      variavel:      data.variables[v.key].label,
+      low,
+      high,
+      impacto_total: Math.abs(high - low),
+    };
+  }).sort((a, b) => b.impacto_total - a.impacto_total);
+
+  const selData  = data.variables[selVar];
+  const selSteps = selData.steps;
+
+  const deltaLabel = d => d === 0 ? "Base" : (d > 0 ? "+" : "") + (d * 100).toFixed(1).replace(".", ",") + " pp";
+
+  const ebitdaSeries = [{
+    key: "ebitda", label: "EBITDA 2025",
+    labels: selSteps.map(s => deltaLabel(s.delta)),
+    values: selSteps.map(s => s.ebitda),
+    color: "var(--accent)",
+    fill: true,
+  }];
+  const vnSeries = [{
+    key: "vn", label: "VN 2025",
+    labels: selSteps.map(s => deltaLabel(s.delta)),
+    values: selSteps.map(s => s.vn),
+    color: "var(--ink)",
+  }];
+
+  return (
+    <>
+      <div className="grid-4">
+        <KPI label="VN 2025 · Base"    value={fmt.eurC(data.base.vn)}     sub={"cenário " + ctx.scenario} />
+        <KPI label="EBITDA 2025 · Base" value={fmt.eurC(data.base.ebitda)} sub={fmt.pct(data.base.margem_ebitda) + " margem"} />
+        <KPI label="RL 2025 · Base"    value={fmt.eurC(data.base.rl)}     sub={fmt.pct(data.base.rl / data.base.vn) + " margem líquida"} />
+        <KPI label="Variáveis testadas" value="5"                          sub="±3 pp · 7 pontos cada" />
+      </div>
+
+      <Panel title="Tornado · impacto no EBITDA 2025" sub="variação ±3 pp na taxa de crescimento de cada variável (one-at-a-time) · M€">
+        <TornadoChart rows={tornadoRows} height={290} />
+        <table className="ftable ftable--dense" style={{ marginTop: 12 }}>
+          <thead>
+            <tr>
+              <th>Variável</th>
+              <th className="mono num">Pessimista (−3 pp)</th>
+              <th className="mono num">Otimista (+3 pp)</th>
+              <th className="mono num">Swing EBITDA</th>
+            </tr>
+          </thead>
+          <tbody>
+            {tornadoRows.map((r, i) => (
+              <tr key={i}>
+                <td>{r.variavel}</td>
+                <td className="mono num neg">{r.low.toFixed(3)} M€</td>
+                <td className="mono num pos">+{r.high.toFixed(3)} M€</td>
+                <td className="mono num" style={{ fontWeight: 600 }}>{r.impacto_total.toFixed(3)} M€</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Panel>
+
+      <Panel title={"Detalhe · " + selData.label} sub="impacto no VN e EBITDA 2025 ao variar a taxa de crescimento">
+        <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem", flexWrap: "wrap" }}>
+          {VARS_CONFIG.map(v => (
+            <button
+              key={v.key}
+              onClick={() => setSelVar(v.key)}
+              style={{
+                padding: "0.4rem 0.9rem",
+                borderRadius: 6,
+                border: selVar === v.key ? "none" : "1px solid var(--rule)",
+                background: selVar === v.key ? "var(--accent)" : "transparent",
+                color: selVar === v.key ? "var(--surface)" : "var(--ink)",
+                cursor: "pointer",
+                fontSize: "0.82rem",
+                fontWeight: selVar === v.key ? 600 : 400,
+              }}
+            >
+              {v.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="grid-2" style={{ marginBottom: "1rem" }}>
+          <div>
+            <div className="sub-label" style={{ marginBottom: 6 }}>EBITDA 2025</div>
+            <LineChart series={ebitdaSeries} height={200} padding={{ top: 16, right: 16, bottom: 28, left: 64 }} yFormat={fmt.eurC} />
+          </div>
+          <div>
+            <div className="sub-label" style={{ marginBottom: 6 }}>Volume de Negócios 2025</div>
+            <LineChart series={vnSeries} height={200} padding={{ top: 16, right: 16, bottom: 28, left: 64 }} yFormat={fmt.eurC} />
+          </div>
+        </div>
+
+        <table className="ftable ftable--dense">
+          <thead>
+            <tr>
+              <th>Δ Taxa 2025</th>
+              <th className="mono num">Taxa efetiva</th>
+              <th className="mono num">VN 2025</th>
+              <th className="mono num">EBITDA 2025</th>
+              <th className="mono num">Margem EBITDA</th>
+              <th className="mono num">RL 2025</th>
+            </tr>
+          </thead>
+          <tbody>
+            {selSteps.map((s, i) => (
+              <tr key={i} className={s.delta === 0 ? "is-highlight" : ""}>
+                <td className="mono">{deltaLabel(s.delta)}</td>
+                <td className="mono num">{fmt.pct(s.rate)}</td>
+                <td className="mono num">{fmt.eurC(s.vn)}</td>
+                <td className={"mono num " + (s.ebitda > data.base.ebitda ? "pos" : s.ebitda < data.base.ebitda ? "neg" : "")}>{fmt.eurC(s.ebitda)}</td>
+                <td className="mono num">{fmt.pct(s.margem_ebitda)}</td>
+                <td className={"mono num " + (s.rl > data.base.rl ? "pos" : s.rl < data.base.rl ? "neg" : "")}>{fmt.eurC(s.rl)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Panel>
+    </>
+  );
+}
+
+// ---- Análise de Cenários ----------------------------------------------------
+// Comparação side-by-side de Base, Upside, Downside, Stress.
+function CenariosView({ ctx }) {
+  const SC_LIST = ["Base", "Upside", "Downside", "Stress"];
+  const SC_COLORS = [
+    "var(--accent)",
+    "var(--pos)",
+    "var(--neg)",
+    "oklch(0.42 0.100 40)",
+  ];
+
+  const [data, setData]     = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    API.cenariosAll({ hub_on: ctx.hubOn, ecogres_on: ctx.ecogresOn })
+      .then(d => { if (!cancelled) { setData(d); setLoading(false); } })
+      .catch(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [ctx.hubOn, ctx.ecogresOn]);
+
+  if (loading || !data) {
+    return (
+      <div className="panel" style={{ padding: 40, textAlign: "center", color: "var(--muted)" }}>
+        A carregar cenários…
+      </div>
+    );
+  }
+
+  function getDR(sc, year)  { return (data[sc]?.dr  || []).find(r => r.year === year) || {}; }
+  function getKPI(sc, year) { return (data[sc]?.kpis || []).find(r => r.year === year) || {}; }
+
+  // Multi-line VN chart (2024–2029)
+  const vnSeries = SC_LIST.map((sc, i) => ({
+    key:    sc,
+    label:  sc,
+    labels: GRESTEL.YEARS.map(String),
+    values: GRESTEL.YEARS.map(y => getDR(sc, y).vn || 0),
+    color:  SC_COLORS[i],
+  }));
+
+  // EBITDA margin chart
+  const mgmSeries = SC_LIST.map((sc, i) => ({
+    key:    sc,
+    label:  sc,
+    labels: GRESTEL.YEARS.map(String),
+    values: GRESTEL.YEARS.map(y => getKPI(sc, y).margem_ebitda || 0),
+    color:  SC_COLORS[i],
+  }));
+
+  const scLegend = SC_LIST.map((sc, i) => ({ label: sc, color: SC_COLORS[i] }));
+
+  return (
+    <>
+      <div className="grid-4">
+        {SC_LIST.map((sc, i) => {
+          const r25   = getDR(sc, 2025);
+          const vn25  = r25.vn   || 0;
+          const eb25  = r25.ebitda || 0;
+          const cagr  = (() => {
+            const v1 = getDR(sc, 2025).vn || 0;
+            const v5 = getDR(sc, 2029).vn || 0;
+            return v1 > 0 ? Math.pow(v5 / v1, 0.25) - 1 : 0;
+          })();
+          return (
+            <KPI
+              key={sc}
+              label={sc + " · VN 2025"}
+              value={fmt.eurC(vn25)}
+              sub={"EBITDA " + fmt.eurC(eb25) + " · CAGR " + fmt.pctSigned(cagr)}
+              tone={i === 1 ? "pos" : i >= 2 ? "neg" : null}
+            />
+          );
+        })}
+      </div>
+
+      <Panel title="Volume de Negócios · 4 cenários" sub="€ · projeção 2024–2029">
+        <LineChart series={vnSeries} height={280} showDots={false} />
+        <div className="legend-h" style={{ marginTop: 8 }}>
+          {scLegend.map(l => (
+            <div key={l.label} className="legend-h-item">
+              <span className="swatch" style={{ background: l.color }} />
+              <span>{l.label}</span>
+            </div>
+          ))}
+        </div>
+      </Panel>
+
+      <div className="grid-2">
+        <Panel title="Margem EBITDA · 4 cenários" sub="% · 2024–2029">
+          <LineChart series={mgmSeries} height={240} showDots={false} yFormat={v => fmt.pct(v, 1)} />
+          <div className="legend-h" style={{ marginTop: 8 }}>
+            {scLegend.map(l => (
+              <div key={l.label} className="legend-h-item">
+                <span className="swatch" style={{ background: l.color }} />
+                <span>{l.label}</span>
+              </div>
+            ))}
+          </div>
+        </Panel>
+
+        <Panel title="Resultado Líquido · 4 cenários" sub="€ · 2024–2029">
+          <LineChart
+            series={SC_LIST.map((sc, i) => ({
+              key: sc, label: sc,
+              labels: GRESTEL.YEARS.map(String),
+              values: GRESTEL.YEARS.map(y => getDR(sc, y).rl || 0),
+              color: SC_COLORS[i],
+            }))}
+            height={240}
+            showDots={false}
+          />
+          <div className="legend-h" style={{ marginTop: 8 }}>
+            {scLegend.map(l => (
+              <div key={l.label} className="legend-h-item">
+                <span className="swatch" style={{ background: l.color }} />
+                <span>{l.label}</span>
+              </div>
+            ))}
+          </div>
+        </Panel>
+      </div>
+
+      <Panel title="Comparativo · VN, EBITDA e RL por cenário" sub="€ · 2025–2029">
+        <table className="ftable ftable--dense">
+          <thead>
+            <tr>
+              <th>Cenário</th>
+              <th>Métrica</th>
+              {GRESTEL.YEARS.slice(1).map(y => <th key={y} className="mono num">{y}</th>)}
+              <th className="mono num">CAGR 25–29</th>
+            </tr>
+          </thead>
+          <tbody>
+            {SC_LIST.map((sc, si) => {
+              const rows = data[sc]?.dr || [];
+              const desc = GRESTEL.SCENARIOS[sc]?.desc || "";
+              return (
+                <React.Fragment key={sc}>
+                  <tr className="is-section">
+                    <td colSpan={2 + GRESTEL.YEARS.slice(1).length + 1}>
+                      <span style={{ color: SC_COLORS[si], fontWeight: 700 }}>●</span>{" "}
+                      <strong>{sc}</strong>
+                      {desc && <span className="muted"> — {desc}</span>}
+                    </td>
+                  </tr>
+                  {["vn", "ebitda", "rl"].map(field => {
+                    const vals = GRESTEL.YEARS.slice(1).map(y => (rows.find(r => r.year === y) || {})[field] || 0);
+                    const cagr = vals.length >= 2 && vals[0] > 0 ? Math.pow(vals[vals.length - 1] / vals[0], 1 / (vals.length - 1)) - 1 : 0;
+                    const labels = { vn: "VN", ebitda: "EBITDA", rl: "RL" };
+                    return (
+                      <tr key={field} className={sc === ctx.scenario ? "is-highlight" : ""}>
+                        <td />
+                        <td style={{ paddingLeft: 16 }}>{labels[field]}</td>
+                        {vals.map((v, j) => <td key={j} className="mono num">{fmt.eurC(v)}</td>)}
+                        <td className="mono num">{fmt.pctSigned(cagr)}</td>
+                      </tr>
+                    );
+                  })}
+                </React.Fragment>
+              );
+            })}
+          </tbody>
+        </table>
+      </Panel>
+    </>
+  );
+}
+
 Object.assign(window, {
   DRView, BalancoView, DFCView, KPIView, FSEView, RollingView,
   HubView, HubViabilidadeView, HubMonteCarloView, HubOE4View, FundingCard,
   HubComparativoDR, HubComparativoKPIs, HubConsolidadoView,
   EcogresView, PressupostosView, VendasView, SmartView, SmartBadge, KV, YamlEditorView,
+  SensibilidadeView, CenariosView,
 });

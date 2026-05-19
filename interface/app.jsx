@@ -13,10 +13,12 @@ const NAV = [
   { id: "vendas",       label: "Análise de Vendas", group: "Análise" },
   { id: "kpis",         label: "KPIs & Rácios",     group: "Análise" },
   { id: "fse",          label: "FSE",     group: "Análise" },
-  { id: "rolling",      label: "Rolling Forecast 2025",  group: "Análise" },
-  { id: "smart",        label: "Objetivos SMART",   group: "Análise" },
-  { id: "hub",          label: "Hub Logístico",     group: "Projetos" },
-  { id: "ecogres",      label: "Ecogres",           group: "Análise" },
+  { id: "rolling",        label: "Rolling Forecast 2025",   group: "Análise" },
+  { id: "smart",          label: "Objetivos SMART",        group: "Análise" },
+  { id: "sensibilidade",  label: "Análise de Sensibilidade", group: "Análise" },
+  { id: "cenarios",       label: "Análise de Cenários",    group: "Análise" },
+  { id: "hub",            label: "Hub Logístico",          group: "Projetos" },
+  { id: "ecogres",        label: "Ecogres",                group: "Análise" },
   { id: "pressupostos", label: "Pressupostos",      group: "Configuração" },
   { id: "yaml_editor", label: "Editor YAML",       group: "Configuração" },
 ];
@@ -116,6 +118,8 @@ function App() {
                   {view === "fse" && <FSEView ctx={ctx} />}
                   {view === "rolling" && <RollingView ctx={ctx} />}
                   {view === "smart" && <SmartView ctx={ctx} />}
+                  {view === "sensibilidade" && <SensibilidadeView ctx={ctx} />}
+                  {view === "cenarios" && <CenariosView ctx={ctx} />}
                   {view === "hub" && <HubView ctx={ctx} />}
                   {view === "ecogres" && <EcogresView ctx={ctx} />}
                   {view === "pressupostos" && <PressupostosView ctx={ctx} />}
