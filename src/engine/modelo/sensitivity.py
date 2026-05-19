@@ -230,7 +230,7 @@ def _apply_hub_poupanca(a, b, s, delta):
     hub = a.raw.setdefault("hub_logistico", {})
     hub["incluir_hub"] = True
     ben = hub.setdefault("projeto_hub", {}).setdefault("beneficios_anuais", {})
-    base = float(ben.get("poupanca_operacional", 380000))
+    base = float(ben.get("poupanca_operacional", 480000))
     ben["poupanca_operacional"] = base * (1 + float(delta))
 
 

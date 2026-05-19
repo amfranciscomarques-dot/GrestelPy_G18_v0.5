@@ -569,7 +569,7 @@ function HubViabilidadeView({ ctx }) {
       {/* ── FCF ─────────────────────────────────────────────────────────── */}
       <Panel
         title="Fluxos de caixa livres · Hub Logístico 4.0 (M6)"
-        sub={"CAPEX " + fmt.eurC(p.capex_base || 3800000) + " · poupança operacional " + fmt.eurC(p.poupanca_operacional || 380000) + "/ano · WACC " + fmt.pct(wacc, 0)}
+        sub={"CAPEX " + fmt.eurC(p.capex_base || 6000000) + " · poupança operacional " + fmt.eurC(p.poupanca_operacional || 480000) + "/ano · WACC " + fmt.pct(wacc, 0)}
       >
         <LineChart series={fcfSeries} height={280} />
         <div className="legend" style={{ marginTop: 8 }}>
